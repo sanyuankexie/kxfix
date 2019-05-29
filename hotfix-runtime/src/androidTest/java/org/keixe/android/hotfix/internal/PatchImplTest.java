@@ -4,10 +4,10 @@ public class PatchImplTest extends Patch {
 
 
     @Override
-    protected Object apply(int methodId, Object target, Object[] pram) throws Throwable {
+    protected Object invokeWithId(int methodId, Object target, Object[] pram) throws Throwable {
         switch (methodId) {
             case 0: {
-                apply(1, null, null);
+                invokeWithId(1, null, null);
                 Class type = Class.forName("java.lang.Object");
                 Object o = Intrinsics.newInstance(type, null, null);
                 int a = (int) Intrinsics.access(Object.class, target, "a");

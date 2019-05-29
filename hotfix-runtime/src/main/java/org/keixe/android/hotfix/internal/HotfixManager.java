@@ -6,10 +6,6 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 import androidx.annotation.RestrictTo;
 
 @Aspect
@@ -17,9 +13,6 @@ import androidx.annotation.RestrictTo;
 public final class HotfixManager {
 
     private static final String TAG = "HotfixManager";
-    private final ReentrantReadWriteLock mExFieldsModifyLock = new ReentrantReadWriteLock();
-    private final WeakHashMap<Object, ConcurrentHashMap<String, Object>> mExFields = new WeakHashMap<>();
-
     /**
      * 核心AspectJ表达式
      * <p>
