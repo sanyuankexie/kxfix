@@ -1,8 +1,13 @@
 package org.keixe.android.hotfix.internal;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
+/**
+ * 指令内部代码类
+ */
 final class Intrinsics {
 
     static {
@@ -13,10 +18,11 @@ final class Intrinsics {
         throw new AssertionError();
     }
 
-    static Object newInstance(Class type,
+    static Object newInstance(Class<?> type,
                               Class[] pramTypes,
-                              Object[] prams)throws Throwable {
-        return type.getConstructor(pramTypes).newInstance(prams);
+                              Object[] prams) throws Throwable {
+
+        return constructorBy(type, pramTypes).newInstance(prams);
     }
 
     static void modify(Class type,
@@ -39,8 +45,23 @@ final class Intrinsics {
                          Object target,
                          Object[] prams) throws Throwable {
         Method method = methodBy(type, name, pramTypes);
-        return !nonVirtual ? method.invoke(target, prams)
+        return !nonVirtual && !Modifier.isStatic(method.getModifiers())
+                ? method.invoke(target, prams)
                 : invokeNonVirtual(type, method, target, prams);
+    }
+
+    private static Constructor<?> constructorBy(
+            Class<?> type,
+            Class[] pramTypes
+    ) throws Throwable {
+        Constructor<?> constructor;
+        try {
+            constructor = type.getConstructor(pramTypes);
+        } catch (NoSuchMethodException e) {
+            constructor = type.getDeclaredConstructor(pramTypes);
+            constructor.setAccessible(true);
+        }
+        return constructor;
     }
 
     private static Field fieldBy(
@@ -57,11 +78,11 @@ final class Intrinsics {
         return field;
     }
 
-    @SuppressWarnings("All")
     private static Method methodBy(
-            Class type,
+            Class<?> type,
             String name,
-            Class[] pramTypes) throws Throwable {
+            Class[] pramTypes
+    ) throws Throwable {
         Method method;
         try {
             method = type.getMethod(name, pramTypes);
@@ -80,6 +101,6 @@ final class Intrinsics {
             Class type,
             Method target,
             Object object,
-            Object[] pram
+            Object[] prams
     ) throws Throwable;
 }

@@ -7,8 +7,10 @@ import org.keixe.android.hotfix.Hotfix;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-
+@Hotfix
 public class MainActivity extends AppCompatActivity {
+
+    int xl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -19,11 +21,12 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         xxx();
+                        xl++;
                     }
                 });
     }
 
-    @Hotfix
+
     public void xxx() {
 
     }

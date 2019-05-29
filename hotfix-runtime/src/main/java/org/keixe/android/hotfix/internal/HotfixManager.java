@@ -5,7 +5,10 @@ import android.util.Log;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
+
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import androidx.annotation.RestrictTo;
 
@@ -14,13 +17,27 @@ import androidx.annotation.RestrictTo;
 public final class HotfixManager {
 
     private static final String TAG = "HotfixManager";
+    private final ReentrantReadWriteLock mExFieldsModifyLock = new ReentrantReadWriteLock();
+    private final WeakHashMap<Object, ConcurrentHashMap<String, Object>> mExFields = new WeakHashMap<>();
 
-    @Around("execution(@org.keixe.android.hotfix.Hotfix * *(..))")
-    public Object doHotfix(ProceedingJoinPoint joinPoint) throws Throwable {
-        MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
-        Log.d(TAG, "dispatch: " + methodSignature.getMethod() +
-                " " + System.identityHashCode(joinPoint) +
-                " " + System.identityHashCode(this));
+    /**
+     * 核心AspectJ表达式
+     * <p>
+     * execution(* (@org.keixe.android.hotfix.Hotfix *).*(..))
+     * ||execution((@org.keixe.android.hotfix.Hotfix *).new(..))
+     * ||staticinitialization((@org.keixe.android.hotfix.Hotfix *))
+     * <p>
+     * 匹配使用了{@link org.keixe.android.hotfix.Hotfix}注解的类型
+     * 不能使用within拦截所有调用,这样插入的代码太多了
+     * 所以只拦截方法调用,构造函数,静态初始化块这三个部分
+     * 因为新增的方法只能以原本已经存在的方法作为入口点
+     * 所以可以直接记录id即可
+     */
+    @Around("execution(* (@org.keixe.android.hotfix.Hotfix *).*(..))" +
+            "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
+            "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
+    public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
+        Log.d(TAG, "dispatchInvoke: " + joinPoint.getSignature().toLongString());
         return joinPoint.proceed();
     }
 }

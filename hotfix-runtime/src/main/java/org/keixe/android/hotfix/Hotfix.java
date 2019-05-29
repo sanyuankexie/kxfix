@@ -7,8 +7,11 @@ import java.lang.annotation.Target;
 
 import androidx.annotation.Keep;
 
+/**
+ * 被上此标记的类才具有热更新能力
+ */
 @Keep
-@Target({ElementType.METHOD,ElementType.FIELD})
+@Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Hotfix {
 }

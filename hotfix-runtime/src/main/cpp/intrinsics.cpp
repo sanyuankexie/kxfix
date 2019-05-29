@@ -12,12 +12,12 @@ Java_org_keixe_android_hotfix_internal_Intrinsics_invokeNonVirtual(
         jclass type,
         jobject target,
         jobject object,
-        jobjectArray pram) {
+        jobjectArray prams) {
     auto methodId = env->FromReflectedMethod(target);
-    auto length = env->GetArrayLength(pram);
+    auto length = env->GetArrayLength(prams);
     auto *values = new jvalue[length];
     for (int i = 0; i < length; ++i) {
-        values[i].l = env->GetObjectArrayElement(pram, i);
+        values[i].l = env->GetObjectArrayElement(prams, i);
     }
     jobject result = env->CallNonvirtualObjectMethodA(object, type, methodId, values);
     delete values;
