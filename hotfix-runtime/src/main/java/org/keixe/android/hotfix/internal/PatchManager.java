@@ -32,12 +32,22 @@ final class PatchManager {
             AtomicReferenceFieldUpdater.newUpdater(PatchManager.class, Patch.class, "mPatch");
     private volatile Patch mPatch;
 
-    Object receiveInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
+    Object receiveGet(ProceedingJoinPoint joinPoint) throws Throwable {
+        Patch patch = mPatch;
+        return patch == null ? joinPoint.proceed() : patch.applyGet(joinPoint);
+    }
+
+    void receiveSet(ProceedingJoinPoint joinPoint) throws Throwable {
         Patch patch = mPatch;
         if (patch == null) {
-            return joinPoint.proceed();
+            joinPoint.proceed();
         } else {
-            return patch.applyInvoke(joinPoint);
+            patch.applySet(joinPoint);
         }
+    }
+
+    Object receiveInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
+        Patch patch = mPatch;
+        return patch == null ? joinPoint.proceed() : patch.applyInvoke(joinPoint);
     }
 }
