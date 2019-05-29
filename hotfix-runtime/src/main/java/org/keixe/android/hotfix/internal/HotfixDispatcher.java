@@ -1,7 +1,5 @@
 package org.keixe.android.hotfix.internal;
 
-import android.util.Log;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -10,9 +8,10 @@ import androidx.annotation.RestrictTo;
 
 @Aspect
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public final class HotfixManager {
+public final class HotfixDispatcher {
 
-    private static final String TAG = "HotfixManager";
+    private static final String TAG = "HotfixDispatcher";
+
     /**
      * 核心AspectJ表达式
      * <p>
@@ -30,7 +29,6 @@ public final class HotfixManager {
             "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
             "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
-        Log.d(TAG, "dispatchInvoke: " + joinPoint.getSignature().toLongString());
-        return joinPoint.proceed();
+        return new PatchManager().receiveInvoke(joinPoint);
     }
 }

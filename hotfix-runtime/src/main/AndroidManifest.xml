@@ -1,10 +1,3 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.keixe.android.hotfix">
-    <application>
-        <provider
-            android:authorities="${applicationId}.hotfix-initializer"
-            android:exported="false"
-            android:multiprocess="true"
-            android:name="org.keixe.android.hotfix.internal.PatchInitializer"/>
-    </application>
 </manifest>

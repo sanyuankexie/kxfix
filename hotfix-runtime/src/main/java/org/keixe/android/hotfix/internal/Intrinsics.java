@@ -68,12 +68,18 @@ final class Intrinsics {
             Class type,
             String name
     ) throws Throwable {
-        Field field;
-        try {
-            field = type.getDeclaredField(name);
-        } catch (NoSuchFieldException e) {
-            field = type.getField(name);
-            field.setAccessible(true);
+        Field field = null;
+        while (type != null) {
+            try {
+                field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                break;
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            }
+        }
+        if (field == null) {
+            throw new NoSuchFieldException();
         }
         return field;
     }
@@ -83,19 +89,27 @@ final class Intrinsics {
             String name,
             Class[] pramTypes
     ) throws Throwable {
-        Method method;
-        try {
-            method = type.getMethod(name, pramTypes);
-        } catch (NoSuchMethodException e) {
-            method = type.getDeclaredMethod(name, pramTypes);
-            method.setAccessible(true);
+        Method method = null;
+        while (type != null) {
+            try {
+                method = type.getDeclaredMethod(name, pramTypes);
+                method.setAccessible(true);
+                break;
+            } catch (NoSuchMethodException e) {
+                type = type.getSuperclass();
+            }
+        }
+        if (method == null) {
+            throw new NoSuchMethodException();
         }
         return method;
     }
 
-    //JNI->CallNonvirtualVoidMethod
-    //主要是为了实现invoke-super指令
-    //会抛出异常,在native捕获之后抛出到java层
+    /**
+     * JNI->CallNonvirtualVoidMethod
+     * 主要是为了实现invoke-super指令
+     * 会抛出异常,在native捕获之后抛出到java层
+     */
     private static native Object
     invokeNonVirtual(
             Class type,

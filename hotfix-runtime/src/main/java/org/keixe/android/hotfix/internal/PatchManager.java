@@ -1,9 +1,11 @@
 package org.keixe.android.hotfix.internal;
 
-import android.app.Application;
 import android.content.Context;
 
+import org.aspectj.lang.ProceedingJoinPoint;
+
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 final class PatchManager {
     private static final AtomicBoolean sInit = new AtomicBoolean(false);
@@ -11,8 +13,7 @@ final class PatchManager {
 
     static void init(Context context) {
         if (sInit.compareAndSet(false, true)) {
-            Application application = (Application) context.getApplicationContext();
-            sInstance = new PatchManager(application);
+
         }
     }
 
@@ -20,13 +21,23 @@ final class PatchManager {
         return sInstance;
     }
 
-    private PatchManager(Application application) {
-        this.mApplication = application;
+    PatchManager() {
     }
 
-    private final Application mApplication;
-    private Patch mPatch;
 
+    /**
+     * 保证原子性
+     */
+    private static final AtomicReferenceFieldUpdater<PatchManager, Patch> sPatchUpdater =
+            AtomicReferenceFieldUpdater.newUpdater(PatchManager.class, Patch.class, "mPatch");
+    private volatile Patch mPatch;
 
-
+    Object receiveInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
+        Patch patch = mPatch;
+        if (patch == null) {
+            return joinPoint.proceed();
+        } else {
+            return patch.applyInvoke(joinPoint);
+        }
+    }
 }
