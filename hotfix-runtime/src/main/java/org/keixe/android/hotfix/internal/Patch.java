@@ -52,14 +52,14 @@ abstract class Patch {
     }
 
     void addSignature(Class type,String name,Class[] pramTypes) {
-        mFixedSignature.add(SignatureUtil.makeMethodSignature(type, name, pramTypes));
+        mFixedSignature.add(SignatureMaker.makeMethodSignature(type, name, pramTypes));
     }
     
     //------------------------热补丁的元数据---------------------------------
     
     private final PatchExecution mPatchExecution;
 
-    private ReentrantReadWriteLock mCacheLock = new ReentrantReadWriteLock();
+    private ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
 
     /**
      * 被修复的字段随{@link Patch}生命周期存在
@@ -70,7 +70,7 @@ abstract class Patch {
      * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
      * 所以使用读写锁来做并发优化
      */
-    WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
+    private WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
 
     /**
      * 被修复的可执行代码段的集合
@@ -116,40 +116,44 @@ abstract class Patch {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = SignatureUtil.makeMethodSignature(type, name, pramsTypes);
-        if (mFixedSignature.contains(signature)) {
-            return invokeDynamicMethod(signature, target, prams);
-        } else {
-            return Reflection.JVM.invoke(type, name, pramsTypes, target, prams);
-        }
+        String signature = SignatureMaker.makeMethodSignature(type, name, pramsTypes);
+        return mFixedSignature.contains(signature)
+                ? invokeDynamicMethod(signature, target, prams)
+                : (mPatchExecution.isExecuteThat(this)
+                ? Reflection.JVM.invoke(type, name, pramsTypes, target, prams)
+                : mPatchExecution.invoke(type, name, pramsTypes, target, prams));
     }
 
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        if (mFixedSignature.contains(SignatureUtil.makeFieldSignature(type, name))) {
-            return myTable(type, o).get(name);
-        } else {
-            return Reflection.JVM.access(type, name, o);
-        }
+        return mFixedSignature.contains(SignatureMaker.makeFieldSignature(type, name))
+                ? myTable(type, o).get(name)
+                : (mPatchExecution.isExecuteThat(this)
+                ? Reflection.JVM.access(type, name, o)
+                : mPatchExecution.access(type, name, o));
     }
 
     final void receiveModify(Class type,
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(SignatureUtil.makeFieldSignature(type, name))) {
+        if (mFixedSignature.contains(SignatureMaker.makeFieldSignature(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
-            Reflection.JVM.modify(type, name, o, newValue);
+            if (mPatchExecution.isExecuteThat(this)) {
+                Reflection.JVM.modify(type, name, o, newValue);
+            } else {
+                mPatchExecution.modify(type, name, o, newValue);
+            }
         }
     }
 
     /**
      * 所有的方法都放置在此方法的实现内
      * 并使用id索引,内部使用switch走不同方法
-     * 字段访问和方法调用使用{@link SignatureUtil}所定义的指令执行
-     * 新增的方法和字段可直接用id索引,不需要走{@link SignatureUtil}
+     * 字段访问和方法调用使用{@link Intrinsics}所定义的指令执行
+     * @param signature 直接索引,不需要走{@link Intrinsics}
      */
     abstract Object invokeDynamicMethod(
             String signature,
@@ -157,13 +161,15 @@ abstract class Patch {
             Object[] prams)
             throws Throwable;
 
+
+
     //------------------------------私有函数------------------------------------
 
     private Map<String,Object> myTable(Class type, Object o) {
         if (o == null) {
             o = type;
         }
-        ReentrantReadWriteLock lock = mCacheLock;
+        ReentrantReadWriteLock lock = mLock;
         WeakHashMap<Object, ConcurrentHashMap<String, Object>> table = mWeakRefFieldCache;
         lock.readLock().lock();
         ConcurrentHashMap<String, Object> cache = table.get(o);

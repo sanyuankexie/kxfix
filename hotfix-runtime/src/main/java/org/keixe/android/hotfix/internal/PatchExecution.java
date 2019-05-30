@@ -16,6 +16,14 @@ final class PatchExecution extends Reflection {
 
     private volatile Patch mPatch;
 
+    final boolean isExecuteThat(Patch patch) {
+        return patch.equals(mPatch);
+    }
+
+    final void updatePatch(Patch patch) {
+        sPatchUpdater.set(this, patch);
+    }
+
     final Object apply(ProceedingJoinPoint joinPoint) throws Throwable {
         Patch patch = mPatch;
         if (patch != null && patch.isJoinPointEntry(joinPoint)) {

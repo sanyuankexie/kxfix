@@ -16,8 +16,8 @@ public class Reflection implements Intrinsics {
     @Override
     public final Object newInstance(Class<?> type,
                                     Class[] pramTypes,
-                                    Object[] prams) throws Throwable {
-
+                                    Object[] prams)
+            throws Throwable {
         return constructorBy(type, pramTypes).newInstance(prams);
     }
 
@@ -25,7 +25,8 @@ public class Reflection implements Intrinsics {
     public void modify(Class type,
                              String name,
                              Object target,
-                             Object newValue) throws Throwable {
+                             Object newValue)
+            throws Throwable {
         fieldBy(type, name).set(target, newValue);
     }
 

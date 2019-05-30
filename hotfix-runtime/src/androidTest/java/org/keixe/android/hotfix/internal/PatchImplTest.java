@@ -9,13 +9,17 @@ public class PatchImplTest extends Patch {
 
     @Override
     Object invokeDynamicMethod(String signature, Object target, Object[] prams) throws Throwable {
+        //必定生成
         Intrinsics intrinsics = getIntrinsics();
         switch (signature) {
             case "String java.lang.Object.toString()": {
-                return "123";
+                int a = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
+                int b = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
+                int c = a + b;
+                return Integer.toString(c);
             }
             default: {
-                //必定插入
+                //必定生成
                 throw new NoSuchMethodException();
             }
         }
