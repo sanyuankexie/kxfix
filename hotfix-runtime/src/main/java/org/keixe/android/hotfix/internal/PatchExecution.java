@@ -6,7 +6,7 @@ import org.aspectj.lang.reflect.CodeSignature;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
- * 补丁的执行器
+ * 补丁可执行格式
  */
 final class PatchExecution extends Reflection {
 
@@ -26,7 +26,7 @@ final class PatchExecution extends Reflection {
 
     final Object apply(ProceedingJoinPoint joinPoint) throws Throwable {
         Patch patch = mPatch;
-        if (patch != null && patch.isJoinPointEntry(joinPoint)) {
+        if (patch != null && patch.isEntryPoint(joinPoint)) {
             CodeSignature signature = (CodeSignature) joinPoint.getSignature();
             return patch.receiveInvoke(
                     signature.getDeclaringType(),

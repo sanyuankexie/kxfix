@@ -7,6 +7,8 @@ import org.aspectj.lang.reflect.InitializerSignature;
 import org.aspectj.lang.reflect.MethodSignature;
 
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -46,13 +48,44 @@ import androidx.annotation.Keep;
 abstract class Patch {
 
     //----------------------------------注册元数据-----------------------------
-    
-    void addEntry(AnnotatedElement element) {
-        mFixedEntry.add(element);
+
+    void addClassInitializerEntry(String typeName) {
+        try {
+            Class type = Class.forName(typeName);
+            mFixedEntry.add(type);
+        } catch (Exception ignored) {
+
+        }
     }
 
-    void addSignature(Class type,String name,Class[] pramTypes) {
-        mFixedSignature.add(SignatureMaker.makeMethodSignature(type, name, pramTypes));
+    void addConstructorEntry(String typeName,String[] pramTypeNames) {
+        try {
+            Class type = Class.forName(typeName);
+            Class[] pramTypes = InternalUtil.toClassArray(pramTypeNames);
+            Constructor<?> constructor = Reflection.constructorBy(type, pramTypes);
+            mFixedEntry.add(constructor);
+        } catch (Exception ignored) {
+
+        }
+    }
+
+    void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
+        try {
+            Class type = Class.forName(typeName);
+            Class[] pramTypes = InternalUtil.toClassArray(pramTypeNames);
+            Method method = Reflection.methodBy(type, name, pramTypes);
+            mFixedEntry.add(method);
+        } catch (Exception ignored) {
+
+        }
+    }
+
+    void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
+        mFixedSignature.add(InternalUtil.makeMethodSignature(typeName, name, pramTypeNames));
+    }
+
+    void addFieldSignature(String typeName,String name) {
+        mFixedSignature.add(InternalUtil.makeFieldSignature(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
@@ -98,7 +131,7 @@ abstract class Patch {
         return mPatchExecution;
     }
 
-    boolean isJoinPointEntry(JoinPoint joinPoint) {
+    boolean isEntryPoint(JoinPoint joinPoint) {
         AnnotatedElement marker = null;
         Signature signature = joinPoint.getSignature();
         if (signature instanceof ConstructorSignature) {
@@ -116,7 +149,7 @@ abstract class Patch {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = SignatureMaker.makeMethodSignature(type, name, pramsTypes);
+        String signature = InternalUtil.makeMethodSignature(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mPatchExecution.isExecuteThat(this)
@@ -127,7 +160,7 @@ abstract class Patch {
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(SignatureMaker.makeFieldSignature(type, name))
+        return mFixedSignature.contains(InternalUtil.makeFieldSignature(type, name))
                 ? myTable(type, o).get(name)
                 : (mPatchExecution.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -138,7 +171,7 @@ abstract class Patch {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(SignatureMaker.makeFieldSignature(type, name))) {
+        if (mFixedSignature.contains(InternalUtil.makeFieldSignature(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mPatchExecution.isExecuteThat(this)) {

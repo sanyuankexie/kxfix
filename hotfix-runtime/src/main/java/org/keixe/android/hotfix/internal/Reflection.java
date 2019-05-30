@@ -74,10 +74,10 @@ public class Reflection implements Intrinsics {
             Object[] prams
     ) throws Throwable;
 
-    private static Constructor<?> constructorBy(
+    static Constructor<?> constructorBy(
             Class<?> type,
             Class[] pramTypes
-    ) throws Throwable {
+    ) throws NoSuchMethodException {
         Constructor<?> constructor;
         try {
             constructor = type.getConstructor(pramTypes);
@@ -88,10 +88,10 @@ public class Reflection implements Intrinsics {
         return constructor;
     }
 
-    private static Field fieldBy(
+    static Field fieldBy(
             Class type,
             String name
-    ) throws Throwable {
+    ) throws NoSuchFieldException {
         Field field = null;
         while (type != null) {
             try {
@@ -108,11 +108,11 @@ public class Reflection implements Intrinsics {
         return field;
     }
 
-    private static Method methodBy(
+    static Method methodBy(
             Class<?> type,
             String name,
             Class[] pramTypes
-    ) throws Throwable {
+    ) throws NoSuchMethodException {
         Method method = null;
         while (type != null) {
             try {
