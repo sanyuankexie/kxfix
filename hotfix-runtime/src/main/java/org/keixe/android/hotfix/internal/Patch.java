@@ -1,6 +1,6 @@
 package org.keixe.android.hotfix.internal;
 
-import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.Signature;
 import org.aspectj.lang.reflect.ConstructorSignature;
 import org.aspectj.lang.reflect.InitializerSignature;
@@ -8,6 +8,7 @@ import org.aspectj.lang.reflect.MethodSignature;
 
 import java.lang.reflect.AnnotatedElement;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,51 +40,26 @@ import androidx.annotation.Keep;
  * 4.由于初始化逻辑不一定得到执行,所以新字段可能会造成空指针异常
  * 5.添加的字段随补丁上线下线,若补丁下线,则字段会变成重新变成空
  *
- * 添加字段的最佳实践:
- * 1.最正确的做法应该是让其懒加载
- * 2.Java
- * {@code
- *
- *     @Patched
- *     Test test = null;
- *
- *     @Patched
- *     Test getTest()
- *     {
- *          if(test == null)
- *          {
- *              test = new Test();
- *          }
- *          return test;
- *     }
- *
- *
- *}
- * 3.Kotlin
- * {@code
- *
- *      @Patched
- *      var test = lazy{
- *          Test()
- *      }
- *
- * }
- *
  */
 
 @Keep
-public abstract class Patch {
+abstract class Patch {
 
-    //----------------------------------注册元数据-----------------------------------
+    //----------------------------------注册元数据-----------------------------
+    
+    void addEntry(AnnotatedElement element) {
+        mFixedEntry.add(element);
+    }
 
-
+    void addSignature(Class type,String name,Class[] pramTypes) {
+        mFixedSignature.add(SignatureUtil.makeMethodSignature(type, name, pramTypes));
+    }
+    
     //------------------------热补丁的元数据---------------------------------
+    
+    private final PatchExecution mPatchExecution;
 
-    /**
-     * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
-     * 所以使用读写锁来做并发优化
-     */
-    private final ReentrantReadWriteLock mFieldCacheLock = new ReentrantReadWriteLock();
+    private ReentrantReadWriteLock mCacheLock = new ReentrantReadWriteLock();
 
     /**
      * 被修复的字段随{@link Patch}生命周期存在
@@ -91,8 +67,10 @@ public abstract class Patch {
      * 防止在JDK<1.8时多线程的情况下{@link HashMap}出现死循环的问题
      * 但是这样也并没有保证可见性和原子性,符合Java的默认行为
      * 字段采用宽松类型约束,不保存类型信息,编译时做检查,运行时不做检查
+     * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
+     * 所以使用读写锁来做并发优化
      */
-    private final WeakHashMap<Object, ConcurrentHashMap<Integer, Object>> mFieldCache = new WeakHashMap<>();
+    WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
 
     /**
      * 被修复的可执行代码段的集合
@@ -103,56 +81,26 @@ public abstract class Patch {
      * <p>
      * 每个被修复方法,新增的方法,新增的字段都对应一个补丁内的一个id
      *
-     * @see Patch#mFixedEntryIds 这个集合对id不是一个满射
+     * @see Patch#mFixedEntry 
      * 新增的方法和字段不在此集合中保存,这个只包含了入口
      */
-    private final HashMap<AnnotatedElement, Integer> mFixedEntryIds = new HashMap<>();
+    private final HashSet<AnnotatedElement> mFixedEntry = new HashSet<>();
 
-    //------------------------外部入口-----------------------------------------
+    private final HashSet<String> mFixedSignature = new HashSet<>();
 
-    final Object apply(ProceedingJoinPoint joinPoint) throws Throwable {
-        Integer id = mappingToId(joinPoint.getSignature());
-        return id != null ? invokeWithId(id, joinPoint.getTarget(), joinPoint.getArgs()) : joinPoint.proceed();
+    Patch(PatchExecution mPatchExecution) {
+        this.mPatchExecution = mPatchExecution;
+    }
+    
+    //----------------------热补丁暴露的操作----------------------------
+
+    Intrinsics getIntrinsics() {
+        return mPatchExecution;
     }
 
-    //----------------------在可执行体内部可出现的函数----------------------------
-
-    /**
-     * 所有的方法都放置在此方法的实现内
-     * 并使用id索引,内部使用switch走不同方法
-     * 字段访问和方法调用使用{@link Intrinsics}所定义的指令执行
-     * 新增的方法和字段可直接用id索引,不需要走{@link Intrinsics}
-     */
-    protected abstract Object invokeWithId(int methodId, Object target, Object[] prams) throws Throwable;
-
-    protected final Object accessWithId(int fieldId, Object o) {
-        return lockFieldCache(o).get(fieldId);
-    }
-
-    protected final void modifyWithId(int fieldId, Object o, Object newValue) {
-        lockFieldCache(o).put(fieldId, newValue);
-    }
-
-    //------------------------------私有函数------------------------------------
-
-    private Map<Integer, Object> lockFieldCache(Object o) {
-        mFieldCacheLock.readLock().lock();
-        ConcurrentHashMap<Integer, Object> cache = mFieldCache.get(o);
-        if (cache == null) {
-            mFieldCacheLock.writeLock().lock();
-            cache = mFieldCache.get(o);
-            if (cache == null) {
-                cache = new ConcurrentHashMap<>();
-                mFieldCache.put(o, cache);
-            }
-            mFieldCacheLock.writeLock().unlock();
-        }
-        mFieldCacheLock.readLock().unlock();
-        return cache;
-    }
-
-    private Integer mappingToId(Signature signature) {
+    boolean isJoinPointEntry(JoinPoint joinPoint) {
         AnnotatedElement marker = null;
+        Signature signature = joinPoint.getSignature();
         if (signature instanceof ConstructorSignature) {
             marker = ((ConstructorSignature) signature).getConstructor();
         } else if (signature instanceof MethodSignature) {
@@ -160,6 +108,75 @@ public abstract class Patch {
         } else if (signature instanceof InitializerSignature) {
             marker = signature.getDeclaringType();
         }
-        return marker == null ? null : mFixedEntryIds.get(marker);
+        return marker != null && mFixedEntry.contains(marker);
+    }
+
+    final Object receiveInvoke(Class type,
+                               String name,
+                               Class[] pramsTypes,
+                               Object target,
+                               Object[] prams) throws Throwable {
+        String signature = SignatureUtil.makeMethodSignature(type, name, pramsTypes);
+        if (mFixedSignature.contains(signature)) {
+            return invokeDynamicMethod(signature, target, prams);
+        } else {
+            return Reflection.JVM.invoke(type, name, pramsTypes, target, prams);
+        }
+    }
+
+    final Object receiveAccess(Class type,
+                               String name,
+                               Object o)throws Throwable {
+        if (mFixedSignature.contains(SignatureUtil.makeFieldSignature(type, name))) {
+            return myTable(type, o).get(name);
+        } else {
+            return Reflection.JVM.access(type, name, o);
+        }
+    }
+
+    final void receiveModify(Class type,
+                             String name,
+                             Object o,
+                             Object newValue) throws Throwable {
+        if (mFixedSignature.contains(SignatureUtil.makeFieldSignature(type, name))) {
+            myTable(type, o).put(name, newValue);
+        } else {
+            Reflection.JVM.modify(type, name, o, newValue);
+        }
+    }
+
+    /**
+     * 所有的方法都放置在此方法的实现内
+     * 并使用id索引,内部使用switch走不同方法
+     * 字段访问和方法调用使用{@link SignatureUtil}所定义的指令执行
+     * 新增的方法和字段可直接用id索引,不需要走{@link SignatureUtil}
+     */
+    abstract Object invokeDynamicMethod(
+            String signature,
+            Object target,
+            Object[] prams)
+            throws Throwable;
+
+    //------------------------------私有函数------------------------------------
+
+    private Map<String,Object> myTable(Class type, Object o) {
+        if (o == null) {
+            o = type;
+        }
+        ReentrantReadWriteLock lock = mCacheLock;
+        WeakHashMap<Object, ConcurrentHashMap<String, Object>> table = mWeakRefFieldCache;
+        lock.readLock().lock();
+        ConcurrentHashMap<String, Object> cache = table.get(o);
+        if (cache == null) {
+            lock.writeLock().lock();
+            cache = table.get(o);
+            if (cache == null) {
+                cache = new ConcurrentHashMap<>();
+                table.put(o, cache);
+            }
+            lock.writeLock().unlock();
+        }
+        lock.readLock().unlock();
+        return cache;
     }
 }

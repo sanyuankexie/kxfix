@@ -3,27 +3,21 @@ package org.keixe.android.hotfix.internal;
 public class PatchImplTest extends Patch {
 
 
+    public PatchImplTest(PatchExecution mPatchExecution) {
+        super(mPatchExecution);
+    }
+
     @Override
-    protected Object invokeWithId(int methodId, Object target, Object[] pram) throws Throwable {
-        switch (methodId) {
-            case 0: {
-                invokeWithId(1, null, null);
-                Class type = Class.forName("java.lang.Object[]");
-                Object o = Intrinsics.newInstance(type, null, null);
-                int a = (int) Intrinsics.access(Object.class, target, "a");
-                int b = (int) Intrinsics.access(Object[].class, o, "b");
-                int c = a + b;
-                Intrinsics.modify(Object.class, "result", target, c);
-                return Intrinsics.invoke(Object.class, "add", new Class[]{
-                        Integer.TYPE, Integer.TYPE
-                }, true, target, new Object[]{a, b});
+    Object invokeDynamicMethod(String signature, Object target, Object[] prams) throws Throwable {
+        Intrinsics intrinsics = getIntrinsics();
+        switch (signature) {
+            case "String java.lang.Object.toString()": {
+                return "123";
             }
-            case 1: {
-                accessWithId(0, null);
-                modifyWithId(1, null, 1);
-                return new Object();
+            default: {
+                //必定插入
+                throw new NoSuchMethodException();
             }
         }
-        return null;
     }
 }
