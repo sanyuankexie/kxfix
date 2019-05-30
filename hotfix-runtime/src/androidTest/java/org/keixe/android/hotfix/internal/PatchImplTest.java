@@ -3,6 +3,10 @@ package org.keixe.android.hotfix.internal;
 public class PatchImplTest extends Patch {
 
 
+    public PatchImplTest() {
+        super(mFixedObjectManager);
+    }
+
     @Override
     protected Object invokeWithId(int methodId, Object target, Object[] pram) throws Throwable {
         switch (methodId) {

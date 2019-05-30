@@ -29,6 +29,6 @@ public final class HotfixDispatcher {
             "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
             "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
-        return new PatchManager().receiveInvoke(joinPoint);
+        return joinPoint.proceed();
     }
 }
