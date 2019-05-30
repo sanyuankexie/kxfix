@@ -2,13 +2,20 @@ package org.keixe.android.hotfix.internal;
 
 import android.util.LruCache;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * @author Luke
  */
-final class InternalUtil {
+final class ReflectUtil {
+
+    private ReflectUtil() {
+        throw new AssertionError();
+    }
 
     private static final LruCache<List<Object>, String> sCache = new LruCache<>(16);
 
@@ -82,5 +89,60 @@ final class InternalUtil {
             pramTypes[i] = Class.forName(pramTypeNames[i]);
         }
         return pramTypes;
+    }
+
+    static Constructor<?> constructorBy(
+            Class<?> type,
+            Class[] pramTypes
+    ) throws NoSuchMethodException {
+        Constructor<?> constructor;
+        try {
+            constructor = type.getConstructor(pramTypes);
+        } catch (NoSuchMethodException e) {
+            constructor = type.getDeclaredConstructor(pramTypes);
+            constructor.setAccessible(true);
+        }
+        return constructor;
+    }
+
+    static Field fieldBy(
+            Class type,
+            String name
+    ) throws NoSuchFieldException {
+        Field field = null;
+        while (type != null) {
+            try {
+                field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                break;
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            }
+        }
+        if (field == null) {
+            throw new NoSuchFieldException();
+        }
+        return field;
+    }
+
+    static Method methodBy(
+            Class<?> type,
+            String name,
+            Class[] pramTypes
+    ) throws NoSuchMethodException {
+        Method method = null;
+        while (type != null) {
+            try {
+                method = type.getDeclaredMethod(name, pramTypes);
+                method.setAccessible(true);
+                break;
+            } catch (NoSuchMethodException e) {
+                type = type.getSuperclass();
+            }
+        }
+        if (method == null) {
+            throw new NoSuchMethodException();
+        }
+        return method;
     }
 }

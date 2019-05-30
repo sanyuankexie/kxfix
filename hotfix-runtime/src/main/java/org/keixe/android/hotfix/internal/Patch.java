@@ -61,8 +61,8 @@ abstract class Patch {
     void addConstructorEntry(String typeName,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
-            Class[] pramTypes = InternalUtil.toClassArray(pramTypeNames);
-            Constructor<?> constructor = Reflection.constructorBy(type, pramTypes);
+            Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
+            Constructor<?> constructor = ReflectUtil.constructorBy(type, pramTypes);
             mFixedEntry.add(constructor);
         } catch (Exception ignored) {
 
@@ -72,8 +72,8 @@ abstract class Patch {
     void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
-            Class[] pramTypes = InternalUtil.toClassArray(pramTypeNames);
-            Method method = Reflection.methodBy(type, name, pramTypes);
+            Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
+            Method method = ReflectUtil.methodBy(type, name, pramTypes);
             mFixedEntry.add(method);
         } catch (Exception ignored) {
 
@@ -81,11 +81,11 @@ abstract class Patch {
     }
 
     void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(InternalUtil.makeMethodSignature(typeName, name, pramTypeNames));
+        mFixedSignature.add(ReflectUtil.makeMethodSignature(typeName, name, pramTypeNames));
     }
 
     void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(InternalUtil.makeFieldSignature(typeName, name));
+        mFixedSignature.add(ReflectUtil.makeFieldSignature(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
@@ -149,7 +149,7 @@ abstract class Patch {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = InternalUtil.makeMethodSignature(type, name, pramsTypes);
+        String signature = ReflectUtil.makeMethodSignature(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mPatchExecution.isExecuteThat(this)
@@ -160,7 +160,7 @@ abstract class Patch {
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(InternalUtil.makeFieldSignature(type, name))
+        return mFixedSignature.contains(ReflectUtil.makeFieldSignature(type, name))
                 ? myTable(type, o).get(name)
                 : (mPatchExecution.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -171,7 +171,7 @@ abstract class Patch {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(InternalUtil.makeFieldSignature(type, name))) {
+        if (mFixedSignature.contains(ReflectUtil.makeFieldSignature(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mPatchExecution.isExecuteThat(this)) {
