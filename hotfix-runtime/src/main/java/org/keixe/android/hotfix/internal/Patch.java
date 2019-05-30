@@ -8,11 +8,14 @@ import org.aspectj.lang.reflect.MethodSignature;
 
 import java.lang.reflect.AnnotatedElement;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
+ * @author Luke
+ *
  * 热补丁基于下面几个事实:
  * 1.被修复的方法是可以被AspectJ拦截的
  * 2.新增的方法只会在被修复的方法中出现
@@ -41,6 +44,10 @@ public abstract class Patch {
 
     //------------------------热补丁的元数据---------------------------------
 
+    /**
+     * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
+     * 所以使用读写锁来做并发优化
+     */
     private final ReentrantReadWriteLock mFieldCacheLock = new ReentrantReadWriteLock();
 
     /**
@@ -84,16 +91,16 @@ public abstract class Patch {
     protected abstract Object invokeWithId(int methodId, Object target, Object[] prams) throws Throwable;
 
     protected final Object accessWithId(int fieldId, Object o) {
-        return getFieldCacheBy(o).get(fieldId);
+        return lockFieldCache(o).get(fieldId);
     }
 
     protected final void modifyWithId(int fieldId, Object o, Object newValue) {
-        getFieldCacheBy(o).put(fieldId, newValue);
+        lockFieldCache(o).put(fieldId, newValue);
     }
 
     //------------------------------私有函数------------------------------------
 
-    private ConcurrentHashMap<Integer, Object> getFieldCacheBy(Object o) {
+    private Map<Integer, Object> lockFieldCache(Object o) {
         mFieldCacheLock.readLock().lock();
         ConcurrentHashMap<Integer, Object> cache = mFieldCache.get(o);
         if (cache == null) {

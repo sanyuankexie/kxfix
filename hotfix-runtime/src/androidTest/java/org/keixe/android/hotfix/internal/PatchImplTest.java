@@ -8,10 +8,10 @@ public class PatchImplTest extends Patch {
         switch (methodId) {
             case 0: {
                 invokeWithId(1, null, null);
-                Class type = Class.forName("java.lang.Object");
+                Class type = Class.forName("java.lang.Object[]");
                 Object o = Intrinsics.newInstance(type, null, null);
                 int a = (int) Intrinsics.access(Object.class, target, "a");
-                int b = (int) Intrinsics.access(Object.class, target, "b");
+                int b = (int) Intrinsics.access(Object[].class, o, "b");
                 int c = a + b;
                 Intrinsics.modify(Object.class, "result", target, c);
                 return Intrinsics.invoke(Object.class, "add", new Class[]{
