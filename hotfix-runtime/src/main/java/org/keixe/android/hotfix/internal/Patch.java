@@ -13,6 +13,8 @@ import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import androidx.annotation.Keep;
+
 /**
  * @author Luke
  *
@@ -36,7 +38,40 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * 3.被修复或者新增的字段在运行时是无类型的
  * 4.由于初始化逻辑不一定得到执行,所以新字段可能会造成空指针异常
  * 5.添加的字段随补丁上线下线,若补丁下线,则字段会变成重新变成空
+ *
+ * 添加字段的最佳实践:
+ * 1.最正确的做法应该是让其懒加载
+ * 2.Java
+ * {@code
+ *
+ *     @Patched
+ *     Test test = null;
+ *
+ *     @Patched
+ *     Test getTest()
+ *     {
+ *          if(test == null)
+ *          {
+ *              test = new Test();
+ *          }
+ *          return test;
+ *     }
+ *
+ *
+ *}
+ * 3.Kotlin
+ * {@code
+ *
+ *      @Patched
+ *      var test = lazy{
+ *          Test()
+ *      }
+ *
+ * }
+ *
  */
+
+@Keep
 public abstract class Patch {
 
     //----------------------------------注册元数据-----------------------------------

@@ -4,13 +4,19 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 
+import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
+/**
+ * @author Luke
+ * 用于转发调用的切面
+ */
 
+@Keep
 @Aspect
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public final class HotfixDispatcher {
+public final class Dispatcher {
 
-    private static final String TAG = "HotfixDispatcher";
+    private static final String TAG = "Dispatcher";
 
     /**
      * 核心AspectJ表达式

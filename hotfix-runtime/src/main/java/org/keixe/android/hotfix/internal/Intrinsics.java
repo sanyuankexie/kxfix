@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 /**
+ * @author Luke
  * 指令内部代码类
  */
 final class Intrinsics {
