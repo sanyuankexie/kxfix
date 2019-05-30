@@ -14,11 +14,11 @@ public final class HotfixDispatcher {
 
     /**
      * 核心AspectJ表达式
-     * <p>
+     * <code>
      * execution(* (@org.keixe.android.hotfix.Hotfix *).*(..))
      * ||execution((@org.keixe.android.hotfix.Hotfix *).new(..))
      * ||staticinitialization((@org.keixe.android.hotfix.Hotfix *))
-     * <p>
+     * </code>
      * 匹配使用了{@link org.keixe.android.hotfix.Hotfix}注解的类型
      * 不能使用within拦截所有调用,这样插入的代码太多了
      * 所以只拦截方法调用,构造函数,静态初始化块这三个部分

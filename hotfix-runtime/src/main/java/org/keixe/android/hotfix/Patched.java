@@ -8,12 +8,15 @@ import java.lang.annotation.Target;
 import androidx.annotation.Keep;
 
 /**
- * 被上此标记的类才具有热更新能力
- * 通过这个注解来过滤掉绝对不需要热更新的类
- *
+ * 对于:
+ * 1.新增的字段
+ * 2.新增的方法
+ * 3.替换的方法
+ * 请打上此标记以便生成补丁的程序可以扫描到
  */
+
 @Keep
-@Target({ElementType.TYPE})
+@Target({ElementType.FIELD,ElementType.METHOD})
 @Retention(RetentionPolicy.CLASS)
-public @interface Hotfix {
+public @interface Patched {
 }
