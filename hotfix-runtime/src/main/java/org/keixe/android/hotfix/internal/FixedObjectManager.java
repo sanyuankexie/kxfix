@@ -19,36 +19,8 @@ final class FixedObjectManager {
      */
     private static final AtomicReferenceFieldUpdater<FixedObjectManager, Patch>
             sPatchUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(FixedObjectManager.class, Patch.class, "mCurrentPatch");
-    private volatile Patch mCurrentPatch;
-
-    @AnyThread
-    Object receiveGet(ProceedingJoinPoint joinPoint) throws Throwable {
-        Patch patch = mCurrentPatch;
-        return null;
-    }
-
-    @AnyThread
-    void receiveSet(ProceedingJoinPoint joinPoint) throws Throwable {
-        Patch patch = mCurrentPatch;
-
-    }
-
-    @AnyThread
-    Object receiveInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
-        Patch patch = mCurrentPatch;
-        Signature signature = joinPoint.getSignature();
-        FixedObjectCache cache = null;
-        if (signature instanceof ConstructorSignature
-                && patch.isRequestCacheType(signature.getDeclaringType())) {
-            cache = markRequestCacheObject(joinPoint.getTarget(), patch);
-        }
-        if (cache == null) {
-            cache = getObjectFieldCache(joinPoint.getTarget());
-        }
-        return cache != null ? cache.receiveInvoke(joinPoint) : joinPoint.proceed();
-    }
-
+            .newUpdater(FixedObjectManager.class, Patch.class, "mPatch");
+    private volatile Patch mPatch;
 
     private final ReentrantReadWriteLock mFixedObjectCacheLock = new ReentrantReadWriteLock();
 
@@ -60,6 +32,43 @@ final class FixedObjectManager {
      * 字段采用宽松类型约束,不保存类型信息,编译时做检查,运行时不做检查
      */
     private final WeakHashMap<Object, FixedObjectCache> mFixedObjectCache = new WeakHashMap<>();
+
+    @AnyThread
+    Object receiveGet(ProceedingJoinPoint joinPoint) throws Throwable {
+        FixedObjectCache cache = getObjectFieldCache(joinPoint.getTarget());
+        if (cache != null) {
+            return cache.receiveGet(joinPoint);
+        }
+        return joinPoint.proceed();
+    }
+
+    @AnyThread
+    void receiveSet(ProceedingJoinPoint joinPoint) throws Throwable {
+        FixedObjectCache cache = getObjectFieldCache(joinPoint.getTarget());
+        if (cache != null) {
+            cache.receiveSet(joinPoint);
+            return;
+        }
+        joinPoint.proceed();
+    }
+
+    @AnyThread
+    Object receiveInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
+        Patch patch = mPatch;
+        Signature signature = joinPoint.getSignature();
+        FixedObjectCache cache = null;
+        if (patch != null && signature instanceof ConstructorSignature
+                && patch.isRequestCacheType(signature.getDeclaringType())) {
+            cache = markRequestCacheObject(joinPoint.getTarget(), patch);
+        }
+        if (cache == null) {
+            cache = getObjectFieldCache(joinPoint.getTarget());
+        }
+        if (cache != null) {
+            return cache.receiveInvoke(joinPoint);
+        }
+        return joinPoint.proceed();
+    }
 
     /**
      * 因为读是乐观的,总是读,但是不经常写,故使用读写锁提升效率
