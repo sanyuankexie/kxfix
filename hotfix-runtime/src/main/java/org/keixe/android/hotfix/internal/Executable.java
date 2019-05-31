@@ -61,8 +61,8 @@ abstract class Executable {
     final void addConstructorEntry(String typeName,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
-            Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
-            Constructor<?> constructor = ReflectUtil.constructorBy(type, pramTypes);
+            Class[] pramTypes = Reflection.toClassArray(pramTypeNames);
+            Constructor<?> constructor = Reflection.constructorBy(type, pramTypes);
             mFixedEntry.add(constructor);
         } catch (Exception ignored) {
 
@@ -72,8 +72,8 @@ abstract class Executable {
     final void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
-            Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
-            Method method = ReflectUtil.methodBy(type, name, pramTypes);
+            Class[] pramTypes = Reflection.toClassArray(pramTypeNames);
+            Method method = Reflection.methodBy(type, name, pramTypes);
             mFixedEntry.add(method);
         } catch (Exception ignored) {
 
@@ -81,11 +81,11 @@ abstract class Executable {
     }
 
     final void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(ReflectUtil.methodSignatureBy(typeName, name, pramTypeNames));
+        mFixedSignature.add(SignatureStore.methodBy(typeName, name, pramTypeNames));
     }
 
     final void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(ReflectUtil.fieldSignatureBy(typeName, name));
+        mFixedSignature.add(SignatureStore.fieldBy(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
@@ -149,21 +149,21 @@ abstract class Executable {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = ReflectUtil.methodSignatureBy(type, name, pramsTypes);
+        String signature = SignatureStore.methodBy(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? ReflectUtil.JVM.invoke(type, name, pramsTypes, target, prams)
+                ? Reflection.JVM.invoke(type, name, pramsTypes, target, prams)
                 : mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams));
     }
 
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))
+        return mFixedSignature.contains(SignatureStore.fieldBy(type, name))
                 ? myTable(type, o).get(name)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? ReflectUtil.JVM.access(type, name, o)
+                ? Reflection.JVM.access(type, name, o)
                 : mDynamicExecutionEngine.access(type, name, o));
     }
 
@@ -171,11 +171,11 @@ abstract class Executable {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))) {
+        if (mFixedSignature.contains(SignatureStore.fieldBy(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
-                ReflectUtil.JVM.modify(type, name, o, newValue);
+                Reflection.JVM.modify(type, name, o, newValue);
             } else {
                 mDynamicExecutionEngine.modify(type, name, o, newValue);
             }
