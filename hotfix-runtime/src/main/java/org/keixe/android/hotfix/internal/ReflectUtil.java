@@ -23,12 +23,18 @@ final class ReflectUtil {
     static String methodSignatureBy(
             String typeName,
             String name,
+            String[] pramsTypeNames) {
+        return methodSignatureBy(typeName, name, (Object[]) pramsTypeNames);
+    }
+
+    private static String methodSignatureBy(
+            String typeName,
+            String name,
             Object[] pramsTypeNames) {
         StringBuilder builder = new StringBuilder(
                 typeName.length()
                         + name.length()
                         + 16 * pramsTypeNames.length)
-                .append('*')
                 .append(typeName)
                 .append("#")
                 .append(name)
@@ -63,7 +69,7 @@ final class ReflectUtil {
     }
 
     static String fieldSignatureBy(String typeName, String name) {
-        return "@" + typeName + '#' + name;
+        return typeName + '@' + name;
     }
 
     static Class[] toClassArray(String[] pramTypeNames) throws ClassNotFoundException {

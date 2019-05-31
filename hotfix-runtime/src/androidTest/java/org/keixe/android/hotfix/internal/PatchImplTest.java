@@ -12,7 +12,7 @@ public class PatchImplTest extends Patch {
         //必定生成
         Intrinsics intrinsics = getIntrinsics();
         switch (signature) {
-            case "String java.lang.Object.toString()": {
+            case "java.lang.Object#toString()": {
                 int a = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
                 int b = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
                 int c = a + b;
