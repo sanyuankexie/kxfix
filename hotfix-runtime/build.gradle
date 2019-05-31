@@ -32,17 +32,6 @@ android {
             path file('src/main/cpp/CMakeLists.txt')
         }
     }
-//    externalNativeBuild {
-//        ndkBuild {
-//            path file('src/main/jni/Android.mk')
-//        }
-//    }
-
-//    externalNativeBuild {
-//        cmake {
-//            path "src/main/cpp/CMakeLists.txt"
-//        }
-//    }
 
 
 }
@@ -50,6 +39,7 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'org.aspectj:aspectjrt:1.8.9'
+    implementation 'org.hashids:hashids:1.0.3'
     implementation 'androidx.appcompat:appcompat:1.0.0-beta01'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.0-alpha4'

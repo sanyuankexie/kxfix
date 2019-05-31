@@ -81,18 +81,18 @@ abstract class Patch {
     }
 
     void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(ReflectUtil.makeMethodSignature(typeName, name, pramTypeNames));
+        mFixedSignature.add(ReflectUtil.methodSignatureBy(typeName, name, pramTypeNames));
     }
 
     void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(ReflectUtil.makeFieldSignature(typeName, name));
+        mFixedSignature.add(ReflectUtil.fieldSignatureBy(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
     
     private final PatchExecution mPatchExecution;
 
-    private ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
 
     /**
      * 被修复的字段随{@link Patch}生命周期存在
@@ -103,7 +103,7 @@ abstract class Patch {
      * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
      * 所以使用读写锁来做并发优化
      */
-    private WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
+    private final WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
 
     /**
      * 被修复的可执行代码段的集合
@@ -149,7 +149,7 @@ abstract class Patch {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = ReflectUtil.makeMethodSignature(type, name, pramsTypes);
+        String signature = ReflectUtil.methodSignatureBy(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mPatchExecution.isExecuteThat(this)
@@ -160,7 +160,7 @@ abstract class Patch {
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(ReflectUtil.makeFieldSignature(type, name))
+        return mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))
                 ? myTable(type, o).get(name)
                 : (mPatchExecution.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -171,7 +171,7 @@ abstract class Patch {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(ReflectUtil.makeFieldSignature(type, name))) {
+        if (mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mPatchExecution.isExecuteThat(this)) {

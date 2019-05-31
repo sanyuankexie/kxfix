@@ -1,12 +1,8 @@
 package org.keixe.android.hotfix.internal;
 
-import android.util.LruCache;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * @author Luke
@@ -17,70 +13,57 @@ final class ReflectUtil {
         throw new AssertionError();
     }
 
-    private static final LruCache<List<Object>, String> sCache = new LruCache<>(16);
-
-    static String makeMethodSignature(
+    static String methodSignatureBy(
             Class type,
             String name,
             Class[] pramsTypes) {
-        Object[] arr = new Object[pramsTypes.length + 2];
-        System.arraycopy(pramsTypes, 0, arr, 2, pramsTypes.length);
-        arr[0] = type;
-        arr[1] = name;
-        List<Object> list = Arrays.asList(arr);
-        String signature = sCache.get(list);
-        if (signature != null) {
-            return signature;
-        }
-        String[] strings = new String[pramsTypes.length];
-        for (int i = 0; i < pramsTypes.length; i++) {
-            strings[i] = pramsTypes[i].getName();
-        }
-        signature = makeMethodSignature(type.getName(), name, strings);
-        sCache.put(list, signature);
-        return signature;
+        return methodSignatureBy(type.getName(), name, pramsTypes);
     }
 
-
-    static String makeMethodSignature(
+    static String methodSignatureBy(
             String typeName,
             String name,
-            String[] pramsTypeNames) {
-        StringBuilder builder = new StringBuilder(64)
-                .append('M')
-                .append(' ')
+            Object[] pramsTypeNames) {
+        StringBuilder builder = new StringBuilder(
+                typeName.length()
+                        + name.length()
+                        + 16 * pramsTypeNames.length)
+                .append('*')
                 .append(typeName)
-                .append('-')
-                .append('>')
+                .append("#")
                 .append(name)
                 .append('(');
-        if (pramsTypeNames.length > 1) {
-            builder.append(pramsTypeNames[0]);
-            for (int i = 1; i < pramsTypeNames.length; ++i) {
-                builder.append(',')
-                        .append(pramsTypeNames[i]);
+        if (pramsTypeNames instanceof String[]) {
+            if (pramsTypeNames.length >= 1) {
+                builder.append(pramsTypeNames[0]);
+                for (int i = 1; i < pramsTypeNames.length; i++) {
+                    builder.append(',')
+                            .append(pramsTypeNames[i]);
+                }
             }
+        } else if (pramsTypeNames instanceof Class[]) {
+            if (pramsTypeNames.length >= 1) {
+                builder.append(((Class) pramsTypeNames[0]).getName());
+                for (int i = 1; i < pramsTypeNames.length; i++) {
+                    builder.append(',')
+                            .append(((Class) pramsTypeNames[i]).getName());
+                }
+            }
+        } else {
+            throw new IllegalArgumentException();
         }
         builder.append(')');
         return builder.toString();
     }
 
-
-    static String makeFieldSignature(
+    static String fieldSignatureBy(
             Class type,
             String name) {
-        List<Object> list = Arrays.<Object>asList(type, name);
-        String signature = sCache.get(list);
-        if (signature != null) {
-            return signature;
-        }
-        signature = makeFieldSignature(type.getName(), name);
-        sCache.put(list, signature);
-        return signature;
+        return fieldSignatureBy(type.getName(), name);
     }
 
-    static String makeFieldSignature(String typeName, String name) {
-        return "F " + typeName + "->" + name;
+    static String fieldSignatureBy(String typeName, String name) {
+        return "@" + typeName + '#' + name;
     }
 
     static Class[] toClassArray(String[] pramTypeNames) throws ClassNotFoundException {
