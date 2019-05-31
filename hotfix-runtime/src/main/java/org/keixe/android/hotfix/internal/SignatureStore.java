@@ -1,6 +1,6 @@
 package org.keixe.android.hotfix.internal;
 
-import org.keixe.android.hotfix.util.MultiKeyMap;
+import org.keixe.android.hotfix.util.MultiKeyHashMap;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -12,7 +12,7 @@ final class SignatureStore {
     }
 
     private static final ReentrantReadWriteLock sReadWriteLock = new ReentrantReadWriteLock();
-    private static final MultiKeyMap<Object, WeakReference<String>> sCache = new MultiKeyMap<>();
+    private static final MultiKeyHashMap<Object, WeakReference<String>> sCache = new MultiKeyHashMap<>();
 
     static String methodBy(
             Class type,
