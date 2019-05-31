@@ -39,13 +39,18 @@ final class HotfixExecutionEngine
         Executable executable = mExecutable;
         if (executable != null && executable.isEntryPoint(joinPoint)) {
             CodeSignature signature = (CodeSignature) joinPoint.getSignature();
-            return executable.receiveInvoke(
-                    signature.getDeclaringType(),
-                    signature.getName(),
-                    signature.getParameterTypes(),
-                    joinPoint.getTarget(),
-                    joinPoint.getArgs()
-            );
+            try {
+                return executable.receiveInvoke(
+                        signature.getDeclaringType(),
+                        signature.getName(),
+                        signature.getParameterTypes(),
+                        joinPoint.getTarget(),
+                        joinPoint.getArgs()
+                );
+            } catch (Exception e) {
+                e.printStackTrace();
+                //补丁出错,降级处理↓
+            }
         }
         return joinPoint.proceed();
     }
