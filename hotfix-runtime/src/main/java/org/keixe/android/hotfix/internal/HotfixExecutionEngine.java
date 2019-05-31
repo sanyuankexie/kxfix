@@ -18,7 +18,7 @@ final class HotfixExecutionEngine
 
     static final HotfixExecutionEngine INSTANCE = new HotfixExecutionEngine();
 
-    private static final AtomicReferenceFieldUpdater<HotfixExecutionEngine, Executable> sPatchUpdater
+    private static final AtomicReferenceFieldUpdater<HotfixExecutionEngine, Executable> sExecutableUpdater
             = AtomicReferenceFieldUpdater
             .newUpdater(HotfixExecutionEngine.class, Executable.class, "mExecutable");
 
@@ -31,7 +31,7 @@ final class HotfixExecutionEngine
 
     @Override
     public final void apply(Executable executable) {
-        sPatchUpdater.set(this, executable);
+        sExecutableUpdater.set(this, executable);
     }
 
     @Override
