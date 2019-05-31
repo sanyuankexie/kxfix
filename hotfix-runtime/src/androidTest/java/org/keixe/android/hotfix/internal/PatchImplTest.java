@@ -1,20 +1,20 @@
 package org.keixe.android.hotfix.internal;
 
-public class PatchImplTest extends Patch {
+public class PatchImplTest extends Executable {
 
 
-    public PatchImplTest(PatchExecution mPatchExecution) {
-        super(mPatchExecution);
+    public PatchImplTest(HotfixExecutionEngine mDynamicExecution) {
+        super(mDynamicExecution);
     }
 
     @Override
     Object invokeDynamicMethod(String signature, Object target, Object[] prams) throws Throwable {
         //必定生成
-        Intrinsics intrinsics = getIntrinsics();
+        ExecutionEngine executionEngine = getExecutionEngine();
         switch (signature) {
             case "java.lang.Object#toString()": {
-                int a = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
-                int b = (int) intrinsics.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
+                int a = (int) executionEngine.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
+                int b = (int) executionEngine.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
                 int c = a + b;
                 return Integer.toString(c);
             }

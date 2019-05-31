@@ -35,6 +35,6 @@ public final class Dispatcher {
             "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
             "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
-        return joinPoint.proceed();
+        return EntryPointHooker.INSTANCE.hook(joinPoint);
     }
 }

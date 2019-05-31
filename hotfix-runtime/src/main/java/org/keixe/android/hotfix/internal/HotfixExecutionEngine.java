@@ -5,30 +5,41 @@ import org.aspectj.lang.reflect.CodeSignature;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import androidx.annotation.Keep;
+
 /**
- * 补丁可执行格式
+ * 热更新执行引擎
  */
-final class PatchExecution extends Reflection {
+@Keep
+final class HotfixExecutionEngine
+        extends ReflectExecutionEngine
+        implements DynamicExecutionEngine,
+        EntryPointHooker {
 
-    private static final AtomicReferenceFieldUpdater<PatchExecution, Patch> sPatchUpdater
+    static final HotfixExecutionEngine INSTANCE = new HotfixExecutionEngine();
+
+    private static final AtomicReferenceFieldUpdater<HotfixExecutionEngine, Executable> sPatchUpdater
             = AtomicReferenceFieldUpdater
-            .newUpdater(PatchExecution.class, Patch.class, "mPatch");
+            .newUpdater(HotfixExecutionEngine.class, Executable.class, "mExecutable");
 
-    private volatile Patch mPatch;
+    private volatile Executable mExecutable;
 
-    final boolean isExecuteThat(Patch patch) {
-        return patch.equals(mPatch);
+    @Override
+    public final boolean isExecuteThat(Executable executable) {
+        return executable == mExecutable;
     }
 
-    final void updatePatch(Patch patch) {
-        sPatchUpdater.set(this, patch);
+    @Override
+    public final void apply(Executable executable) {
+        sPatchUpdater.set(this, executable);
     }
 
-    final Object apply(ProceedingJoinPoint joinPoint) throws Throwable {
-        Patch patch = mPatch;
-        if (patch != null && patch.isEntryPoint(joinPoint)) {
+    @Override
+    public final Object hook(ProceedingJoinPoint joinPoint) throws Throwable {
+        Executable executable = mExecutable;
+        if (executable != null && executable.isEntryPoint(joinPoint)) {
             CodeSignature signature = (CodeSignature) joinPoint.getSignature();
-            return patch.receiveInvoke(
+            return executable.receiveInvoke(
                     signature.getDeclaringType(),
                     signature.getName(),
                     signature.getParameterTypes(),
@@ -47,11 +58,11 @@ final class PatchExecution extends Reflection {
             Object target,
             Object[] prams)
             throws Throwable {
-        Patch patch = mPatch;
-        if (patch == null) {
+        Executable executable = mExecutable;
+        if (executable == null) {
             return super.invoke(type, name, pramsTypes, target, prams);
         } else {
-            return patch.receiveInvoke(type, name, pramsTypes, target, prams);
+            return executable.receiveInvoke(type, name, pramsTypes, target, prams);
         }
     }
 
@@ -61,11 +72,11 @@ final class PatchExecution extends Reflection {
             String name,
             Object target)
             throws Throwable {
-        Patch patch = mPatch;
-        if (patch == null) {
+        Executable executable = mExecutable;
+        if (executable == null) {
             return super.access(type, name, target);
         } else {
-            return patch.receiveAccess(type, name, target);
+            return executable.receiveAccess(type, name, target);
         }
     }
 
@@ -76,11 +87,11 @@ final class PatchExecution extends Reflection {
             Object target,
             Object newValue)
             throws Throwable {
-        Patch patch = mPatch;
-        if (patch == null) {
+        Executable executable = mExecutable;
+        if (executable == null) {
             super.modify(type, name, target, newValue);
         } else {
-            patch.receiveModify(type, name, target, newValue);
+            executable.receiveModify(type, name, target, newValue);
         }
     }
 }

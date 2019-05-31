@@ -3,13 +3,19 @@ package org.keixe.android.hotfix.internal;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-public class Reflection implements Intrinsics {
+import androidx.annotation.Keep;
+
+/***
+ * JVM反射执行引擎
+ */
+@Keep
+class ReflectExecutionEngine implements ExecutionEngine {
 
     static {
-        System.loadLibrary("intrinsics");
+        System.loadLibrary("reflection");
     }
 
-    static final Reflection JVM = new Reflection();
+    static final ReflectExecutionEngine INSTANCE = new ReflectExecutionEngine();
 
     @Override
     public final Object newInstance(Class<?> type,
@@ -21,26 +27,26 @@ public class Reflection implements Intrinsics {
 
     @Override
     public void modify(Class type,
-                             String name,
-                             Object target,
-                             Object newValue)
+                       String name,
+                       Object target,
+                       Object newValue)
             throws Throwable {
         ReflectUtil.fieldBy(type, name).set(target, newValue);
     }
 
     public Object access(Class type,
-                               String name,
-                               Object target
+                         String name,
+                         Object target
     ) throws Throwable {
         return ReflectUtil.fieldBy(type, name).get(target);
     }
 
     @Override
     public Object invoke(Class type,
-                               String name,
-                               Class[] pramTypes,
-                               Object target,
-                               Object[] prams) throws Throwable {
+                         String name,
+                         Class[] pramTypes,
+                         Object target,
+                         Object[] prams) throws Throwable {
         Method method = ReflectUtil.methodBy(type, name, pramTypes);
         return method.invoke(target, prams);
     }
@@ -71,5 +77,4 @@ public class Reflection implements Intrinsics {
             Object object,
             Object[] prams
     ) throws Throwable;
-
 }

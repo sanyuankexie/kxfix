@@ -45,11 +45,11 @@ import androidx.annotation.Keep;
  */
 
 @Keep
-abstract class Patch {
+abstract class Executable {
 
     //----------------------------------注册元数据-----------------------------
 
-    void addClassInitializerEntry(String typeName) {
+    final void addClassInitializerEntry(String typeName) {
         try {
             Class type = Class.forName(typeName);
             mFixedEntry.add(type);
@@ -58,7 +58,7 @@ abstract class Patch {
         }
     }
 
-    void addConstructorEntry(String typeName,String[] pramTypeNames) {
+    final void addConstructorEntry(String typeName,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
             Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
@@ -69,7 +69,7 @@ abstract class Patch {
         }
     }
 
-    void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
+    final void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
         try {
             Class type = Class.forName(typeName);
             Class[] pramTypes = ReflectUtil.toClassArray(pramTypeNames);
@@ -80,22 +80,22 @@ abstract class Patch {
         }
     }
 
-    void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
+    final void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
         mFixedSignature.add(ReflectUtil.methodSignatureBy(typeName, name, pramTypeNames));
     }
 
-    void addFieldSignature(String typeName,String name) {
+    final void addFieldSignature(String typeName,String name) {
         mFixedSignature.add(ReflectUtil.fieldSignatureBy(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
     
-    private final PatchExecution mPatchExecution;
+    private final DynamicExecutionEngine mDynamicExecutionEngine;
 
     private final ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
 
     /**
-     * 被修复的字段随{@link Patch}生命周期存在
+     * 被修复的字段随{@link Executable}生命周期存在
      * 使用{@link ConcurrentHashMap}保存字段映射
      * 防止在JDK<1.8时多线程的情况下{@link HashMap}出现死循环的问题
      * 但是这样也并没有保证可见性和原子性,符合Java的默认行为
@@ -114,21 +114,21 @@ abstract class Patch {
      * <p>
      * 每个被修复方法,新增的方法,新增的字段都对应一个补丁内的一个id
      *
-     * @see Patch#mFixedEntry 
+     * @see Executable#mFixedEntry
      * 新增的方法和字段不在此集合中保存,这个只包含了入口
      */
     private final HashSet<AnnotatedElement> mFixedEntry = new HashSet<>();
 
     private final HashSet<String> mFixedSignature = new HashSet<>();
 
-    Patch(PatchExecution mPatchExecution) {
-        this.mPatchExecution = mPatchExecution;
+    Executable(DynamicExecutionEngine dynamicExecutionEngine) {
+        this.mDynamicExecutionEngine = dynamicExecutionEngine;
     }
     
     //----------------------热补丁暴露的操作----------------------------
 
-    Intrinsics getIntrinsics() {
-        return mPatchExecution;
+    ExecutionEngine getExecutionEngine() {
+        return mDynamicExecutionEngine;
     }
 
     boolean isEntryPoint(JoinPoint joinPoint) {
@@ -152,9 +152,9 @@ abstract class Patch {
         String signature = ReflectUtil.methodSignatureBy(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
-                : (mPatchExecution.isExecuteThat(this)
-                ? Reflection.JVM.invoke(type, name, pramsTypes, target, prams)
-                : mPatchExecution.invoke(type, name, pramsTypes, target, prams));
+                : (mDynamicExecutionEngine.isExecuteThat(this)
+                ? ReflectUtil.JVM.invoke(type, name, pramsTypes, target, prams)
+                : mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams));
     }
 
     final Object receiveAccess(Class type,
@@ -162,9 +162,9 @@ abstract class Patch {
                                Object o)throws Throwable {
         return mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))
                 ? myTable(type, o).get(name)
-                : (mPatchExecution.isExecuteThat(this)
-                ? Reflection.JVM.access(type, name, o)
-                : mPatchExecution.access(type, name, o));
+                : (mDynamicExecutionEngine.isExecuteThat(this)
+                ? ReflectUtil.JVM.access(type, name, o)
+                : mDynamicExecutionEngine.access(type, name, o));
     }
 
     final void receiveModify(Class type,
@@ -174,10 +174,10 @@ abstract class Patch {
         if (mFixedSignature.contains(ReflectUtil.fieldSignatureBy(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
-            if (mPatchExecution.isExecuteThat(this)) {
-                Reflection.JVM.modify(type, name, o, newValue);
+            if (mDynamicExecutionEngine.isExecuteThat(this)) {
+                ReflectUtil.JVM.modify(type, name, o, newValue);
             } else {
-                mPatchExecution.modify(type, name, o, newValue);
+                mDynamicExecutionEngine.modify(type, name, o, newValue);
             }
         }
     }
@@ -185,16 +185,14 @@ abstract class Patch {
     /**
      * 所有的方法都放置在此方法的实现内
      * 并使用id索引,内部使用switch走不同方法
-     * 字段访问和方法调用使用{@link Intrinsics}所定义的指令执行
-     * @param signature 直接索引,不需要走{@link Intrinsics}
+     * 字段访问和方法调用使用{@link ExecutionEngine}所定义的指令执行
+     * @param signature 直接索引,不需要走{@link ExecutionEngine}
      */
     abstract Object invokeDynamicMethod(
             String signature,
             Object target,
             Object[] prams)
             throws Throwable;
-
-
 
     //------------------------------私有函数------------------------------------
 

@@ -3,10 +3,11 @@
 //
 
 #include <jni.h>
+#include <stdlib.h>
 
 
 JNIEXPORT jobject JNICALL
-Java_org_keixe_android_hotfix_internal_Reflection_invokeNonVirtual(
+Java_org_keixe_android_hotfix_internal_ReflectExecutionEngine_invokeNonVirtual(
         JNIEnv *env,
         jclass _,
         jclass type,
@@ -15,12 +16,11 @@ Java_org_keixe_android_hotfix_internal_Reflection_invokeNonVirtual(
         jobjectArray prams) {
     auto methodId = env->FromReflectedMethod(target);
     auto length = env->GetArrayLength(prams);
-    auto *values = new jvalue[length];
+    auto *values = (jvalue*)alloca(sizeof(jvalue)*length);
     for (int i = 0; i < length; ++i) {
         values[i].l = env->GetObjectArrayElement(prams, i);
     }
     jobject result = env->CallNonvirtualObjectMethodA(object, type, methodId, values);
-    delete values;
     jthrowable ex = env->ExceptionOccurred();
     if (ex != nullptr) {
         env->ExceptionClear();

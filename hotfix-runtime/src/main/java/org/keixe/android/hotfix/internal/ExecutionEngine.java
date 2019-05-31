@@ -1,9 +1,13 @@
 package org.keixe.android.hotfix.internal;
 
+import androidx.annotation.Keep;
+
 /**
+ * 执行引擎
  * 定义操作原语
  */
-interface Intrinsics {
+@Keep
+interface ExecutionEngine {
 
     Object invoke(Class type,
                   String name,

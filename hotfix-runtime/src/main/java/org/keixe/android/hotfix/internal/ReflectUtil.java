@@ -4,10 +4,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+import androidx.annotation.Keep;
+
 /**
  * @author Luke
  */
+@Keep
 final class ReflectUtil {
+
+    static final ExecutionEngine JVM = ReflectExecutionEngine.INSTANCE;
 
     private ReflectUtil() {
         throw new AssertionError();
