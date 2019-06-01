@@ -9,6 +9,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
 
+/**
+ * @author Luke
+ * @see android.util.LruCache
+ */
 @Keep
 final class SignatureStore {
 
@@ -17,8 +21,6 @@ final class SignatureStore {
     }
 
     private static final int MAX_SIZE = 128 * 1024;
-
-    private static int sCurrentSize;
 
     private static final class Keys implements Cloneable {
 
@@ -69,6 +71,8 @@ final class SignatureStore {
     private static final LinkedHashMap<Keys, String> sLruCache
             = new LinkedHashMap<>(0, 0.75f, true);
 
+    private static int sCurrentSize;
+
     static String methodGet(
             Class type,
             String name,
@@ -94,6 +98,31 @@ final class SignatureStore {
             String name,
             String[] pramsTypeNames) {
         return methodGet(typeName, name, (Object[]) pramsTypeNames);
+    }
+
+    static String fieldGet(
+            Class type,
+            String name) {
+        String result;
+        Keys keys = of(type, name);
+        result = get(keys);
+        if (result == null) {
+            sReadWriteLock.writeLock().lock();
+            result = get(keys);
+            if (result == null) {
+                result = fieldGet(type.getName(), name);
+                put(keys, result);
+            }
+            sReadWriteLock.writeLock().unlock();
+        }
+        keys.recycle();
+        return result;
+    }
+
+    static String fieldGet(
+            String typeName,
+            String name) {
+        return typeName + '@' + name;
     }
 
     private static String methodGet(
@@ -129,31 +158,6 @@ final class SignatureStore {
         }
         builder.append(')');
         return builder.toString();
-    }
-
-    static String fieldGet(
-            Class type,
-            String name) {
-        String result;
-        Keys keys = of(type, name);
-        result = get(keys);
-        if (result == null) {
-            sReadWriteLock.writeLock().lock();
-            result = get(keys);
-            if (result == null) {
-                result = fieldGet(type.getName(), name);
-                put(keys, result);
-            }
-            sReadWriteLock.writeLock().unlock();
-        }
-        keys.recycle();
-        return result;
-    }
-
-    static String fieldGet(
-            String typeName,
-            String name) {
-        return typeName + '@' + name;
     }
 
     private static Keys of(Class type, String name, Class[] pramTypes) {
