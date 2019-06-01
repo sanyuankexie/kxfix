@@ -15,16 +15,36 @@ final class SignatureStore {
         throw new AssertionError();
     }
 
-    private static final class Keys {
+    private static final class Keys implements Cloneable {
 
-        private final Object[] mArray;
+        private static final ThreadLocal<Keys> sKeysThreadLocal
+                = new ThreadLocal<Keys>() {
+            @Override
+            protected Keys initialValue() {
+                return new Keys();
+            }
+        };
 
-        static Keys of(Object... keys) {
-            return new Keys(keys);
+        private Object[] mArray = new Object[3];
+
+        static Keys of(Class type, String name, Class[] pramTypes) {
+            Keys keys = of(type, name);
+            keys.mArray[2] = pramTypes;
+            return keys;
         }
 
-        private Keys(Object[] keys) {
-            this.mArray = keys;
+        static Keys of(Class type, String name) {
+            Keys keys = sKeysThreadLocal.get();
+            if (keys == null) {
+                throw new AssertionError();
+            }
+            keys.mArray[0] = type;
+            keys.mArray[1] = name;
+            return keys;
+        }
+
+        void recycle() {
+            Arrays.fill(mArray, null);
         }
 
         @Override
@@ -41,6 +61,17 @@ final class SignatureStore {
                 return Arrays.deepEquals(this.mArray, ((Keys) obj).mArray);
             }
             return false;
+        }
+
+        @Override
+        public Keys clone() {
+            try {
+                Keys keys = (Keys) super.clone();
+                keys.mArray = mArray.clone();
+                return keys;
+            } catch (CloneNotSupportedException e) {
+                throw new AssertionError(e);
+            }
         }
     }
 
@@ -64,10 +95,11 @@ final class SignatureStore {
                 result = sCache.get(keys);
                 if (result == null) {
                     result = methodGet(type.getName(), name, pramsTypes);
-                    sCache.put(keys, result);
+                    sCache.put(keys.clone(), result);
                 }
             }
         }
+        keys.recycle();
         return result;
     }
 
@@ -124,10 +156,11 @@ final class SignatureStore {
                 result = sCache.get(keys);
                 if (result == null) {
                     result = fieldGet(type.getName(), name);
-                    sCache.put(keys, result);
+                    sCache.put(keys.clone(), result);
                 }
             }
         }
+        keys.recycle();
         return result;
     }
 
