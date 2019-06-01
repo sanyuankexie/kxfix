@@ -1,11 +1,5 @@
 package org.keixe.android.hotfix.internal;
 
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.Signature;
-import org.aspectj.lang.reflect.ConstructorSignature;
-import org.aspectj.lang.reflect.InitializerSignature;
-import org.aspectj.lang.reflect.MethodSignature;
-
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -81,11 +75,11 @@ abstract class Executable {
     }
 
     final void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(SignatureStore.methodBy(typeName, name, pramTypeNames));
+        mFixedSignature.add(SignatureStore.methodGet(typeName, name, pramTypeNames));
     }
 
     final void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(SignatureStore.fieldBy(typeName, name));
+        mFixedSignature.add(SignatureStore.fieldGet(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
@@ -131,16 +125,7 @@ abstract class Executable {
         return mDynamicExecutionEngine;
     }
 
-    boolean isEntryPoint(JoinPoint joinPoint) {
-        AnnotatedElement marker = null;
-        Signature signature = joinPoint.getSignature();
-        if (signature instanceof ConstructorSignature) {
-            marker = ((ConstructorSignature) signature).getConstructor();
-        } else if (signature instanceof MethodSignature) {
-            marker = ((MethodSignature) signature).getMethod();
-        } else if (signature instanceof InitializerSignature) {
-            marker = signature.getDeclaringType();
-        }
+    boolean isEntryPoint(AnnotatedElement marker) {
         return marker != null && mFixedEntry.contains(marker);
     }
 
@@ -149,7 +134,7 @@ abstract class Executable {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = SignatureStore.methodBy(type, name, pramsTypes);
+        String signature = SignatureStore.methodGet(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
@@ -160,7 +145,7 @@ abstract class Executable {
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(SignatureStore.fieldBy(type, name))
+        return mFixedSignature.contains(SignatureStore.fieldGet(type, name))
                 ? myTable(type, o).get(name)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -171,7 +156,7 @@ abstract class Executable {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(SignatureStore.fieldBy(type, name))) {
+        if (mFixedSignature.contains(SignatureStore.fieldGet(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {

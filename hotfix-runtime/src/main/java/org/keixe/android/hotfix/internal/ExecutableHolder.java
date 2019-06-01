@@ -1,5 +1,8 @@
 package org.keixe.android.hotfix.internal;
 
+import androidx.annotation.Keep;
+
+@Keep
 interface ExecutableHolder {
 
     void apply(Executable executable);

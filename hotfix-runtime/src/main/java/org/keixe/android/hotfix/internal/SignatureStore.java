@@ -1,10 +1,14 @@
 package org.keixe.android.hotfix.internal;
 
 import org.keixe.android.hotfix.util.MultiKeyHashMap;
+import org.keixe.android.hotfix.util.MultiKeyMap;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import androidx.annotation.Keep;
+
+@Keep
 final class SignatureStore {
 
     private SignatureStore() {
@@ -12,9 +16,9 @@ final class SignatureStore {
     }
 
     private static final ReentrantReadWriteLock sReadWriteLock = new ReentrantReadWriteLock();
-    private static final MultiKeyHashMap<Object, WeakReference<String>> sCache = new MultiKeyHashMap<>();
+    private static final MultiKeyMap<Object, WeakReference<String>> sCache = new MultiKeyHashMap<>();
 
-    static String methodBy(
+    static String methodGet(
             Class type,
             String name,
             Class[] pramsTypes) {
@@ -35,7 +39,7 @@ final class SignatureStore {
                 result = reference.get();
             }
             if (result == null) {
-                result = methodBy(type.getName(), name, pramsTypes);
+                result = methodGet(type.getName(), name, pramsTypes);
                 reference = new WeakReference<>(result);
                 sCache.put(keys, reference);
             }
@@ -45,14 +49,14 @@ final class SignatureStore {
         return result;
     }
 
-    static String methodBy(
+    static String methodGet(
             String typeName,
             String name,
             String[] pramsTypeNames) {
-        return methodBy(typeName, name, (Object[]) pramsTypeNames);
+        return methodGet(typeName, name, (Object[]) pramsTypeNames);
     }
 
-    private static String methodBy(
+    private static String methodGet(
             String typeName,
             String name,
             Object[] pramsTypeNames) {
@@ -87,13 +91,15 @@ final class SignatureStore {
         return builder.toString();
     }
 
-    static String fieldBy(
+    static String fieldGet(
             Class type,
             String name) {
-        return fieldBy(type.getName(), name);
+        return fieldGet(type.getName(), name);
     }
 
-    static String fieldBy(String typeName, String name) {
+    static String fieldGet(
+            String typeName,
+            String name) {
         return typeName + '@' + name;
     }
 }
