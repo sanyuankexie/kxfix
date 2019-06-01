@@ -1,9 +1,10 @@
 package org.keixe.android.hotfix.internal;
 
 
-import android.util.LruCache;
-
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import androidx.annotation.Keep;
 import androidx.annotation.Nullable;
@@ -15,33 +16,13 @@ final class SignatureStore {
         throw new AssertionError();
     }
 
+    private static final int MAX_SIZE = 128 * 1024;
+
+    private static int sCurrentSize;
+
     private static final class Keys implements Cloneable {
 
-        private static final ThreadLocal<Keys> sKeysThreadLocal
-                = new ThreadLocal<Keys>() {
-            @Override
-            protected Keys initialValue() {
-                return new Keys();
-            }
-        };
-
         private Object[] mArray = new Object[3];
-
-        static Keys of(Class type, String name, Class[] pramTypes) {
-            Keys keys = of(type, name);
-            keys.mArray[2] = pramTypes;
-            return keys;
-        }
-
-        static Keys of(Class type, String name) {
-            Keys keys = sKeysThreadLocal.get();
-            if (keys == null) {
-                throw new AssertionError();
-            }
-            keys.mArray[0] = type;
-            keys.mArray[1] = name;
-            return keys;
-        }
 
         void recycle() {
             Arrays.fill(mArray, null);
@@ -75,29 +56,34 @@ final class SignatureStore {
         }
     }
 
-    private static final LruCache<Keys, String> sCache
-            = new LruCache<Keys, String>(1024) {
+    private static final ThreadLocal<Keys> sKeysThreadCache
+            = new ThreadLocal<Keys>() {
         @Override
-        protected int sizeOf(Keys key, String value) {
-            return Character.SIZE / Byte.SIZE * value.length();
+        protected Keys initialValue() {
+            return new Keys();
         }
     };
+
+    private static final ReentrantReadWriteLock sReadWriteLock = new ReentrantReadWriteLock();
+
+    private static final LinkedHashMap<Keys, String> sLruCache
+            = new LinkedHashMap<>(0, 0.75f, true);
 
     static String methodGet(
             Class type,
             String name,
             Class[] pramsTypes) {
         String result;
-        Keys keys = Keys.of(type, name, pramsTypes);
-        result = sCache.get(keys);
+        Keys keys = of(type, name, pramsTypes);
+        result = get(keys);
         if (result == null) {
-            synchronized (sCache) {
-                result = sCache.get(keys);
-                if (result == null) {
-                    result = methodGet(type.getName(), name, pramsTypes);
-                    sCache.put(keys.clone(), result);
-                }
+            sReadWriteLock.writeLock().lock();
+            result = get(keys);
+            if (result == null) {
+                result = methodGet(type.getName(), name, pramsTypes);
+                put(keys, result);
             }
+            sReadWriteLock.writeLock().unlock();
         }
         keys.recycle();
         return result;
@@ -149,16 +135,16 @@ final class SignatureStore {
             Class type,
             String name) {
         String result;
-        Keys keys = Keys.of(type, name);
-        result = sCache.get(keys);
+        Keys keys = of(type, name);
+        result = get(keys);
         if (result == null) {
-            synchronized (sCache) {
-                result = sCache.get(keys);
-                if (result == null) {
-                    result = fieldGet(type.getName(), name);
-                    sCache.put(keys.clone(), result);
-                }
+            sReadWriteLock.writeLock().lock();
+            result = get(keys);
+            if (result == null) {
+                result = fieldGet(type.getName(), name);
+                put(keys, result);
             }
+            sReadWriteLock.writeLock().unlock();
         }
         keys.recycle();
         return result;
@@ -168,5 +154,68 @@ final class SignatureStore {
             String typeName,
             String name) {
         return typeName + '@' + name;
+    }
+
+    private static Keys of(Class type, String name, Class[] pramTypes) {
+        Keys keys = of(type, name);
+        keys.mArray[2] = pramTypes;
+        return keys;
+    }
+
+    private static Keys of(Class type, String name) {
+        Keys keys = sKeysThreadCache.get();
+        assert keys != null;
+        keys.mArray[0] = type;
+        keys.mArray[1] = name;
+        return keys;
+    }
+
+    private static void put(Keys key, String value) {
+        key = key.clone();
+        sReadWriteLock.writeLock().lock();
+        sCurrentSize += sizeOf(value);
+        sLruCache.put(key, value);
+        sReadWriteLock.writeLock().unlock();
+        trimToSize();
+    }
+
+    private static String get(Keys key) {
+        String mapValue;
+        sReadWriteLock.readLock().lock();
+        mapValue = sLruCache.get(key);
+        sReadWriteLock.readLock().unlock();
+        return mapValue;
+    }
+
+    private static void trimToSize() {
+        while (true) {
+            Keys key;
+            String value;
+            sReadWriteLock.writeLock().lock();
+            if (sCurrentSize <= MAX_SIZE) {
+                break;
+            }
+            // BEGIN LAYOUTLIB CHANGE
+            // get the last item in the linked list.
+            // This is not efficient, the goal here is to minimize the changes
+            // compared to the platform version.
+            Map.Entry<Keys, String> toEvict = null;
+            for (Map.Entry<Keys, String> entry : sLruCache.entrySet()) {
+                toEvict = entry;
+            }
+            // END LAYOUTLIB CHANGE
+            if (toEvict == null) {
+                break;
+            }
+            key = toEvict.getKey();
+            value = toEvict.getValue();
+            sLruCache.remove(key);
+            sCurrentSize -= sizeOf(value);
+            sReadWriteLock.writeLock().unlock();
+        }
+    }
+
+    private static int sizeOf(String value) {
+        return Character.SIZE / Byte.SIZE * value.length();
     }
 }
