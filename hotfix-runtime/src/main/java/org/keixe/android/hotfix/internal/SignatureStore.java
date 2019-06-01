@@ -1,12 +1,12 @@
 package org.keixe.android.hotfix.internal;
 
-import org.keixe.android.hotfix.util.MultiKeyHashMap;
-import org.keixe.android.hotfix.util.MultiKeyMap;
 
-import java.lang.ref.WeakReference;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import android.util.LruCache;
+
+import java.util.Arrays;
 
 import androidx.annotation.Keep;
+import androidx.annotation.Nullable;
 
 @Keep
 final class SignatureStore {
@@ -15,34 +15,59 @@ final class SignatureStore {
         throw new AssertionError();
     }
 
-    private static final ReentrantReadWriteLock sReadWriteLock = new ReentrantReadWriteLock();
-    private static final MultiKeyMap<Object, WeakReference<String>> sCache = new MultiKeyHashMap<>();
+    private static final class Keys {
+
+        private final Object[] mArray;
+
+        static Keys of(Object... keys) {
+            return new Keys(keys);
+        }
+
+        private Keys(Object[] keys) {
+            this.mArray = keys;
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.deepHashCode(mArray);
+        }
+
+        @Override
+        public boolean equals(@Nullable Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (obj instanceof Keys) {
+                return Arrays.deepEquals(this.mArray, ((Keys) obj).mArray);
+            }
+            return false;
+        }
+    }
+
+    private static final LruCache<Keys, String> sCache
+            = new LruCache<Keys, String>(1024) {
+        @Override
+        protected int sizeOf(Keys key, String value) {
+            return Character.SIZE / Byte.SIZE * value.length();
+        }
+    };
 
     static String methodGet(
             Class type,
             String name,
             Class[] pramsTypes) {
-        Object[] keys = {type, name, pramsTypes};
-        String result = null;
-        sReadWriteLock.readLock().lock();
-        WeakReference<String> reference = sCache.get(keys);
-        if (reference != null) {
-            result = reference.get();
-        }
+        String result;
+        Keys keys = Keys.of(type, name, pramsTypes);
+        result = sCache.get(keys);
         if (result == null) {
-            sReadWriteLock.writeLock().lock();
-            reference = sCache.get(keys);
-            if (reference != null) {
-                result = reference.get();
+            synchronized (sCache) {
+                result = sCache.get(keys);
+                if (result == null) {
+                    result = methodGet(type.getName(), name, pramsTypes);
+                    sCache.put(keys, result);
+                }
             }
-            if (result == null) {
-                result = methodGet(type.getName(), name, pramsTypes);
-                reference = new WeakReference<>(result);
-                sCache.put(keys, reference);
-            }
-            sReadWriteLock.writeLock().unlock();
         }
-        sReadWriteLock.readLock().unlock();
         return result;
     }
 
@@ -91,7 +116,19 @@ final class SignatureStore {
     static String fieldGet(
             Class type,
             String name) {
-        return fieldGet(type.getName(), name);
+        String result;
+        Keys keys = Keys.of(type, name);
+        result = sCache.get(keys);
+        if (result == null) {
+            synchronized (sCache) {
+                result = sCache.get(keys);
+                if (result == null) {
+                    result = fieldGet(type.getName(), name);
+                    sCache.put(keys, result);
+                }
+            }
+        }
+        return result;
     }
 
     static String fieldGet(
