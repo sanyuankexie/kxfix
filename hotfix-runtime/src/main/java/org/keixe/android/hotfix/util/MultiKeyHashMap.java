@@ -835,7 +835,7 @@ public final class MultiKeyHashMap<K,V>
             result = (MultiKeyHashMap<K, V>) super.clone();
         } catch (CloneNotSupportedException e) {
             // this shouldn't happen, since we are Cloneable
-            throw new Error(e);
+            throw new AssertionError(e);
         }
         result.reinitialize();
         result.putMapEntries(this, false);
