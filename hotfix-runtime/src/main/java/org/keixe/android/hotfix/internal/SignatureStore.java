@@ -22,10 +22,7 @@ final class SignatureStore {
             Class type,
             String name,
             Class[] pramsTypes) {
-        Object[] keys = new Object[pramsTypes.length + 2];
-        keys[0] = type;
-        keys[1] = name;
-        System.arraycopy(pramsTypes, 0, keys, 2, pramsTypes.length);
+        Object[] keys = {type, name, pramsTypes};
         String result = null;
         sReadWriteLock.readLock().lock();
         WeakReference<String> reference = sCache.get(keys);
