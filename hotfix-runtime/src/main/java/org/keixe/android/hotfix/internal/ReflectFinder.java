@@ -12,8 +12,6 @@ import androidx.annotation.Keep;
 @Keep
 final class ReflectFinder {
 
-    static final ExecutionEngine JVM = ReflectExecutionEngine.INSTANCE;
-
     private ReflectFinder() {
         throw new AssertionError();
     }

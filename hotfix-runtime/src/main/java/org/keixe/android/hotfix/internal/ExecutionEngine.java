@@ -9,6 +9,8 @@ import androidx.annotation.Keep;
 @Keep
 interface ExecutionEngine {
 
+    ExecutionEngine JVM = ReflectExecutionEngine.INSTANCE;
+
     Object invoke(Class type,
                   String name,
                   Class[] pramsTypes,
