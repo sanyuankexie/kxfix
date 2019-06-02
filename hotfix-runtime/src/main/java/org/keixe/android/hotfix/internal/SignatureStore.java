@@ -116,6 +116,7 @@ final class SignatureStore {
             mapValue = mTable.get(keys);
             mReadWriteLock.readLock().unlock();
             if (mapValue == null) {
+                boolean needTrimToSize = false;
                 mReadWriteLock.writeLock().lock();
                 mapValue = mTable.get(keys);
                 if (mapValue == null) {
@@ -126,10 +127,12 @@ final class SignatureStore {
                             ? methodCreate(typeName, name, pramsTypes)
                             : fieldCreate(typeName, name);
                     mTable.put(keys, mapValue);
-
+                    needTrimToSize = true;
                 }
                 mReadWriteLock.writeLock().unlock();
-                trimToSize();
+                if (needTrimToSize) {
+                    trimToSize();
+                }
             }
             return mapValue;
         }
