@@ -18,14 +18,6 @@ final class Reflection {
         throw new AssertionError();
     }
 
-    static Class[] toClassArray(String[] pramTypeNames) throws ClassNotFoundException {
-        Class[] pramTypes = new Class[pramTypeNames.length];
-        for (int i = 0; i < pramTypeNames.length; ++i) {
-            pramTypes[i] = Class.forName(pramTypeNames[i]);
-        }
-        return pramTypes;
-    }
-
     static Constructor<?> constructorBy(
             Class<?> type,
             Class[] pramTypes
