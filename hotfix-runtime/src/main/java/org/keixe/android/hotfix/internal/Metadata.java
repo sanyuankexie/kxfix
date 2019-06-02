@@ -17,9 +17,9 @@ import androidx.annotation.Keep;
 @Keep
 final class Metadata {
 
-    private static final List<Pair<Class[], String>> IS_FIELD = Collections.emptyList();
+    private static final List<Pair<Class[], String>> IS_FIELD_MARK = Collections.emptyList();
 
-    private ArrayMap<Class, Map<String, List<Pair<Class[], String>>>> mData = new ArrayMap<>();
+    private final ArrayMap<Class, Map<String, List<Pair<Class[], String>>>> mData = new ArrayMap<>();
 
     boolean isEntryPoint(AnnotatedElement marker) {
         if (marker == null) {
@@ -88,7 +88,7 @@ final class Metadata {
 
     final boolean hasField(Class type, String name) {
         Map<String, List<Pair<Class[], String>>> typeData = mData.get(type);
-        return typeData != null && IS_FIELD.equals(typeData.get(name));
+        return typeData != null && IS_FIELD_MARK.equals(typeData.get(name));
     }
 
     private static Class[] toClassArray(String[] pramTypeNames)
@@ -108,7 +108,7 @@ final class Metadata {
             return null;
         }
         List<Pair<Class[], String>> methods = typeData.get(name);
-        if (methods != null && !IS_FIELD.equals(methods)) {
+        if (methods != null && !IS_FIELD_MARK.equals(methods)) {
             for (Pair<Class[], String> method : methods) {
                 if (Arrays.deepEquals(method.first, pramTypes)) {
                     return method;

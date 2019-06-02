@@ -19,13 +19,12 @@ import androidx.annotation.Keep;
 @Keep
 final class HotfixExecutionEngine
         extends ReflectExecutionEngine
-        implements DynamicExecutionEngine,
-        EntryPointHooker {
+        implements DynamicExecutionEngine, Hooker {
 
     static final HotfixExecutionEngine INSTANCE = new HotfixExecutionEngine();
 
-    private static final AtomicReferenceFieldUpdater<HotfixExecutionEngine, Executable> sExecutableUpdater
-            = AtomicReferenceFieldUpdater
+    private static final AtomicReferenceFieldUpdater<HotfixExecutionEngine, Executable>
+            sExecutableUpdater = AtomicReferenceFieldUpdater
             .newUpdater(HotfixExecutionEngine.class, Executable.class, "mExecutable");
 
     private volatile Executable mExecutable;

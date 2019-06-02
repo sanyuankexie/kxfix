@@ -3,11 +3,11 @@ package org.keixe.android.hotfix.internal;
 import androidx.annotation.Keep;
 
 @Keep
-interface ExecutableHolder {
+interface DynamicExecutor {
 
     void apply(Executable executable);
 
     boolean isExecuteThat(Executable executable);
 
-    ExecutableHolder INSTANCE = HotfixExecutionEngine.INSTANCE;
+    DynamicExecutor INSTANCE = HotfixExecutionEngine.INSTANCE;
 }

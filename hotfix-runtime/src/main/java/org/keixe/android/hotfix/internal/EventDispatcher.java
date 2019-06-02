@@ -14,9 +14,9 @@ import androidx.annotation.RestrictTo;
 @Keep
 @Aspect
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public final class Dispatcher {
+public final class EventDispatcher {
 
-    private static final String TAG = "Dispatcher";
+    private static final String TAG = "EventDispatcher";
 
     /**
      * 核心AspectJ表达式
@@ -35,6 +35,6 @@ public final class Dispatcher {
             "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
             "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
-        return EntryPointHooker.INSTANCE.hook(joinPoint);
+        return Hooker.INSTANCE.hook(joinPoint);
     }
 }

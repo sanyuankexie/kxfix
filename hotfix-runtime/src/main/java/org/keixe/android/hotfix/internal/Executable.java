@@ -33,12 +33,16 @@ import androidx.annotation.Keep;
  * 4.由于初始化逻辑不一定得到执行,所以新字段可能会造成空指针异常
  * 5.添加的字段随补丁上线下线,若补丁下线,则字段会变成重新变成空
  *
- *
+ * @see DynamicExecutor
  * 可执行体
  */
 @Keep
 abstract class Executable {
 
+    /**
+     * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
+     * 所以使用读写锁来做并发优化
+     */
     private final ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
 
     /**

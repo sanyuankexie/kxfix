@@ -5,9 +5,9 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import androidx.annotation.Keep;
 
 @Keep
-interface EntryPointHooker {
+interface Hooker {
 
     Object hook(ProceedingJoinPoint joinPoint) throws Throwable;
 
-    EntryPointHooker INSTANCE = HotfixExecutionEngine.INSTANCE;
+    Hooker INSTANCE = HotfixExecutionEngine.INSTANCE;
 }
