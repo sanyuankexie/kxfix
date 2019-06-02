@@ -1,10 +1,7 @@
 package org.keixe.android.hotfix.internal;
 
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,55 +33,11 @@ import androidx.annotation.Keep;
  * 4.由于初始化逻辑不一定得到执行,所以新字段可能会造成空指针异常
  * 5.添加的字段随补丁上线下线,若补丁下线,则字段会变成重新变成空
  *
+ *
+ * 可执行体
  */
-
 @Keep
 abstract class Executable {
-
-    //----------------------------------注册元数据-----------------------------
-
-    final void addClassInitializerEntry(String typeName) {
-        try {
-            Class type = Class.forName(typeName);
-            mFixedEntry.add(type);
-        } catch (Exception ignored) {
-
-        }
-    }
-
-    final void addConstructorEntry(String typeName,String[] pramTypeNames) {
-        try {
-            Class type = Class.forName(typeName);
-            Class[] pramTypes = Reflection.toClassArray(pramTypeNames);
-            Constructor<?> constructor = Reflection.constructorBy(type, pramTypes);
-            mFixedEntry.add(constructor);
-        } catch (Exception ignored) {
-
-        }
-    }
-
-    final void addMethodEntry(String typeName,String name,String[] pramTypeNames) {
-        try {
-            Class type = Class.forName(typeName);
-            Class[] pramTypes = Reflection.toClassArray(pramTypeNames);
-            Method method = Reflection.methodBy(type, name, pramTypes);
-            mFixedEntry.add(method);
-        } catch (Exception ignored) {
-
-        }
-    }
-
-    final void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(SignatureStore.getMethod(typeName, name, pramTypeNames));
-    }
-
-    final void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(SignatureStore.getField(typeName, name));
-    }
-    
-    //------------------------热补丁的元数据---------------------------------
-    
-    private final DynamicExecutionEngine mDynamicExecutionEngine;
 
     private final ReentrantReadWriteLock mLock = new ReentrantReadWriteLock();
 
@@ -97,28 +50,22 @@ abstract class Executable {
      * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
      * 所以使用读写锁来做并发优化
      */
-    private final WeakHashMap<Object,ConcurrentHashMap<String,Object>> mWeakRefFieldCache = new WeakHashMap<>();
+    private final WeakHashMap<Object, ConcurrentHashMap<String, Object>>
+            mWeakRefFieldCache = new WeakHashMap<>();
+
+    private final DynamicExecutionEngine mDynamicExecutionEngine;
 
     /**
-     * 被修复的可执行代码段的集合
-     * 包括:
-     * 1.{@link java.lang.reflect.Method}对应方法
-     * 2.{@link java.lang.reflect.Constructor}对应实例构造器
-     * 3.{@link java.lang.Class}对应静态初始化块
-     * <p>
-     * 每个被修复方法,新增的方法,新增的字段都对应一个补丁内的一个id
-     *
-     * @see Executable#mFixedEntry
-     * 新增的方法和字段不在此集合中保存,这个只包含了入口
+     * 元数据
      */
-    private final HashSet<AnnotatedElement> mFixedEntry = new HashSet<>();
+    private final Metadata mMetadata;
 
-    private final HashSet<String> mFixedSignature = new HashSet<>();
-
-    Executable(DynamicExecutionEngine dynamicExecutionEngine) {
+    Executable(DynamicExecutionEngine dynamicExecutionEngine,
+               Metadata metadata) {
         this.mDynamicExecutionEngine = dynamicExecutionEngine;
+        this.mMetadata = metadata;
     }
-    
+
     //----------------------热补丁暴露的操作----------------------------
 
     ExecutionEngine getExecutionEngine() {
@@ -126,16 +73,17 @@ abstract class Executable {
     }
 
     boolean isEntryPoint(AnnotatedElement marker) {
-        return marker != null && mFixedEntry.contains(marker);
+        return mMetadata.isEntryPoint(marker);
     }
 
     final Object receiveInvoke(Class type,
                                String name,
                                Class[] pramsTypes,
                                Object target,
-                               Object[] prams) throws Throwable {
-        String signature = SignatureStore.getMethod(type, name, pramsTypes);
-        return mFixedSignature.contains(signature)
+                               Object[] prams)
+            throws Throwable {
+        String signature = mMetadata.hasMethod(type, name, pramsTypes);
+        return signature != null
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
                 ? Reflection.JVM.invoke(type, name, pramsTypes, target, prams)
@@ -144,8 +92,9 @@ abstract class Executable {
 
     final Object receiveAccess(Class type,
                                String name,
-                               Object o)throws Throwable {
-        return mFixedSignature.contains(SignatureStore.getField(type, name))
+                               Object o)
+            throws Throwable {
+        return mMetadata.hasField(type, name)
                 ? myTable(type, o).get(name)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -155,8 +104,9 @@ abstract class Executable {
     final void receiveModify(Class type,
                              String name,
                              Object o,
-                             Object newValue) throws Throwable {
-        if (mFixedSignature.contains(SignatureStore.getField(type, name))) {
+                             Object newValue)
+            throws Throwable {
+        if (mMetadata.hasField(type, name)) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
@@ -171,6 +121,7 @@ abstract class Executable {
      * 所有的方法都放置在此方法的实现内
      * 并使用id索引,内部使用switch走不同方法
      * 字段访问和方法调用使用{@link ExecutionEngine}所定义的指令执行
+     *
      * @param signature 直接索引,不需要走{@link ExecutionEngine}
      */
     abstract Object invokeDynamicMethod(
@@ -181,7 +132,7 @@ abstract class Executable {
 
     //------------------------------私有函数------------------------------------
 
-    private Map<String,Object> myTable(Class type, Object o) {
+    private Map<String, Object> myTable(Class type, Object o) {
         if (o == null) {
             o = type;
         }
