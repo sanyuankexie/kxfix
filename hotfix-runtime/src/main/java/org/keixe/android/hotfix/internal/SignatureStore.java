@@ -110,16 +110,7 @@ final class SignatureStore {
 
         private static int mCurrentSize;
 
-        void put(Keys key, String value) {
-            key = key.clone();
-            mReadWriteLock.readLock().lock();
-            mCurrentSize += sizeOf(value);
-            mTable.put(key, value);
-            mReadWriteLock.readLock().unlock();
-            trimToSize();
-        }
-
-        String get(Keys keys) {
+        String getOrCreate(Keys keys) {
             String mapValue;
             mReadWriteLock.readLock().lock();
             mapValue = mTable.get(keys);
@@ -135,8 +126,10 @@ final class SignatureStore {
                             ? methodCreate(typeName, name, pramsTypes)
                             : fieldCreate(typeName, name);
                     mTable.put(keys, mapValue);
+
                 }
                 mReadWriteLock.writeLock().unlock();
+                trimToSize();
             }
             return mapValue;
         }
@@ -150,7 +143,7 @@ final class SignatureStore {
                     break;
                 }
                 // BEGIN LAYOUTLIB CHANGE
-                // get the last item in the linked list.
+                // getOrCreate the last item in the linked list.
                 // This is not efficient, the goal here is to minimize the changes
                 // compared to the platform version.
                 Map.Entry<Keys, String> toEvict = null;
@@ -182,7 +175,7 @@ final class SignatureStore {
             String name,
             Class[] pramsTypes) {
         Keys keys = KeysCache.of(type, name, pramsTypes);
-        String result = sCache.get(keys);
+        String result = sCache.getOrCreate(keys);
         keys.recycle();
         return result;
     }
@@ -191,14 +184,14 @@ final class SignatureStore {
             String typeName,
             String name,
             String[] pramsTypeNames) {
-        return methodCreate(typeName, name, (Object[]) pramsTypeNames);
+        return methodCreate(typeName, name, pramsTypeNames);
     }
 
     static String fieldGet(
             Class type,
             String name) {
         Keys keys = KeysCache.of(type, name);
-        String result = sCache.get(keys);
+        String result = sCache.getOrCreate(keys);
         keys.recycle();
         return result;
     }
