@@ -50,7 +50,7 @@ abstract class Executable {
      * 对于字段表来说,读取的概率远大于写的概率,并且两者的粒度都非常小
      * 所以使用读写锁来做并发优化
      */
-    private final WeakHashMap<Object, ConcurrentHashMap<String, Object>>
+    private WeakHashMap<Object, ConcurrentHashMap<String, Object>>
             mWeakRefFieldCache = new WeakHashMap<>();
 
     private final DynamicExecutionEngine mDynamicExecutionEngine;
@@ -60,17 +60,12 @@ abstract class Executable {
      */
     private final Metadata mMetadata;
 
-    Executable(DynamicExecutionEngine dynamicExecutionEngine,
-               Metadata metadata) {
+    Executable(DynamicExecutionEngine dynamicExecutionEngine) {
         this.mDynamicExecutionEngine = dynamicExecutionEngine;
-        this.mMetadata = metadata;
+        mMetadata = onLoaded();
     }
 
-    //----------------------热补丁暴露的操作----------------------------
-
-    ExecutionEngine getExecutionEngine() {
-        return mDynamicExecutionEngine;
-    }
+    //----------------------暴露的接口----------------------------
 
     boolean isEntryPoint(AnnotatedElement marker) {
         return mMetadata.isEntryPoint(marker);
@@ -117,6 +112,12 @@ abstract class Executable {
         }
     }
 
+    //------------------------------生命周期----------------------------
+
+    abstract Metadata onLoaded();
+
+    //------------------------------内部使用函数----------------------------
+
     /**
      * 所有的方法都放置在此方法的实现内
      * 并使用id索引,内部使用switch走不同方法
@@ -130,26 +131,26 @@ abstract class Executable {
             Object[] prams)
             throws Throwable;
 
-    //------------------------------私有函数------------------------------------
+    ExecutionEngine getExecutionEngine() {
+        return mDynamicExecutionEngine;
+    }
 
     private Map<String, Object> myTable(Class type, Object o) {
         if (o == null) {
             o = type;
         }
-        ReentrantReadWriteLock lock = mLock;
-        WeakHashMap<Object, ConcurrentHashMap<String, Object>> table = mWeakRefFieldCache;
-        lock.readLock().lock();
-        ConcurrentHashMap<String, Object> cache = table.get(o);
+        mLock.readLock().lock();
+        ConcurrentHashMap<String, Object> cache = mWeakRefFieldCache.get(o);
+        mLock.readLock().unlock();
         if (cache == null) {
-            lock.writeLock().lock();
-            cache = table.get(o);
+            mLock.writeLock().lock();
+            cache = mWeakRefFieldCache.get(o);
             if (cache == null) {
                 cache = new ConcurrentHashMap<>();
-                table.put(o, cache);
+                mWeakRefFieldCache.put(o, cache);
             }
-            lock.writeLock().unlock();
+            mLock.writeLock().unlock();
         }
-        lock.readLock().unlock();
         return cache;
     }
 }

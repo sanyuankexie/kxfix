@@ -8,6 +8,12 @@ public class PatchImplTest extends Executable {
     }
 
     @Override
+    Metadata onLoaded() {
+        Metadata metadata = new Metadata();
+        return metadata;
+    }
+
+    @Override
     Object invokeDynamicMethod(String signature, Object target, Object[] prams) throws Throwable {
         //必定生成
         ExecutionEngine executionEngine = getExecutionEngine();
