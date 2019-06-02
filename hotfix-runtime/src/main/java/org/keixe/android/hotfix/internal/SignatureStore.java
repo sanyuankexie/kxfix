@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import androidx.annotation.Keep;
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
@@ -22,6 +21,25 @@ final class SignatureStore {
     }
 
     private static final class Keys implements Cloneable {
+
+        private static final ThreadLocal<Keys> sThreadLocal = new ThreadLocal<>();
+
+        static Keys of(Class type, String name, Class[] pramTypes) {
+            Keys keys = of(type, name);
+            keys.mArray[2] = pramTypes;
+            return keys;
+        }
+
+        static Keys of(Class type, String name) {
+            Keys keys = sThreadLocal.get();
+            if (keys == null) {
+                keys = new Keys();
+                sThreadLocal.set(keys);
+            }
+            keys.mArray[0] = type;
+            keys.mArray[1] = name;
+            return keys;
+        }
 
         private Object[] mArray = new Object[3];
 
@@ -69,64 +87,34 @@ final class SignatureStore {
         }
     }
 
-    private static final class KeysCache extends ThreadLocal<Keys> {
-
-        private static final KeysCache sThreadLocal = new KeysCache();
-
-        private static Keys of(Class type, String name, Class[] pramTypes) {
-            Keys keys = of(type, name);
-            keys.mArray[2] = pramTypes;
-            return keys;
-        }
-
-        private static Keys of(Class type, String name) {
-            Keys keys = sThreadLocal.get();
-            keys.mArray[0] = type;
-            keys.mArray[1] = name;
-            return keys;
-        }
-
-        @SuppressWarnings("ConstantConditions")
-        @NonNull
-        @Override
-        public Keys get() {
-            return super.get();
-        }
-
-        @Override
-        protected Keys initialValue() {
-            return new Keys();
-        }
-    }
-
-    private static final class LruCache {
+    private static final class Factory {
 
         private static final int MAX_SIZE = 128 * 1024;
 
         private final ReentrantReadWriteLock mReadWriteLock = new ReentrantReadWriteLock();
 
-        private final LinkedHashMap<Keys, String> mTable
+        private final LinkedHashMap<Keys, String> mLruCache
                 = new LinkedHashMap<>(0, 0.75f, true);
 
         private static int mCurrentSize;
 
-        String getOrCreate(Keys keys) {
+        String get(Keys keys) {
             String mapValue;
             mReadWriteLock.readLock().lock();
-            mapValue = mTable.get(keys);
+            mapValue = mLruCache.get(keys);
             mReadWriteLock.readLock().unlock();
             if (mapValue == null) {
                 boolean needTrimToSize = false;
                 mReadWriteLock.writeLock().lock();
-                mapValue = mTable.get(keys);
+                mapValue = mLruCache.get(keys);
                 if (mapValue == null) {
                     String typeName = keys.getType().getName();
                     String name = keys.getName();
                     Class[] pramsTypes = keys.getPramTypes();
                     mapValue = pramsTypes != null
-                            ? createMethodSignature(typeName, name, pramsTypes)
-                            : createFieldSignature(typeName, name);
-                    mTable.put(keys.clone(), mapValue);
+                            ? createByMethod(typeName, name, pramsTypes)
+                            : createByField(typeName, name);
+                    mLruCache.put(keys.clone(), mapValue);
                     needTrimToSize = true;
                 }
                 mReadWriteLock.writeLock().unlock();
@@ -146,11 +134,11 @@ final class SignatureStore {
                     break;
                 }
                 // BEGIN LAYOUTLIB CHANGE
-                // getOrCreate the last item in the linked list.
+                // get the last item in the linked list.
                 // This is not efficient, the goal here is to minimize the changes
                 // compared to the platform version.
                 Map.Entry<Keys, String> toEvict = null;
-                for (Map.Entry<Keys, String> entry : mTable.entrySet()) {
+                for (Map.Entry<Keys, String> entry : mLruCache.entrySet()) {
                     toEvict = entry;
                 }
                 // END LAYOUTLIB CHANGE
@@ -159,7 +147,7 @@ final class SignatureStore {
                 }
                 key = toEvict.getKey();
                 value = toEvict.getValue();
-                mTable.remove(key);
+                mLruCache.remove(key);
                 mCurrentSize -= sizeOf(value);
                 mReadWriteLock.writeLock().unlock();
             }
@@ -169,16 +157,56 @@ final class SignatureStore {
             return Character.SIZE / Byte.SIZE * value.length();
         }
 
+        static String createByField(
+                String typeName,
+                String name) {
+            return typeName + '@' + name;
+        }
+
+        static String createByMethod(
+                String typeName,
+                String name,
+                Object[] pramsTypeNames) {
+            StringBuilder builder = new StringBuilder(
+                    typeName.length()
+                            + name.length()
+                            + 16 * pramsTypeNames.length)
+                    .append(typeName)
+                    .append("#")
+                    .append(name)
+                    .append('(');
+            if (pramsTypeNames instanceof String[]) {
+                if (pramsTypeNames.length >= 1) {
+                    builder.append(pramsTypeNames[0]);
+                    for (int i = 1; i < pramsTypeNames.length; i++) {
+                        builder.append(',')
+                                .append(pramsTypeNames[i]);
+                    }
+                }
+            } else if (pramsTypeNames instanceof Class[]) {
+                if (pramsTypeNames.length >= 1) {
+                    builder.append(((Class) pramsTypeNames[0]).getName());
+                    for (int i = 1; i < pramsTypeNames.length; i++) {
+                        builder.append(',')
+                                .append(((Class) pramsTypeNames[i]).getName());
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException();
+            }
+            builder.append(')');
+            return builder.toString();
+        }
     }
 
-    private static final LruCache sCache = new LruCache();
+    private static final Factory sFactory = new Factory();
 
     static String getMethod(
             Class type,
             String name,
             Class[] pramsTypes) {
-        Keys keys = KeysCache.of(type, name, pramsTypes);
-        String result = sCache.getOrCreate(keys);
+        Keys keys = Keys.of(type, name, pramsTypes);
+        String result = sFactory.get(keys);
         keys.recycle();
         return result;
     }
@@ -187,14 +215,14 @@ final class SignatureStore {
             String typeName,
             String name,
             String[] pramsTypeNames) {
-        return createMethodSignature(typeName, name, pramsTypeNames);
+        return Factory.createByMethod(typeName, name, pramsTypeNames);
     }
 
     static String getField(
             Class type,
             String name) {
-        Keys keys = KeysCache.of(type, name);
-        String result = sCache.getOrCreate(keys);
+        Keys keys = Keys.of(type, name);
+        String result = sFactory.get(keys);
         keys.recycle();
         return result;
     }
@@ -202,47 +230,6 @@ final class SignatureStore {
     static String getField(
             String typeName,
             String name) {
-        return createFieldSignature(typeName, name);
-    }
-
-    private static String createFieldSignature(
-            String typeName,
-            String name) {
-        return typeName + '@' + name;
-    }
-
-    private static String createMethodSignature(
-            String typeName,
-            String name,
-            Object[] pramsTypeNames) {
-        StringBuilder builder = new StringBuilder(
-                typeName.length()
-                        + name.length()
-                        + 16 * pramsTypeNames.length)
-                .append(typeName)
-                .append("#")
-                .append(name)
-                .append('(');
-        if (pramsTypeNames instanceof String[]) {
-            if (pramsTypeNames.length >= 1) {
-                builder.append(pramsTypeNames[0]);
-                for (int i = 1; i < pramsTypeNames.length; i++) {
-                    builder.append(',')
-                            .append(pramsTypeNames[i]);
-                }
-            }
-        } else if (pramsTypeNames instanceof Class[]) {
-            if (pramsTypeNames.length >= 1) {
-                builder.append(((Class) pramsTypeNames[0]).getName());
-                for (int i = 1; i < pramsTypeNames.length; i++) {
-                    builder.append(',')
-                            .append(((Class) pramsTypeNames[i]).getName());
-                }
-            }
-        } else {
-            throw new IllegalArgumentException();
-        }
-        builder.append(')');
-        return builder.toString();
+        return Factory.createByField(typeName, name);
     }
 }
