@@ -75,11 +75,11 @@ abstract class Executable {
     }
 
     final void addMethodSignature(String typeName,String name,String[] pramTypeNames) {
-        mFixedSignature.add(SignatureStore.methodGet(typeName, name, pramTypeNames));
+        mFixedSignature.add(SignatureStore.getMethod(typeName, name, pramTypeNames));
     }
 
     final void addFieldSignature(String typeName,String name) {
-        mFixedSignature.add(SignatureStore.fieldGet(typeName, name));
+        mFixedSignature.add(SignatureStore.getField(typeName, name));
     }
     
     //------------------------热补丁的元数据---------------------------------
@@ -134,7 +134,7 @@ abstract class Executable {
                                Class[] pramsTypes,
                                Object target,
                                Object[] prams) throws Throwable {
-        String signature = SignatureStore.methodGet(type, name, pramsTypes);
+        String signature = SignatureStore.getMethod(type, name, pramsTypes);
         return mFixedSignature.contains(signature)
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
@@ -145,7 +145,7 @@ abstract class Executable {
     final Object receiveAccess(Class type,
                                String name,
                                Object o)throws Throwable {
-        return mFixedSignature.contains(SignatureStore.fieldGet(type, name))
+        return mFixedSignature.contains(SignatureStore.getField(type, name))
                 ? myTable(type, o).get(name)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
                 ? Reflection.JVM.access(type, name, o)
@@ -156,7 +156,7 @@ abstract class Executable {
                              String name,
                              Object o,
                              Object newValue) throws Throwable {
-        if (mFixedSignature.contains(SignatureStore.fieldGet(type, name))) {
+        if (mFixedSignature.contains(SignatureStore.getField(type, name))) {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {

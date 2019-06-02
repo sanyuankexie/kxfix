@@ -124,9 +124,9 @@ final class SignatureStore {
                     String name = keys.getName();
                     Class[] pramsTypes = keys.getPramTypes();
                     mapValue = pramsTypes != null
-                            ? methodCreate(typeName, name, pramsTypes)
-                            : fieldCreate(typeName, name);
-                    mTable.put(keys, mapValue);
+                            ? createMethodSignature(typeName, name, pramsTypes)
+                            : createFieldSignature(typeName, name);
+                    mTable.put(keys.clone(), mapValue);
                     needTrimToSize = true;
                 }
                 mReadWriteLock.writeLock().unlock();
@@ -173,7 +173,7 @@ final class SignatureStore {
 
     private static final LruCache sCache = new LruCache();
 
-    static String methodGet(
+    static String getMethod(
             Class type,
             String name,
             Class[] pramsTypes) {
@@ -183,14 +183,14 @@ final class SignatureStore {
         return result;
     }
 
-    static String methodGet(
+    static String getMethod(
             String typeName,
             String name,
             String[] pramsTypeNames) {
-        return methodCreate(typeName, name, pramsTypeNames);
+        return createMethodSignature(typeName, name, pramsTypeNames);
     }
 
-    static String fieldGet(
+    static String getField(
             Class type,
             String name) {
         Keys keys = KeysCache.of(type, name);
@@ -199,19 +199,19 @@ final class SignatureStore {
         return result;
     }
 
-    static String fieldGet(
+    static String getField(
             String typeName,
             String name) {
-        return fieldCreate(typeName, name);
+        return createFieldSignature(typeName, name);
     }
 
-    private static String fieldCreate(
+    private static String createFieldSignature(
             String typeName,
             String name) {
         return typeName + '@' + name;
     }
 
-    private static String methodCreate(
+    private static String createMethodSignature(
             String typeName,
             String name,
             Object[] pramsTypeNames) {
