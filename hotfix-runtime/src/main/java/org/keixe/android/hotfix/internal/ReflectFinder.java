@@ -10,11 +10,11 @@ import androidx.annotation.Keep;
  * @author Luke
  */
 @Keep
-final class Reflection {
+final class ReflectFinder {
 
     static final ExecutionEngine JVM = ReflectExecutionEngine.INSTANCE;
 
-    private Reflection() {
+    private ReflectFinder() {
         throw new AssertionError();
     }
 

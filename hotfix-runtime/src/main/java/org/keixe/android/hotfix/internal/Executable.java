@@ -81,7 +81,7 @@ abstract class Executable {
         return signature != null
                 ? invokeDynamicMethod(signature, target, prams)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? Reflection.JVM.invoke(type, name, pramsTypes, target, prams)
+                ? ReflectFinder.JVM.invoke(type, name, pramsTypes, target, prams)
                 : mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams));
     }
 
@@ -92,7 +92,7 @@ abstract class Executable {
         return mMetadata.hasField(type, name)
                 ? myTable(type, o).get(name)
                 : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? Reflection.JVM.access(type, name, o)
+                ? ReflectFinder.JVM.access(type, name, o)
                 : mDynamicExecutionEngine.access(type, name, o));
     }
 
@@ -105,7 +105,7 @@ abstract class Executable {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
-                Reflection.JVM.modify(type, name, o, newValue);
+                ReflectFinder.JVM.modify(type, name, o, newValue);
             } else {
                 mDynamicExecutionEngine.modify(type, name, o, newValue);
             }

@@ -22,7 +22,7 @@ class ReflectExecutionEngine implements ExecutionEngine {
                                     Class[] pramTypes,
                                     Object[] prams)
             throws Throwable {
-        return Reflection.constructorBy(type, pramTypes).newInstance(prams);
+        return ReflectFinder.constructorBy(type, pramTypes).newInstance(prams);
     }
 
     @Override
@@ -31,14 +31,14 @@ class ReflectExecutionEngine implements ExecutionEngine {
                        Object target,
                        Object newValue)
             throws Throwable {
-        Reflection.fieldBy(type, name).set(target, newValue);
+        ReflectFinder.fieldBy(type, name).set(target, newValue);
     }
 
     public Object access(Class type,
                          String name,
                          Object target
     ) throws Throwable {
-        return Reflection.fieldBy(type, name).get(target);
+        return ReflectFinder.fieldBy(type, name).get(target);
     }
 
     @Override
@@ -47,7 +47,7 @@ class ReflectExecutionEngine implements ExecutionEngine {
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
-        Method method = Reflection.methodBy(type, name, pramTypes);
+        Method method = ReflectFinder.methodBy(type, name, pramTypes);
         return method.invoke(target, prams);
     }
 
@@ -58,7 +58,7 @@ class ReflectExecutionEngine implements ExecutionEngine {
             Class[] pramTypes,
             Object target,
             Object[] prams) throws Throwable {
-        Method method = Reflection.methodBy(type, name, pramTypes);
+        Method method = ReflectFinder.methodBy(type, name, pramTypes);
         if (Modifier.isStatic(method.getModifiers())) {
             throw new IllegalArgumentException();
         }
