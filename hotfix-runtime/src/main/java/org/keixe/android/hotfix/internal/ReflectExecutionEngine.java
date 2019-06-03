@@ -9,13 +9,14 @@ import androidx.annotation.Keep;
  * JVM反射执行引擎
  */
 @Keep
+@SuppressWarnings("WeakerAccess")
 class ReflectExecutionEngine implements ExecutionEngine {
+
+    protected ReflectExecutionEngine() { }
 
     static {
         System.loadLibrary("reflection");
     }
-
-    static final ReflectExecutionEngine INSTANCE = new ReflectExecutionEngine();
 
     @Override
     public final Object newInstance(Class<?> type,

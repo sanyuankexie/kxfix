@@ -1,6 +1,8 @@
 package org.keixe.android.hotfix.internal;
 
-import java.lang.reflect.AnnotatedElement;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.reflect.CodeSignature;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -71,33 +73,49 @@ abstract class Executable {
 
     //----------------------暴露的接口----------------------------
 
-    boolean isEntryPoint(AnnotatedElement marker) {
-        return mMetadata.isEntryPoint(marker);
+    final Object receiveInvoke(ProceedingJoinPoint joinPoint)
+            throws Throwable {
+        CodeSignature codeSignature = (CodeSignature) joinPoint.getSignature();
+        Class type = codeSignature.getDeclaringType();
+        String name = codeSignature.getName();
+        Class[] pramsTypes = codeSignature.getParameterTypes();
+        String signature = mMetadata.hasMethod(type, name, pramsTypes);
+        return signature != null
+                ? invokeDynamicMethod(signature, joinPoint.getTarget(), joinPoint.getArgs())
+                : joinPoint.proceed();
     }
 
     final Object receiveInvoke(Class type,
-                               String name,
-                               Class[] pramsTypes,
-                               Object target,
-                               Object[] prams)
+                                 String name,
+                                 Class[] pramsTypes,
+                                 Object target,
+                                 Object[] prams)
             throws Throwable {
         String signature = mMetadata.hasMethod(type, name, pramsTypes);
-        return signature != null
-                ? invokeDynamicMethod(signature, target, prams)
-                : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? ExecutionEngine.JVM.invoke(type, name, pramsTypes, target, prams)
-                : mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams));
+        if (signature != null) {
+            return invokeDynamicMethod(signature, target, prams);
+        } else {
+            if (mDynamicExecutionEngine.isExecuteThat(this)) {
+                throw new NoSuchMethodException();
+            } else {
+                return mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams);
+            }
+        }
     }
 
     final Object receiveAccess(Class type,
                                String name,
                                Object o)
             throws Throwable {
-        return mMetadata.hasField(type, name)
-                ? myTable(type, o).get(name)
-                : (mDynamicExecutionEngine.isExecuteThat(this)
-                ? ExecutionEngine.JVM.access(type, name, o)
-                : mDynamicExecutionEngine.access(type, name, o));
+        if (mMetadata.hasField(type, name)) {
+            return myTable(type, o).get(name);
+        } else {
+            if (mDynamicExecutionEngine.isExecuteThat(this)) {
+                throw new NoSuchFieldException();
+            } else {
+                return mDynamicExecutionEngine.access(type, name, o);
+            }
+        }
     }
 
     final void receiveModify(Class type,
@@ -109,7 +127,7 @@ abstract class Executable {
             myTable(type, o).put(name, newValue);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
-                ExecutionEngine.JVM.modify(type, name, o, newValue);
+                throw new NoSuchFieldException();
             } else {
                 mDynamicExecutionEngine.modify(type, name, o, newValue);
             }

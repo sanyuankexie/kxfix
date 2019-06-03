@@ -3,9 +3,6 @@ package org.keixe.android.hotfix.internal;
 import android.util.ArrayMap;
 import android.util.Pair;
 
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -17,30 +14,11 @@ import androidx.annotation.Keep;
 @Keep
 final class Metadata {
 
+    Metadata() { }
+
     private static final List<Pair<Class[], String>> IS_FIELD_MARK = Collections.emptyList();
 
     private final ArrayMap<Class, Map<String, List<Pair<Class[], String>>>> mData = new ArrayMap<>();
-
-    boolean isEntryPoint(AnnotatedElement marker) {
-        if (marker == null) {
-            return false;
-        } else if (marker instanceof Class) {
-            Map<String, List<Pair<Class[], String>>> typeData = mData.get(marker);
-            return typeData != null && typeData.containsKey("<cinit>");
-        } else if (marker instanceof Method) {
-            Map<String, List<Pair<Class[], String>>> typeData
-                    = mData.get(((Method) marker).getDeclaringClass());
-            return hasMethod(typeData, ((Method) marker).getName(),
-                    ((Method) marker).getParameterTypes()) != null;
-        } else if (marker instanceof Constructor) {
-            Map<String, List<Pair<Class[], String>>> typeData
-                    = mData.get(((Constructor) marker).getDeclaringClass());
-            return hasMethod(typeData, "<init>",
-                    ((Constructor) marker).getParameterTypes()) != null;
-        } else {
-            return false;
-        }
-    }
 
     final void addMethod(String typeName, String name, String[] pramTypeNames) {
         try {
@@ -57,7 +35,7 @@ final class Metadata {
                 typeData.put(name, methods);
             }
             methods.add(Pair.create(pramTypes,
-                    getMethodCachedName(type.getName(), name, pramTypeNames)));
+                    getMethodCachedSignature(type.getName(), name, pramTypeNames)));
         } catch (Exception ignored) {
 
         }
@@ -118,7 +96,7 @@ final class Metadata {
         return null;
     }
 
-    private static String getMethodCachedName(
+    private static String getMethodCachedSignature(
             String typeName,
             String name,
             Object[] pramsTypeNames) {

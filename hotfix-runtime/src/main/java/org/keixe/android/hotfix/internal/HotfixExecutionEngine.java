@@ -1,14 +1,7 @@
 package org.keixe.android.hotfix.internal;
 
-import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.Signature;
-import org.aspectj.lang.reflect.CodeSignature;
-import org.aspectj.lang.reflect.ConstructorSignature;
-import org.aspectj.lang.reflect.InitializerSignature;
-import org.aspectj.lang.reflect.MethodSignature;
 
-import java.lang.reflect.AnnotatedElement;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import androidx.annotation.Keep;
@@ -42,35 +35,7 @@ final class HotfixExecutionEngine
     @Override
     public final Object hook(ProceedingJoinPoint joinPoint) throws Throwable {
         Executable executable = mExecutable;
-        if (executable != null && executable.isEntryPoint(getEntryPoint(joinPoint))) {
-            CodeSignature signature = (CodeSignature) joinPoint.getSignature();
-            try {
-                return executable.receiveInvoke(
-                        signature.getDeclaringType(),
-                        signature.getName(),
-                        signature.getParameterTypes(),
-                        joinPoint.getTarget(),
-                        joinPoint.getArgs()
-                );
-            } catch (Exception e) {
-                e.printStackTrace();
-                //补丁出错,降级处理↓
-            }
-        }
-        return joinPoint.proceed();
-    }
-
-    private static AnnotatedElement getEntryPoint(JoinPoint joinPoint) {
-        AnnotatedElement marker = null;
-        Signature signature = joinPoint.getSignature();
-        if (signature instanceof ConstructorSignature) {
-            marker = ((ConstructorSignature) signature).getConstructor();
-        } else if (signature instanceof MethodSignature) {
-            marker = ((MethodSignature) signature).getMethod();
-        } else if (signature instanceof InitializerSignature) {
-            marker = signature.getDeclaringType();
-        }
-        return marker;
+        return executable != null ? executable.receiveInvoke(joinPoint) : joinPoint.proceed();
     }
 
     @Override
