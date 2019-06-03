@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'android-aspectjx'
-apply plugin: 'hotfix-patched'
+//apply plugin: 'hotfix-patched'
 
 android {
     compileSdkVersion 28
