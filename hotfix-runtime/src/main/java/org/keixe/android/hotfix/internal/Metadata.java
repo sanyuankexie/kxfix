@@ -53,7 +53,7 @@ final class Metadata {
             }
             List<MemberInfo> fields = typeData.get(name);
             if (fields == null) {
-                typeData.put(name, Collections.<MemberInfo>emptyList());
+                typeData.put(name, IS_FIELD_MARK);
             }
         } catch (Exception ignored) {
 

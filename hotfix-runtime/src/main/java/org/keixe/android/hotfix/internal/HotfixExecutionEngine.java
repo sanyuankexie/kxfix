@@ -28,7 +28,10 @@ final class HotfixExecutionEngine
     }
 
     @Override
-    public final void apply(Executable executable) {
+    public final void apply(Class executableType) throws Throwable {
+        Executable executable = (Executable) ReflectFinder
+                .constructorBy(executableType, new Class[]{DynamicExecutionEngine.class})
+                .newInstance(this);
         sExecutableUpdater.set(this, executable);
     }
 

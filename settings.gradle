@@ -1,1 +1,1 @@
-include ':sample', ':hotfix-runtime', ':hotfix-bomb'
+include ':sample', ':hotfix-runtime', ':hotfix-bomb', ':hotfix-plugins'

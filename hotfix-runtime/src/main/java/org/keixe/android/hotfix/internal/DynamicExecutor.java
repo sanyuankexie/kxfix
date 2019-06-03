@@ -1,11 +1,13 @@
 package org.keixe.android.hotfix.internal;
 
 import androidx.annotation.Keep;
+import androidx.annotation.RestrictTo;
 
 @Keep
-interface DynamicExecutor {
+@RestrictTo(RestrictTo.Scope.LIBRARY)
+public interface DynamicExecutor {
 
-    void apply(Executable executable);
+    void apply(Class executableType) throws Throwable;
 
     boolean isExecuteThat(Executable executable);
 
