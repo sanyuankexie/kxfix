@@ -66,7 +66,7 @@ abstract class Executable {
      */
     private final Metadata mMetadata;
 
-    Executable(DynamicExecutionEngine dynamicExecutionEngine) {
+    protected Executable(DynamicExecutionEngine dynamicExecutionEngine) {
         this.mDynamicExecutionEngine = dynamicExecutionEngine;
         mMetadata = onLoaded();
     }
@@ -80,23 +80,24 @@ abstract class Executable {
         String name = codeSignature.getName();
         Class[] pramsTypes = codeSignature.getParameterTypes();
         String signature = mMetadata.hasMethod(type, name, pramsTypes);
-        return signature != null
-                ? invokeDynamicMethod(signature, joinPoint.getTarget(), joinPoint.getArgs())
+        return signature != null ? invokeDynamicMethod(
+                signature, joinPoint.getTarget(),
+                joinPoint.getArgs())
                 : joinPoint.proceed();
     }
 
     final Object receiveInvoke(Class type,
-                                 String name,
-                                 Class[] pramsTypes,
-                                 Object target,
-                                 Object[] prams)
+                               String name,
+                               Class[] pramsTypes,
+                               Object target,
+                               Object[] prams)
             throws Throwable {
         String signature = mMetadata.hasMethod(type, name, pramsTypes);
         if (signature != null) {
             return invokeDynamicMethod(signature, target, prams);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
-                throw new NoSuchMethodException();
+                return ReflectExecutionEngine.JVM.invoke(type, name, pramsTypes, target, prams);
             } else {
                 return mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams);
             }
@@ -136,7 +137,7 @@ abstract class Executable {
 
     //------------------------------生命周期----------------------------
 
-    abstract Metadata onLoaded();
+    protected abstract Metadata onLoaded();
 
     //------------------------------内部使用函数----------------------------
 
@@ -147,7 +148,7 @@ abstract class Executable {
      *
      * @param signature 直接索引,不需要走{@link ExecutionEngine}
      */
-    abstract Object invokeDynamicMethod(
+    protected abstract Object invokeDynamicMethod(
             String signature,
             Object target,
             Object[] prams)

@@ -14,6 +14,8 @@ class ReflectExecutionEngine implements ExecutionEngine {
 
     protected ReflectExecutionEngine() { }
 
+    static final ReflectExecutionEngine JVM = new ReflectExecutionEngine();
+
     static {
         System.loadLibrary("reflection");
     }

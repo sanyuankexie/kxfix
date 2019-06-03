@@ -35,7 +35,9 @@ final class HotfixExecutionEngine
     @Override
     public final Object hook(ProceedingJoinPoint joinPoint) throws Throwable {
         Executable executable = mExecutable;
-        return executable != null ? executable.receiveInvoke(joinPoint) : joinPoint.proceed();
+        return executable != null
+                ? executable.receiveInvoke(joinPoint)
+                : joinPoint.proceed();
     }
 
     @Override
@@ -47,11 +49,9 @@ final class HotfixExecutionEngine
             Object[] prams)
             throws Throwable {
         Executable executable = mExecutable;
-        if (executable == null) {
-            return super.invoke(type, name, pramsTypes, target, prams);
-        } else {
-            return executable.receiveInvoke(type, name, pramsTypes, target, prams);
-        }
+        return executable == null
+                ? super.invoke(type, name, pramsTypes, target, prams)
+                : executable.receiveInvoke(type, name, pramsTypes, target, prams);
     }
 
     @Override
@@ -61,11 +61,9 @@ final class HotfixExecutionEngine
             Object target)
             throws Throwable {
         Executable executable = mExecutable;
-        if (executable == null) {
-            return super.access(type, name, target);
-        } else {
-            return executable.receiveAccess(type, name, target);
-        }
+        return executable == null
+                ? super.access(type, name, target)
+                : executable.receiveAccess(type, name, target);
     }
 
     @Override
