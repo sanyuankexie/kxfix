@@ -35,7 +35,10 @@ final class Metadata {
                 typeData.put(name, methods);
             }
             methods.add(Pair.create(pramTypes,
-                    getMethodCachedSignature(type.getName(), name, pramTypeNames)));
+                    getMethodCachedSignature(
+                            type.getName(),
+                            name,
+                            pramTypeNames)));
         } catch (Exception ignored) {
 
         }
@@ -88,7 +91,7 @@ final class Metadata {
         List<Pair<Class[], String>> methods = typeData.get(name);
         if (methods != null && !IS_FIELD_MARK.equals(methods)) {
             for (Pair<Class[], String> method : methods) {
-                if (Arrays.deepEquals(method.first, pramTypes)) {
+                if (Arrays.equals(method.first, pramTypes)) {
                     return method;
                 }
             }
