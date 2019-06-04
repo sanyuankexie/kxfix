@@ -97,7 +97,7 @@ final class Metadata {
     private static String cachedSignature(
             String typeName,
             String name,
-            Object[] pramsTypeNames) {
+            String[] pramsTypeNames) {
         StringBuilder builder = new StringBuilder(
                 typeName.length()
                         + name.length()
@@ -106,24 +106,12 @@ final class Metadata {
                 .append("#")
                 .append(name)
                 .append('(');
-        if (pramsTypeNames instanceof String[]) {
-            if (pramsTypeNames.length >= 1) {
-                builder.append(pramsTypeNames[0]);
-                for (int i = 1; i < pramsTypeNames.length; i++) {
-                    builder.append(',')
-                            .append(pramsTypeNames[i]);
-                }
+        if (pramsTypeNames.length >= 1) {
+            builder.append(pramsTypeNames[0]);
+            for (int i = 1; i < pramsTypeNames.length; i++) {
+                builder.append(',')
+                        .append(pramsTypeNames[i]);
             }
-        } else if (pramsTypeNames instanceof Class[]) {
-            if (pramsTypeNames.length >= 1) {
-                builder.append(((Class) pramsTypeNames[0]).getName());
-                for (int i = 1; i < pramsTypeNames.length; i++) {
-                    builder.append(',')
-                            .append(((Class) pramsTypeNames[i]).getName());
-                }
-            }
-        } else {
-            throw new IllegalArgumentException();
         }
         builder.append(')');
         return builder.toString();

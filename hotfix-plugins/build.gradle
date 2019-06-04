@@ -8,9 +8,16 @@ compileGroovy {
 }
 
 dependencies {
+    //gradle apis
     implementation gradleApi()
     implementation localGroovy()
-    //implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.4'
     implementation 'com.android.tools.build:gradle:3.3.1'
+    //基于aspectjx插粧
+    implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.4'
+    //dx
+    implementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
+    //smali
+    implementation 'org.smali:smali:2.2.7'
+    //修改字节码
     implementation 'org.javassist:javassist:3.20.0-GA'
 }

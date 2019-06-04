@@ -1,15 +1,20 @@
-package org.keixe.android.hotfix.plugins;
+package org.keixe.android.hotfix.plugin;
 
+import com.android.build.api.transform.Format;
 import com.android.build.api.transform.QualifiedContent;
 import com.android.build.api.transform.Transform;
 import com.android.build.api.transform.TransformException;
 import com.android.build.api.transform.TransformInvocation;
+import com.android.build.gradle.AppExtension;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 
+import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
+import java.awt.Desktop;
 import java.awt.Image;
 import java.awt.Toolkit;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Set;
@@ -17,12 +22,18 @@ import java.util.Set;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
-public final class PatchedTransform extends Transform {
+public final class PatchTransform extends Transform {
 
+    private final String mWorkDir;
     private final Logger mLogger;
 
-    public PatchedTransform(Logger logger) {
-        this.mLogger = logger;
+    PatchTransform(Project project) {
+        mLogger = project.getLogger();
+        mWorkDir = project.getRootDir() + File.separator + "patched" + File.separator;
+        AppExtension android = project.getExtensions().getByType(AppExtension.class);
+        for (File file : android.getBootClasspath()) {
+
+        }
     }
 
     @Override
@@ -31,10 +42,14 @@ public final class PatchedTransform extends Transform {
     }
 
     @Override
-    public void transform(TransformInvocation transformInvocation) throws TransformException, InterruptedException, IOException {
+    public void transform(TransformInvocation transformInvocation)
+            throws TransformException, InterruptedException, IOException {
         long startTime = System.currentTimeMillis();
         mLogger.quiet("==================patched start===================");
         transformInvocation.getOutputProvider().deleteAll();
+        File output = transformInvocation.getOutputProvider()
+                .getContentLocation("main", getOutputTypes(), getScopes(), Format.DIRECTORY);
+
         long cost = (System.currentTimeMillis() - startTime) / 1000;
         mLogger.quiet("==================patched finish==================");
         URL url = ClassLoader.getSystemClassLoader().getResource("./icon.png");
@@ -46,6 +61,9 @@ public final class PatchedTransform extends Transform {
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
                 imageIcon);
+        if (Desktop.isDesktopSupported()) {
+            Desktop.getDesktop().open(new File(""));
+        }
         System.exit(0);
     }
 
