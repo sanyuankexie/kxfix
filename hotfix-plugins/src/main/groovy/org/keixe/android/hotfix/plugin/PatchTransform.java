@@ -22,18 +22,27 @@ import java.util.Set;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
+import javassist.ClassPool;
+import javassist.NotFoundException;
+
 public final class PatchTransform extends Transform {
 
     private final String mWorkDir;
     private final Logger mLogger;
+    private final ClassPool mClassPool = new ClassPool();
 
     PatchTransform(Project project) {
         mLogger = project.getLogger();
         mWorkDir = project.getRootDir() + File.separator + "patched" + File.separator;
         AppExtension android = project.getExtensions().getByType(AppExtension.class);
-        for (File file : android.getBootClasspath()) {
-
-        }
+        android.getBootClasspath()
+                .forEach(classpath -> {
+                    try {
+                        mClassPool.appendClassPath(classpath.getAbsolutePath());
+                    } catch (NotFoundException e) {
+                        e.printStackTrace();
+                    }
+                });
     }
 
     @Override
@@ -52,6 +61,11 @@ public final class PatchTransform extends Transform {
 
         long cost = (System.currentTimeMillis() - startTime) / 1000;
         mLogger.quiet("==================patched finish==================");
+        finishWithDirectory(new File(""));
+    }
+
+
+    private static void finishWithDirectory(File directory) throws IOException {
         URL url = ClassLoader.getSystemClassLoader().getResource("./icon.png");
         Image image = Toolkit.getDefaultToolkit().createImage(url);
         image = image.getScaledInstance(40, 40, Image.SCALE_DEFAULT);
@@ -62,7 +76,7 @@ public final class PatchTransform extends Transform {
                 JOptionPane.QUESTION_MESSAGE,
                 imageIcon);
         if (Desktop.isDesktopSupported()) {
-            Desktop.getDesktop().open(new File(""));
+            Desktop.getDesktop().open(directory);
         }
         System.exit(0);
     }
