@@ -79,7 +79,7 @@ public class PatchTransform extends Transform {
         transformInvocation.getOutputProvider().deleteAll();
         File outDir = transformInvocation.getOutputProvider()
                 .getContentLocation("main", getOutputTypes(), getScopes(), Format.DIRECTORY);
-        List<CtClass> loadedClass = loadInputClasses(transformInvocation.getInputs());
+        List<CtClass> loadedClass = loadInput(transformInvocation.getInputs());
         File opened = doTransform(loadedClass);
         long cost = (System.currentTimeMillis() - startTime) / 1000;
         mLogger.quiet("==================patched finish==================");
@@ -102,7 +102,7 @@ public class PatchTransform extends Transform {
         System.exit(0);
     }
 
-    private List<CtClass> loadInputClasses(Collection<TransformInput> inputs)
+    private List<CtClass> loadInput(Collection<TransformInput> inputs)
             throws IOException, TransformException {
         AppExtension android = mProject.getExtensions().getByType(AppExtension.class);
         String[] extension = {SdkConstants.EXT_CLASS};
@@ -235,8 +235,8 @@ public class PatchTransform extends Transform {
             StringBuilder builder
                     = new StringBuilder("protected java.lang.Object invokeDynamicMethod(" +
                     "int id, " +
-                    "Object target, " +
-                    "Object[] prams)" +
+                    "java.lang.Object target, " +
+                    "java.lang.Object[] prams)" +
                     "throws java.lang.Throwable {" +
                     "org.kexie.android.hotfix.internal.ExecutionEngine " +
                     "executionEngine = this.getExecutionEngine();" +
