@@ -15,8 +15,8 @@ import com.android.build.gradle.internal.pipeline.TransformManager;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
-import org.kexie.andorid.hotfix.Hotfix;
-import org.kexie.andorid.hotfix.Patched;
+import org.kexie.android.hotfix.Hotfix;
+import org.kexie.android.hotfix.Patched;
 
 import java.awt.Desktop;
 import java.awt.Image;
@@ -209,8 +209,8 @@ public class PatchTransform extends Transform {
             List<CtMethod> methods)
             throws CannotCompileException, IOException {
         Map<CtMethod, Integer> hashIds = new HashMap<>();
-        for (CtClass ctClass : classes) {
-            ctClass.writeFile(output);
+        for (CtClass clazz : classes) {
+            clazz.writeFile(output);
         }
         for (CtMethod method : methods) {
 

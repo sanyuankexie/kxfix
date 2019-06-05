@@ -1,26 +1,23 @@
 package org.kexie.android.hotfix;
 
-import java.io.File;
-import java.util.UUID;
-
 import androidx.annotation.Keep;
 
 @Keep
 @SuppressWarnings("WeakerAccess")
 public final class Patch {
-    private final File mDexPath;
-    private final UUID mUUID;
+    private final String mDexPath;
+    private final String mUUID;
 
-    public Patch(File dexPath, UUID uuid) {
+    public Patch(String dexPath, String uuid) {
         this.mDexPath = dexPath;
         this.mUUID = uuid;
     }
 
-    public UUID getUUID() {
+    public String getUUID() {
         return mUUID;
     }
 
-    public File getDexPath() {
+    public String getDexPath() {
         return mDexPath;
     }
 }

@@ -1,4 +1,4 @@
-package org.kexie.andorid.hotfix;
+package org.kexie.android.hotfix;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

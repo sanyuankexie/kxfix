@@ -29,11 +29,13 @@ final class HotfixExecutionEngine
     }
 
     @Override
-    public final void apply(Patch patch,String cacheDir) throws Throwable {
-//        Executable executable = (Executable) ReflectFinder
-//                .constructorBy(executableType, new Class[]{DynamicExecutionEngine.class})
-//                .newInstance(this);
-//        sExecutableUpdater.set(this, executable);
+    public final void apply(Patch patch, String cacheDir) throws Throwable {
+        HotfixClassLoader classLoader = new HotfixClassLoader(patch.getDexPath(), cacheDir);
+        Class loadedClass = classLoader.loadClass(Executable.class.getName() + '$' + patch.getUUID());
+        Executable executable = (Executable) ReflectFinder
+                .constructorBy(loadedClass, new Class[]{DynamicExecutionEngine.class})
+                .newInstance(this);
+        sExecutableUpdater.set(this, executable);
     }
 
     @Override
