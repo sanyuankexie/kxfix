@@ -1,4 +1,4 @@
-package org.keixe.android.hotfix.plugin
+package org.keixe.android.hotfix.plugins
 
 import com.android.build.api.transform.*
 import com.android.build.gradle.AppExtension

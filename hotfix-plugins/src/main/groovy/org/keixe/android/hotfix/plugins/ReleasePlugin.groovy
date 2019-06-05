@@ -1,11 +1,11 @@
-package org.keixe.android.hotfix.plugin
+package org.keixe.android.hotfix.plugins
 
 import com.hujiang.gradle.plugin.android.aspectjx.AJXPlugin
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
-final class PackPlugin implements Plugin<Project> {
+final class ReleasePlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         if (project.plugins.hasPlugin(PatchPlugin.class)) {
