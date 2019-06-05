@@ -237,7 +237,7 @@ public class PatchTransform extends Transform {
                     "int id, " +
                     "Object target, " +
                     "Object[] prams)" +
-                    "throws Throwable {" +
+                    "throws java.lang.Throwable {" +
                     "org.kexie.android.hotfix.internal.ExecutionEngine " +
                     "executionEngine = this.getExecutionEngine();" +
                     "switch (id) {");
