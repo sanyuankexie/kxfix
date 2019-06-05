@@ -47,9 +47,15 @@ import javassist.CtMethod;
 import javassist.NotFoundException;
 
 /**
- * Java特别适合用来构建复杂臃肿但又可靠的的系统
+ * Android Studio Plugin 可以完全使用Java来进行开发
+ * 而Java是强类型非动态的
+ * 特别适合用来构建复杂臃肿但又可靠的的系统
+ * 所以这里没有使用groovy
  */
 public class PatchTransform extends Transform {
+
+    private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
+    private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
 
     private final Logger mLogger;
     private final ClassPool mClassPool = new ClassPool();
@@ -99,12 +105,12 @@ public class PatchTransform extends Transform {
     private List<CtClass> loadInputClasses(Collection<TransformInput> inputs)
             throws IOException, TransformException {
         AppExtension android = mProject.getExtensions().getByType(AppExtension.class);
+        String[] extension = {SdkConstants.EXT_CLASS};
         List<String> classNames = new LinkedList<>();
         try {
             for (File classpath : android.getBootClasspath()) {
                 mClassPool.appendClassPath(classpath.getAbsolutePath());
             }
-            String[] extension = {SdkConstants.EXT_CLASS};
             for (TransformInput input : inputs) {
                 for (DirectoryInput directoryInput : input.getDirectoryInputs()) {
                     String directory = directoryInput.getFile().getAbsolutePath();
@@ -113,8 +119,9 @@ public class PatchTransform extends Transform {
                             extension, true)) {
                         String className = file.getAbsolutePath().substring(
                                 directory.length() + 1,
-                                file.getAbsolutePath().length() - SdkConstants.DOT_CLASS.length())
-                                .replaceAll(Matcher.quoteReplacement(File.separator), ".");
+                                file.getAbsolutePath().length() -
+                                        SdkConstants.DOT_CLASS.length()
+                        ).replaceAll(Matcher.quoteReplacement(File.separator), ".");
                         classNames.add(className);
                     }
                 }
@@ -160,11 +167,7 @@ public class PatchTransform extends Transform {
         List<CtField> fields = new LinkedList<>();
         List<CtMethod> methods = new LinkedList<>();
         loadPatchedElements(loaded, classes, fields, methods);
-        try {
-            buildClasses(path, classes, fields, methods);
-        } catch (CannotCompileException e) {
-            throw new TransformException(e);
-        }
+        buildClasses(path, classes, fields, methods);
         return output;
     }
 
@@ -207,13 +210,54 @@ public class PatchTransform extends Transform {
             List<CtClass> classes,
             List<CtField> fields,
             List<CtMethod> methods)
-            throws CannotCompileException, IOException {
-        Map<CtMethod, Integer> hashIds = new HashMap<>();
-        for (CtClass clazz : classes) {
-            clazz.writeFile(output);
+            throws IOException, TransformException {
+        try {
+            for (CtClass clazz : classes) {
+                clazz.writeFile(output);
+            }
+            CtClass executable = buildExecutable(fields, methods);
+            executable.writeFile(output);
+        } catch (CannotCompileException e) {
+            throw new TransformException(e);
         }
-        for (CtMethod method : methods) {
+    }
 
+    private CtClass buildExecutable(
+            List<CtField> fields,
+            List<CtMethod> methods)
+            throws TransformException {
+        try {
+            CtClass patch = mClassPool.makeClass(
+                    PATCH_SUPER_CLASS_NAME + PATCH_CLASS_NAME_SUFFIX
+            );
+            patch.defrost();
+            CtClass superClass = mClassPool.get(PATCH_SUPER_CLASS_NAME);
+            StringBuilder builder
+                    = new StringBuilder("protected java.lang.Object invokeDynamicMethod(" +
+                    "int id, " +
+                    "Object target, " +
+                    "Object[] prams)" +
+                    "throws Throwable {" +
+                    "org.kexie.android.hotfix.internal.ExecutionEngine " +
+                    "executionEngine = this.getExecutionEngine();" +
+                    "switch (id) {");
+            patch.subclassOf(superClass);
+            Map<CtMethod, Integer> hashIds = new HashMap<>();
+            for (CtMethod method : methods) {
+                int id = hashMethodId(hashIds, method);
+                builder.append("case ").append(id).append(": {");
+                //TODO ......
+                builder.append("}");
+            }
+            builder.append("default: {\n" +
+                    "throw new java.lang.NoSuchMethodException();\n" +
+                    "}\n" +
+                    "}\n" +
+                    "}");
+            patch.addMethod(CtMethod.make(builder.toString(), patch));
+            return patch;
+        } catch (NotFoundException | CannotCompileException e) {
+            throw new TransformException(e);
         }
     }
 

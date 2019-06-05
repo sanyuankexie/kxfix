@@ -1,7 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.kexie.android.hotfix.Patch;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -29,9 +28,9 @@ final class HotfixExecutionEngine
     }
 
     @Override
-    public final void apply(Patch patch, String cacheDir) throws Throwable {
-        HotfixClassLoader classLoader = new HotfixClassLoader(patch.getDexPath(), cacheDir);
-        Class loadedClass = classLoader.loadClass(Executable.class.getName() + '$' + patch.getUUID());
+    public final void apply(String dexPath, String cacheDir) throws Throwable {
+        HotfixClassLoader classLoader = new HotfixClassLoader(dexPath, cacheDir);
+        Class loadedClass = classLoader.loadClass(Executable.class.getName() + "Impl");
         Executable executable = (Executable) ReflectFinder
                 .constructorBy(loadedClass, new Class[]{DynamicExecutionEngine.class})
                 .newInstance(this);
@@ -50,10 +49,7 @@ final class HotfixExecutionEngine
     public Class typeOf(String name) throws Throwable {
         Executable executable = mExecutable;
         if (executable != null) {
-            try {
-                return Class.forName(name, true, executable.getClass().getClassLoader());
-            } catch (ClassNotFoundException ignored) {
-            }
+            return Class.forName(name, true, executable.getClass().getClassLoader());
         }
         return super.typeOf(name);
     }

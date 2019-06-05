@@ -35,7 +35,7 @@ public final class HotfixManager {
                     String cacheDir = mContext
                             .getDir("patched", Context.MODE_PRIVATE)
                             .getAbsolutePath();
-                    ExecutableLoader.INSTANCE.apply(patch, cacheDir);
+                    ExecutableLoader.INSTANCE.apply(patch.getDexPath(), cacheDir);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

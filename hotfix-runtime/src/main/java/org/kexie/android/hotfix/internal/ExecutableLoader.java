@@ -1,7 +1,5 @@
 package org.kexie.android.hotfix.internal;
 
-import org.kexie.android.hotfix.Patch;
-
 import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
 
@@ -9,7 +7,7 @@ import androidx.annotation.RestrictTo;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public interface ExecutableLoader {
 
-    void apply(Patch patch, String cacheDir) throws Throwable;
+    void apply(String dexPath, String cacheDir) throws Throwable;
 
     boolean isExecuteThat(Executable executable);
 

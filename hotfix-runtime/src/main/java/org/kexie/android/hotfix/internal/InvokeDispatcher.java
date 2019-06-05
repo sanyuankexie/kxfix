@@ -14,9 +14,9 @@ import androidx.annotation.RestrictTo;
 @Keep
 @Aspect
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public final class EventDispatcher {
+public final class InvokeDispatcher {
 
-    private static final String TAG = "EventDispatcher";
+    private static final String TAG = "InvokeDispatcher";
 
     /**
      * 核心AspectJ表达式
