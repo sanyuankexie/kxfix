@@ -249,11 +249,7 @@ public class PatchTransform extends Transform {
                 //TODO ......
                 builder.append("}");
             }
-            builder.append("default: {\n" +
-                    "throw new java.lang.NoSuchMethodException();\n" +
-                    "}\n" +
-                    "}\n" +
-                    "}");
+            builder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
             patch.addMethod(CtMethod.make(builder.toString(), patch));
             return patch;
         } catch (NotFoundException | CannotCompileException e) {
