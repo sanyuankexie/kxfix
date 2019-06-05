@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
-apply plugin: 'android-aspectjx'
-//apply plugin: 'hotfix-patched'
+//apply plugin: 'org.kexie.hotfix'
+//apply plugin: 'android-aspectjx'
+
 
 android {
     compileSdkVersion 28
@@ -23,10 +24,6 @@ android {
             path file('../hotfix-runtime/src/main/cpp/CMakeLists.txt')
         }
     }
-}
-
-aspectjx {
-    enabled true
 }
 
 dependencies {

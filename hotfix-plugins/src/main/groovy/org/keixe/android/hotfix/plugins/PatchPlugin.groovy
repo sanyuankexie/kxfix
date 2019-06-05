@@ -8,11 +8,11 @@ import org.gradle.api.Project
 final class PatchPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
-        if (project.plugins.hasPlugin(ReleasePlugin.class)) {
-            throw new IllegalStateException("请注释或移除'apply plugin : hotfix-release'后重试")
+        if (project.plugins.hasPlugin(HotfixPlugin)) {
+            throw new IllegalStateException("请注释或移除\"apply plugin : 'org.kexie.hotfix'\"后重试")
         }
-        if (project.plugins.hasPlugin(AppPlugin.class)) {
-            AppExtension android = project.extensions.getByType(AppExtension.class)
+        if (project.plugins.hasPlugin(AppPlugin)) {
+            AppExtension android = project.extensions.getByType(AppExtension)
             PatchTransform transform = new PatchTransform(project)
             android.registerTransform(transform)
         }

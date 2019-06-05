@@ -16,5 +16,4 @@ import androidx.annotation.Keep;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
 public @interface Hotfix {
-
 }

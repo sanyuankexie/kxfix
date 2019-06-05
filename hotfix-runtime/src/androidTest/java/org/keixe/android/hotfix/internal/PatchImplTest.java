@@ -8,17 +8,17 @@ public class PatchImplTest extends Executable {
     }
 
     @Override
-    Metadata onLoaded() {
+    protected Metadata onLoaded() {
         Metadata metadata = new Metadata();
         return metadata;
     }
 
     @Override
-    Object invokeDynamicMethod(String signature, Object target, Object[] prams) throws Throwable {
+    protected Object invokeDynamicMethod(int id, Object target, Object[] prams) throws Throwable {
         //必定生成
         ExecutionEngine executionEngine = getExecutionEngine();
-        switch (signature) {
-            case "java.lang.Object#toString()": {
+        switch (id) {
+            case 1: {
                 int a = (int) executionEngine.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
                 int b = (int) executionEngine.newInstance(Integer.class, new Class[]{Integer.TYPE}, new Object[]{1});
                 int c = a + b;

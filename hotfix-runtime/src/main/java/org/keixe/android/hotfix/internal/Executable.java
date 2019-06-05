@@ -79,11 +79,12 @@ abstract class Executable {
         Class type = codeSignature.getDeclaringType();
         String name = codeSignature.getName();
         Class[] pramsTypes = codeSignature.getParameterTypes();
-        String signature = mMetadata.hasMethod(type, name, pramsTypes);
-        return signature != null ? invokeDynamicMethod(
-                signature, joinPoint.getTarget(),
-                joinPoint.getArgs())
-                : joinPoint.proceed();
+        int id = mMetadata.hasMethod(type, name, pramsTypes);
+        return id != Metadata.METHOD_NOT_FOUND ?
+                invokeDynamicMethod(id,
+                        joinPoint.getTarget(),
+                        joinPoint.getArgs()
+                ) : joinPoint.proceed();
     }
 
     final Object receiveInvoke(Class type,
@@ -92,9 +93,9 @@ abstract class Executable {
                                Object target,
                                Object[] prams)
             throws Throwable {
-        String signature = mMetadata.hasMethod(type, name, pramsTypes);
-        if (signature != null) {
-            return invokeDynamicMethod(signature, target, prams);
+        int id = mMetadata.hasMethod(type, name, pramsTypes);
+        if (id != Metadata.METHOD_NOT_FOUND) {
+            return invokeDynamicMethod(id, target, prams);
         } else {
             if (mDynamicExecutionEngine.isExecuteThat(this)) {
                 return ReflectExecutionEngine.JVM.invoke(type, name, pramsTypes, target, prams);
@@ -146,10 +147,10 @@ abstract class Executable {
      * 并使用id索引,内部使用switch走不同方法
      * 字段访问和方法调用使用{@link ExecutionEngine}所定义的指令执行
      *
-     * @param signature 直接索引,不需要走{@link ExecutionEngine}
+     * @param id 直接索引,不需要走{@link ExecutionEngine}
      */
     protected abstract Object invokeDynamicMethod(
-            String signature,
+            int id,
             Object target,
             Object[] prams)
             throws Throwable;

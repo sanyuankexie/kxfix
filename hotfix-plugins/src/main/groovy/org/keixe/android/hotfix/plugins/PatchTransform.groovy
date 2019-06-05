@@ -1,6 +1,10 @@
 package org.keixe.android.hotfix.plugins
 
-import com.android.build.api.transform.*
+
+import com.android.build.api.transform.Format
+import com.android.build.api.transform.QualifiedContent
+import com.android.build.api.transform.Transform
+import com.android.build.api.transform.TransformInvocation
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.internal.pipeline.TransformManager
 import javassist.ClassPool
@@ -19,10 +23,6 @@ final class PatchTransform extends Transform {
     PatchTransform(Project project) {
         mLogger = project.logger
         mWorkDir = project.rootProject + File.separator + "patched" + File.separator
-        AppExtension android = project.extensions.getByType(AppExtension.class)
-        android.getBootClasspath().each { classpath ->
-            mClassPool.appendClassPath(classpath.absolutePath)
-        }
     }
 
     @Override
@@ -37,6 +37,10 @@ final class PatchTransform extends Transform {
 
     @Override
     void transform(TransformInvocation transformInvocation) {
+        AppExtension android = project.extensions.getByType(AppExtension)
+        android.getBootClasspath().each { classpath ->
+            mClassPool.appendClassPath(classpath.absolutePath)
+        }
         long startTime = System.currentTimeMillis()
         mLogger.quiet "==================patched start==================="
         transformInvocation.outputProvider.deleteAll()

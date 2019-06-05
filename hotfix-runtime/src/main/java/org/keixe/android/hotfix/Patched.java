@@ -19,9 +19,4 @@ import androidx.annotation.Keep;
 @Target({ElementType.METHOD,ElementType.FIELD})
 @Retention(RetentionPolicy.CLASS)
 public @interface Patched {
-    /**
-     * 对字段无效,字段只能是新增的
-     * @return 是否是新增的
-     */
-    boolean isAdd() default false;
 }

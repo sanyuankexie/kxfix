@@ -1,6 +1,6 @@
 apply plugin: 'groovy'
 version = '1.0.0'
-group = 'org.keixe.android.hotfix.plugin'
+group = 'org.keixe.android.hotfix.plugins'
 
 compileGroovy {
     sourceCompatibility = 1.7
@@ -13,7 +13,6 @@ dependencies {
     implementation gradleApi()
     implementation localGroovy()
     implementation 'com.android.tools.build:gradle:3.3.1'
-    implementation 'net.sourceforge.streamsupport:streamsupport:1.7.1'
     //基于aspectjx插粧
     implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.4'
     //dx
