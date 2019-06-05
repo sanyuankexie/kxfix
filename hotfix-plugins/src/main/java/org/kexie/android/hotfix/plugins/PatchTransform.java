@@ -212,7 +212,9 @@ public class PatchTransform extends Transform {
         for (CtClass ctClass : classes) {
             ctClass.writeFile(output);
         }
+        for (CtMethod method : methods) {
 
+        }
     }
 
     /**

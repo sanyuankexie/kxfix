@@ -24,3 +24,7 @@ dependencies {
     //修改字节码
     implementation 'org.javassist:javassist:3.20.0-GA'
 }
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
