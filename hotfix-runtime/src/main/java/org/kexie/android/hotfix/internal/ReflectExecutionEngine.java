@@ -12,12 +12,18 @@ import androidx.annotation.Keep;
 @SuppressWarnings("WeakerAccess")
 class ReflectExecutionEngine implements ExecutionEngine {
 
-    protected ReflectExecutionEngine() { }
+    protected ReflectExecutionEngine() {
+    }
 
     static final ReflectExecutionEngine JVM = new ReflectExecutionEngine();
 
     static {
         System.loadLibrary("reflection");
+    }
+
+    @Override
+    public Class typeOf(String name) throws Throwable {
+        return Class.forName(name);
     }
 
     @Override

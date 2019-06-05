@@ -1,6 +1,7 @@
 package org.kexie.android.hotfix.internal;
 
 import org.aspectj.lang.ProceedingJoinPoint;
+import org.kexie.android.hotfix.Patch;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -28,11 +29,11 @@ final class HotfixExecutionEngine
     }
 
     @Override
-    public final void apply(Class executableType) throws Throwable {
-        Executable executable = (Executable) ReflectFinder
-                .constructorBy(executableType, new Class[]{DynamicExecutionEngine.class})
-                .newInstance(this);
-        sExecutableUpdater.set(this, executable);
+    public final void apply(Patch patch,String cacheDir) throws Throwable {
+//        Executable executable = (Executable) ReflectFinder
+//                .constructorBy(executableType, new Class[]{DynamicExecutionEngine.class})
+//                .newInstance(this);
+//        sExecutableUpdater.set(this, executable);
     }
 
     @Override
@@ -41,6 +42,18 @@ final class HotfixExecutionEngine
         return executable != null
                 ? executable.receiveInvoke(joinPoint)
                 : joinPoint.proceed();
+    }
+
+    @Override
+    public Class typeOf(String name) throws Throwable {
+        Executable executable = mExecutable;
+        if (executable != null) {
+            try {
+                return Class.forName(name, true, executable.getClass().getClassLoader());
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        return super.typeOf(name);
     }
 
     @Override

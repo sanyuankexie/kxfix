@@ -35,10 +35,11 @@ import androidx.annotation.Keep;
  * 4.由于初始化逻辑不一定得到执行,所以新字段可能会造成空指针异常
  * 5.添加的字段随补丁上线下线,若补丁下线,则字段会变成重新变成空
  *
- * @see DynamicExecutor
+ * @see ExecutableLoader
  * 可执行体
  */
 @Keep
+@SuppressWarnings("WeakerAccess")
 abstract class Executable {
 
     /**
@@ -155,7 +156,7 @@ abstract class Executable {
             Object[] prams)
             throws Throwable;
 
-    ExecutionEngine getExecutionEngine() {
+    protected final ExecutionEngine getExecutionEngine() {
         return mDynamicExecutionEngine;
     }
 

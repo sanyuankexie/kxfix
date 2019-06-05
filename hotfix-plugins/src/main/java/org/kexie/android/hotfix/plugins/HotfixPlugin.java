@@ -7,6 +7,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
 public class HotfixPlugin implements Plugin<Project> {
+
     @SuppressWarnings("NullableProblems")
     @Override
     public void apply(Project project) {

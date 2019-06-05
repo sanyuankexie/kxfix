@@ -4,14 +4,10 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 
-import org.kexie.android.hotfix.internal.DynamicExecutor;
-
-import java.io.File;
+import org.kexie.android.hotfix.internal.ExecutableLoader;
 
 import androidx.annotation.Keep;
 import androidx.annotation.MainThread;
-import androidx.annotation.WorkerThread;
-import dalvik.system.DexClassLoader;
 
 @Keep
 public final class HotfixManager {
@@ -36,23 +32,14 @@ public final class HotfixManager {
             @Override
             public void run() {
                 try {
-                    Class patchType = loadType(patch);
-                    DynamicExecutor.INSTANCE.apply(patchType);
+                    String cacheDir = mContext
+                            .getDir("patched", Context.MODE_PRIVATE)
+                            .getAbsolutePath();
+                    ExecutableLoader.INSTANCE.apply(patch, cacheDir);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
             }
         });
-    }
-
-    @WorkerThread
-    private Class loadType(Patch patch) throws Throwable {
-        File optimizedDirectory = mContext.getDir("patched", Context.MODE_PRIVATE);
-        DexClassLoader classLoader = new DexClassLoader(
-                patch.getDexPath().getAbsolutePath(),
-                optimizedDirectory.getAbsolutePath(),
-                null,
-                null);
-        return classLoader.loadClass(PATCH_CLASS_NAME + patch.getUUID());
     }
 }

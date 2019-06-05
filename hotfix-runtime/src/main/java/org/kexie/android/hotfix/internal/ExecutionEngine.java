@@ -9,6 +9,9 @@ import androidx.annotation.Keep;
 @Keep
 interface ExecutionEngine {
 
+    Class typeOf(String name)
+            throws Throwable;
+
     Object invoke(Class type,
                   String name,
                   Class[] pramsTypes,

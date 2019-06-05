@@ -15,6 +15,8 @@ import com.android.build.gradle.internal.pipeline.TransformManager;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
+import org.kexie.andorid.hotfix.Hotfix;
+import org.kexie.andorid.hotfix.Patched;
 
 import java.awt.Desktop;
 import java.awt.Image;
@@ -25,8 +27,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -35,8 +39,11 @@ import java.util.regex.Matcher;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
+import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtField;
+import javassist.CtMethod;
 import javassist.NotFoundException;
 
 /**
@@ -59,16 +66,18 @@ public class PatchTransform extends Transform {
     }
 
     @Override
-    public void transform(TransformInvocation transformInvocation) throws IOException, TransformException {
+    public void transform(TransformInvocation transformInvocation)
+            throws IOException, TransformException {
         long startTime = System.currentTimeMillis();
         mLogger.quiet("==================patched start===================");
         transformInvocation.getOutputProvider().deleteAll();
         File outDir = transformInvocation.getOutputProvider()
                 .getContentLocation("main", getOutputTypes(), getScopes(), Format.DIRECTORY);
-        List<CtClass> boxClass = loadCtClasses(transformInvocation.getInputs());
+        List<CtClass> loadedClass = loadInputClasses(transformInvocation.getInputs());
+        File opened = doTransform(loadedClass);
         long cost = (System.currentTimeMillis() - startTime) / 1000;
         mLogger.quiet("==================patched finish==================");
-        finishWithDirectory(new File(""));
+        finishWithDirectory(opened);
     }
 
     private static void finishWithDirectory(File directory) throws IOException {
@@ -87,7 +96,8 @@ public class PatchTransform extends Transform {
         System.exit(0);
     }
 
-    private List<CtClass> loadCtClasses(Collection<TransformInput> inputs) throws IOException, TransformException {
+    private List<CtClass> loadInputClasses(Collection<TransformInput> inputs)
+            throws IOException, TransformException {
         AppExtension android = mProject.getExtensions().getByType(AppExtension.class);
         List<String> classNames = new LinkedList<>();
         try {
@@ -101,7 +111,8 @@ public class PatchTransform extends Transform {
                     mClassPool.insertClassPath(directory);
                     for (File file : FileUtils.listFiles(directoryInput.getFile(),
                             extension, true)) {
-                        String className = file.getAbsolutePath().substring(directory.length() + 1,
+                        String className = file.getAbsolutePath().substring(
+                                directory.length() + 1,
                                 file.getAbsolutePath().length() - SdkConstants.DOT_CLASS.length())
                                 .replaceAll(Matcher.quoteReplacement(File.separator), ".");
                         classNames.add(className);
@@ -137,8 +148,87 @@ public class PatchTransform extends Transform {
         return classes;
     }
 
-    private void readAnnotation(List<CtClass> loaded) {
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private File doTransform(List<CtClass> loaded)
+            throws TransformException, IOException {
+        String path = mProject.getBuildDir().getAbsolutePath() + File.separator
+                + "output" + File.separator
+                + "patch" + File.separator;
+        File output = new File(path);
+        output.delete();
+        List<CtClass> classes = new LinkedList<>();
+        List<CtField> fields = new LinkedList<>();
+        List<CtMethod> methods = new LinkedList<>();
+        loadPatchedElements(loaded, classes, fields, methods);
+        try {
+            buildClasses(path, classes, fields, methods);
+        } catch (CannotCompileException e) {
+            throw new TransformException(e);
+        }
+        return output;
+    }
 
+    private void loadPatchedElements(
+            List<CtClass> loaded,
+            List<CtClass> outClasses,
+            List<CtField> outFields,
+            List<CtMethod> outMethods)
+            throws TransformException {
+        for (CtClass ctClass : loaded) {
+            //ClassPool使用了默认的类加载器
+            boolean patched = ctClass.hasAnnotation(Patched.class);
+            boolean hotfix = ctClass.hasAnnotation(Hotfix.class);
+            if (patched && hotfix) {
+                throw new TransformException("注解 " + Patched.class.getName()
+                        + " 和注解 " + Hotfix.class.getName()
+                        + " 不能同时在class上出现");
+            }
+            if (patched) {
+                outClasses.add(ctClass);
+                continue;
+            }
+            if (hotfix) {
+                for (CtField field : ctClass.getDeclaredFields()) {
+                    if (field.hasAnnotation(Patched.class)) {
+                        outFields.add(field);
+                    }
+                }
+                for (CtMethod method : ctClass.getDeclaredMethods()) {
+                    if (method.hasAnnotation(Patched.class)) {
+                        outMethods.add(method);
+                    }
+                }
+            }
+        }
+    }
+
+    private void buildClasses(
+            String output,
+            List<CtClass> classes,
+            List<CtField> fields,
+            List<CtMethod> methods)
+            throws CannotCompileException, IOException {
+        Map<CtMethod, Integer> hashIds = new HashMap<>();
+        for (CtClass ctClass : classes) {
+            ctClass.writeFile(output);
+        }
+
+    }
+
+    /**
+     * 开地址法确保散列始终不会碰撞
+     */
+    private static int hashMethodId(
+            Map<CtMethod, Integer> hashIds,
+            CtMethod method) {
+        int id = method.getLongName().hashCode();
+        while (true) {
+            if (!hashIds.containsValue(id)) {
+                hashIds.put(method, id);
+                return id;
+            }
+            id = id == Integer.MAX_VALUE ? 0 : id + 1;
+        }
     }
 
     @Override
