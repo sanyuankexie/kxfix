@@ -11,6 +11,7 @@ import com.android.build.api.transform.TransformInput;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.AppExtension;
 import com.android.build.gradle.internal.pipeline.TransformManager;
+import com.android.dx.command.Main;
 import com.android.utils.Pair;
 
 import org.apache.commons.io.FileUtils;
@@ -65,18 +66,19 @@ public class PatchTransform extends Transform {
     private final Logger mLogger;
     private final ClassPool mClassPool = new ClassPool();
     private final Project mProject;
+    private final String mWorkDir;
     private final String mClassOutput;
-    private final String mPatchOutput;
+    private final String mZipOutput;
 
     PatchTransform(Project project) {
         mProject = project;
         mLogger = project.getLogger();
-        String base = mProject.getBuildDir()
+        mWorkDir = mProject.getBuildDir()
                 .getAbsolutePath() + File.separator +
                 "output" + File.separator +
                 "hotfix" + File.separator;
-        mClassOutput = base + "classes" + File.separator;
-        mPatchOutput = base + "patch" + File.separator + "patch.jar";
+        mClassOutput = mWorkDir + "classes" + File.separator;
+        mZipOutput = mWorkDir + "patch" + File.separator + "classes.jar";
     }
 
     @Override
@@ -348,7 +350,7 @@ public class PatchTransform extends Transform {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private void zipToFile(List<Pair<String, File>> inputs) throws IOException {
-        File output = new File(mPatchOutput);
+        File output = new File(mZipOutput);
         if (output.exists()) {
             output.delete();
         }
@@ -364,6 +366,12 @@ public class PatchTransform extends Transform {
             zipOutputStream.closeEntry();
             zipOutputStream.flush();
         }
+    }
+
+    private void zipToDex() {
+        String[] command = {"--dex", "--output=" + mZipOutput, "classes.dex"};
+        Main.main(command);
+
     }
 
     @Override
