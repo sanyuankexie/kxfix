@@ -69,7 +69,7 @@ abstract class Executable {
 
     protected Executable(DynamicExecutionEngine dynamicExecutionEngine) {
         this.mDynamicExecutionEngine = dynamicExecutionEngine;
-        mMetadata = onLoad(new Metadata(getMateClassLoader()));
+        onLoad(mMetadata = new Metadata(getMateClassLoader()));
     }
 
     //----------------------暴露的接口----------------------------
@@ -143,7 +143,7 @@ abstract class Executable {
 
     //------------------------------生命周期----------------------------
 
-    protected abstract Metadata onLoad(Metadata metadata);
+    protected abstract void onLoad(Metadata metadata);
 
     //------------------------------内部使用函数----------------------------
 

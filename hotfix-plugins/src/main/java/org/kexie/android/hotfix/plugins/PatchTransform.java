@@ -231,27 +231,65 @@ public class PatchTransform extends Transform {
             );
             patch.defrost();
             CtClass superClass = mClassPool.get(PATCH_SUPER_CLASS_NAME);
-            StringBuilder builder = new StringBuilder(
-                            "protected java.lang.Object " +
-                                    "invokeDynamicMethod(" +
-                                    "int id, " +
-                                    "java.lang.Object target, " +
-                                    "java.lang.Object[] prams)" +
-                                    "throws java.lang.Throwable {" +
-                                    "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                                    "executionEngine = this.getExecutionEngine();" +
-                                    "switch (id) {"
-                    );
+            StringBuilder methodsBuilder = new StringBuilder(
+                    "protected java.lang.Object " +
+                            "invokeDynamicMethod(" +
+                            "int id, " +
+                            "java.lang.Object target, " +
+                            "java.lang.Object[] prams)" +
+                            "throws java.lang.Throwable {" +
+                            "org.kexie.android.hotfix.internal.ExecutionEngine " +
+                            "executionEngine = this.getExecutionEngine();" +
+                            "switch (id) {"
+            );
             patch.subclassOf(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
             for (CtMethod method : methods) {
                 int id = hashMethodId(hashIds, method);
-                builder.append("case ").append(id).append(": {");
+                methodsBuilder.append("case ").append(id).append(": {");
                 //TODO ......
-                builder.append("}");
+                methodsBuilder.append("}");
             }
-            builder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
-            patch.addMethod(CtMethod.make(builder.toString(), patch));
+            methodsBuilder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
+            patch.addMethod(CtMethod.make(methodsBuilder.toString(), patch));
+            methodsBuilder = new StringBuilder("protected void " +
+                    "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
+            for (CtField field : fields) {
+                methodsBuilder.append("metadata.addFiled(\"")
+                        .append(field.getDeclaringClass().getName())
+                        .append("\",\"")
+                        .append(field.getName())
+                        .append("\");");
+            }
+            for (CtMethod method : methods) {
+                methodsBuilder.append("metadata.addMethod(")
+                        .append(hashIds.get(method))
+                        .append(",\"")
+                        .append(method.getDeclaringClass().getName())
+                        .append("\",\"")
+                        .append(method.getName())
+                        .append("\",");
+                CtClass[] pramTypes = method.getParameterTypes();
+                if (pramTypes.length < 1) {
+                    methodsBuilder.append("null");
+                } else {
+                    methodsBuilder.append("new java.lang.String[")
+                            .append(pramTypes.length)
+                            .append("]{\"")
+                            .append(pramTypes[0].getName())
+                            .append('\"');
+                    for (int i = 1; i < pramTypes.length; ++i) {
+                        methodsBuilder.append(",\"")
+                                .append(pramTypes[i].getName())
+                                .append("\"");
+                    }
+                    methodsBuilder.append("}");
+                }
+                methodsBuilder.append(");");
+            }
+            methodsBuilder.append("}");
+            patch.addMethod(CtMethod.make(methodsBuilder.toString(), patch));
+            patch.freeze();
             return patch;
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
