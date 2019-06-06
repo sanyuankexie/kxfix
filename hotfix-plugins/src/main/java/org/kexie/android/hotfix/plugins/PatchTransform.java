@@ -24,7 +24,6 @@ import java.awt.Toolkit;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -144,7 +143,7 @@ public class PatchTransform extends Transform {
         } catch (NotFoundException e) {
             throw new TransformException(e);
         }
-        List<CtClass> classes = new ArrayList<>(classNames.size());
+        List<CtClass> classes = new LinkedList<>();
         for (String className : classNames) {
             try {
                 classes.add(mClassPool.get(className));
@@ -166,12 +165,12 @@ public class PatchTransform extends Transform {
         List<CtClass> classes = new LinkedList<>();
         List<CtField> fields = new LinkedList<>();
         List<CtMethod> methods = new LinkedList<>();
-        loadPatchedElements(loaded, classes, fields, methods);
+        getPatchedElements(loaded, classes, fields, methods);
         buildClasses(path, classes, fields, methods);
         return output;
     }
 
-    private void loadPatchedElements(
+    private void getPatchedElements(
             List<CtClass> loaded,
             List<CtClass> outClasses,
             List<CtField> outFields,
@@ -232,15 +231,17 @@ public class PatchTransform extends Transform {
             );
             patch.defrost();
             CtClass superClass = mClassPool.get(PATCH_SUPER_CLASS_NAME);
-            StringBuilder builder
-                    = new StringBuilder("protected java.lang.Object invokeDynamicMethod(" +
-                    "int id, " +
-                    "java.lang.Object target, " +
-                    "java.lang.Object[] prams)" +
-                    "throws java.lang.Throwable {" +
-                    "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                    "executionEngine = this.getExecutionEngine();" +
-                    "switch (id) {");
+            StringBuilder builder = new StringBuilder(
+                            "protected java.lang.Object " +
+                                    "invokeDynamicMethod(" +
+                                    "int id, " +
+                                    "java.lang.Object target, " +
+                                    "java.lang.Object[] prams)" +
+                                    "throws java.lang.Throwable {" +
+                                    "org.kexie.android.hotfix.internal.ExecutionEngine " +
+                                    "executionEngine = this.getExecutionEngine();" +
+                                    "switch (id) {"
+                    );
             patch.subclassOf(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
             for (CtMethod method : methods) {
@@ -259,6 +260,7 @@ public class PatchTransform extends Transform {
 
     /**
      * 开地址法确保散列始终不会碰撞
+     * {@link Integer#MIN_VALUE}是无效值
      */
     private static int hashMethodId(
             Map<CtMethod, Integer> hashIds,
@@ -269,7 +271,7 @@ public class PatchTransform extends Transform {
                 hashIds.put(method, id);
                 return id;
             }
-            id = id == Integer.MAX_VALUE ? 0 : id + 1;
+            id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
         }
     }
 

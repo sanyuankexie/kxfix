@@ -13,7 +13,6 @@ import androidx.annotation.MainThread;
 public final class HotfixManager {
 
     private final Context mContext;
-
     private final HandlerThread mWorkThread;
     private final Handler mHandler;
 
@@ -32,10 +31,7 @@ public final class HotfixManager {
             @Override
             public void run() {
                 try {
-                    String cacheDir = mContext
-                            .getDir("patched", Context.MODE_PRIVATE)
-                            .getAbsolutePath();
-                    ExecutableLoader.INSTANCE.apply(patch.getDexPath(), cacheDir);
+                    ExecutableLoader.INSTANCE.load(mContext, patch.getDexPath());
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

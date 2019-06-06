@@ -23,7 +23,8 @@ class ReflectExecutionEngine implements ExecutionEngine {
 
     @Override
     public Class typeOf(String name) throws Throwable {
-        return Class.forName(name);
+        return Class.forName(name, false,
+                Thread.currentThread().getContextClassLoader());
     }
 
     @Override

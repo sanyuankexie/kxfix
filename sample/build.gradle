@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
-//apply plugin: 'org.kexie.hotfix'
-//apply plugin: 'android-aspectjx'
+//load plugin: 'org.kexie.hotfix'
+//load plugin: 'android-aspectjx'
 
 
 android {

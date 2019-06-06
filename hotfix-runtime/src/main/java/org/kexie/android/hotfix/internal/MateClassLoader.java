@@ -1,6 +1,7 @@
 package org.kexie.android.hotfix.internal;
 
 import androidx.annotation.Keep;
+import dalvik.system.BaseDexClassLoader;
 import dalvik.system.DexClassLoader;
 
 /**
@@ -9,13 +10,13 @@ import dalvik.system.DexClassLoader;
  * 自己加载失败再尝试从默认类加载器加载
  */
 @Keep
-final class HotfixClassLoader extends DexClassLoader {
+final class MateClassLoader extends DexClassLoader {
 
     /**
      * parent设置成BootClassLoader
      * 保证能够正确加载启动类型
      */
-    HotfixClassLoader(String dexPath, String cacheDir) {
+    MateClassLoader(String dexPath, String cacheDir) {
         super(dexPath, cacheDir, null, Thread.currentThread().getContextClassLoader());
     }
 
@@ -32,5 +33,15 @@ final class HotfixClassLoader extends DexClassLoader {
             }
         }
         return c;
+    }
+
+    @Override
+    public String findLibrary(String name) {
+        String result = super.findLibrary(name);
+        ClassLoader parent;
+        if (result == null && (parent = getParent()) instanceof BaseDexClassLoader) {
+            result = ((BaseDexClassLoader) parent).findLibrary(name);
+        }
+        return result;
     }
 }

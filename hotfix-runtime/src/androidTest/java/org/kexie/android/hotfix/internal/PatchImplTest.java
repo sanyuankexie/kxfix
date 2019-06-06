@@ -8,8 +8,7 @@ public class PatchImplTest extends Executable {
     }
 
     @Override
-    protected Metadata onLoaded() {
-        Metadata metadata = new Metadata();
+    protected Metadata onLoad(Metadata metadata) {
         return metadata;
     }
 

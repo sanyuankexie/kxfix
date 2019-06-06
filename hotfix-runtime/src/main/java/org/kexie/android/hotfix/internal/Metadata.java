@@ -6,30 +6,31 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import androidx.annotation.Keep;
 
 @Keep
 final class Metadata {
 
-    Metadata() {
+    Metadata(MateClassLoader loader) {
+        mClassLoader = loader;
     }
 
     static final int METHOD_NOT_FOUND = Integer.MIN_VALUE;
 
     private static final List<MemberInfo> IS_FIELD_MARK = Collections.emptyList();
 
-    private final ArrayMap<Class, Map<String, List<MemberInfo>>> mData = new ArrayMap<>();
+    private final MateClassLoader mClassLoader;
+    private final ArrayMap<Class, ArrayMap<String, List<MemberInfo>>> mData = new ArrayMap<>();
 
     final void addMethod(int id,
                          String typeName,
                          String name,
                          String[] pramTypeNames) {
         try {
-            Class type = Class.forName(typeName);
+            Class type = Class.forName(typeName, false, mClassLoader);
             Class[] pramTypes = toClassArray(pramTypeNames);
-            Map<String, List<MemberInfo>> typeData = mData.get(type);
+            ArrayMap<String, List<MemberInfo>> typeData = mData.get(type);
             if (typeData == null) {
                 typeData = new ArrayMap<>();
                 mData.put(type, typeData);
@@ -47,8 +48,8 @@ final class Metadata {
 
     final void addField(String typeName, String name) {
         try {
-            Class type = Class.forName(typeName);
-            Map<String, List<MemberInfo>> typeData = mData.get(type);
+            Class type = Class.forName(typeName, false, mClassLoader);
+            ArrayMap<String, List<MemberInfo>> typeData = mData.get(type);
             if (typeData == null) {
                 typeData = new ArrayMap<>();
                 mData.put(type, typeData);
@@ -66,7 +67,7 @@ final class Metadata {
             Class type,
             String name,
             Class[] pramTypes) {
-        Map<String, List<MemberInfo>> typeData = mData.get(type);
+        ArrayMap<String, List<MemberInfo>> typeData = mData.get(type);
         if (typeData == null) {
             return METHOD_NOT_FOUND;
         }
@@ -82,15 +83,15 @@ final class Metadata {
     }
 
     final boolean hasField(Class type, String name) {
-        Map<String, List<MemberInfo>> typeData = mData.get(type);
+        ArrayMap<String, List<MemberInfo>> typeData = mData.get(type);
         return typeData != null && IS_FIELD_MARK.equals(typeData.get(name));
     }
 
-    private static Class[] toClassArray(String[] pramTypeNames)
+    private Class[] toClassArray(String[] pramTypeNames)
             throws ClassNotFoundException {
         Class[] pramTypes = new Class[pramTypeNames.length];
         for (int i = 0; i < pramTypeNames.length; ++i) {
-            pramTypes[i] = Class.forName(pramTypeNames[i]);
+            pramTypes[i] = Class.forName(pramTypeNames[i], false, mClassLoader);
         }
         return pramTypes;
     }
@@ -98,6 +99,7 @@ final class Metadata {
     static final class MemberInfo {
         final Class[] mParameterTypes;
         final int mId;
+
         MemberInfo(int id, Class[] parameterTypes) {
             this.mId = id;
             this.mParameterTypes = parameterTypes;
