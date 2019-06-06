@@ -1,6 +1,5 @@
 package org.kexie.android.hotfix.plugins.tasks;
 
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import org.apache.commons.io.IOUtils;
@@ -17,9 +16,11 @@ import java.util.zip.ZipOutputStream;
 import javassist.CtClass;
 
 public class ZipTask implements Task<List<Pair<CtClass,File>>,File> {
+
+
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
-    public File apply(Context context, List<Pair<CtClass, File>> inputs) throws IOException, TransformException {
+    public File apply(Context context, List<Pair<CtClass, File>> inputs) throws IOException {
         File output = new File("");
         if (output.exists()) {
             output.delete();

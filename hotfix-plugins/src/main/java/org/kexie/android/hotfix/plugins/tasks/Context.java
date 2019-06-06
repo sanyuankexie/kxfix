@@ -13,8 +13,7 @@ public class Context {
     final ClassPool mClassPool;
     final Project mProject;
     final Logger mLogger;
-    final String mWorkDir;
-    private final String mClassOutputDir;
+    final String mBaseWorkDir;
     final AppExtension mAndroid;
 
     public Context(Project project) {
@@ -22,10 +21,9 @@ public class Context {
         mLogger = project.getLogger();
         mAndroid = project.getExtensions().getByType(AppExtension.class);
         mClassPool = new ClassPool();
-        mWorkDir = mProject.getBuildDir()
+        mBaseWorkDir = mProject.getBuildDir()
                 .getAbsolutePath() + File.separator +
-                "output" + File.separator +
+                "outputs" + File.separator +
                 "hotfix" + File.separator;
-        mClassOutputDir = mWorkDir + "classes" + File.separator;
     }
 }

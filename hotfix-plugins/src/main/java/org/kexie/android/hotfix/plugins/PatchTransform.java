@@ -14,6 +14,7 @@ import org.kexie.android.hotfix.plugins.tasks.CopingTask;
 import org.kexie.android.hotfix.plugins.tasks.DxTask;
 import org.kexie.android.hotfix.plugins.tasks.DialogTask;
 import org.kexie.android.hotfix.plugins.tasks.LoadingTask;
+import org.kexie.android.hotfix.plugins.tasks.PackageTask;
 import org.kexie.android.hotfix.plugins.tasks.ScanningTask;
 import org.kexie.android.hotfix.plugins.tasks.ZipTask;
 
@@ -62,10 +63,12 @@ public class PatchTransform extends Transform {
         ZipTask zipTask = new ZipTask();
         File zipFile = zipTask.apply(mContext, copyResult);
         DxTask dxTask = new DxTask();
-        File dxFile = dxTask.apply(mContext, zipFile);
+        File dexFile = dxTask.apply(mContext, zipFile);
+        PackageTask packageTask = new PackageTask();
+        File packageFile = packageTask.apply(mContext, dexFile);
         long cost = (System.currentTimeMillis() - startTime) / 1000;
         DialogTask dialogTask = new DialogTask();
-        dialogTask.apply(mContext, dxFile);
+        dialogTask.apply(mContext, packageFile);
     }
 
 

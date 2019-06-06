@@ -23,7 +23,8 @@ public class DialogTask implements Task<File,Void> {
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
                 imageIcon);
-        if (Desktop.isDesktopSupported()) {
+        input = input.getParentFile();
+        if (Desktop.isDesktopSupported() && input.isDirectory()) {
             Desktop.getDesktop().open(input);
         }
         System.exit(0);

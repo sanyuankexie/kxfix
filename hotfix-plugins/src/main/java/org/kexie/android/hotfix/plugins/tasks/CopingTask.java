@@ -14,13 +14,18 @@ import javassist.CtClass;
 
 public class CopingTask implements Task<List<CtClass>, List<Pair<CtClass,File>>> {
 
+    private static String getOutput(Context context) {
+        return context.mBaseWorkDir + "classes" + File.separator;
+    }
+
     @Override
     public List<Pair<CtClass, File>> apply(Context context, List<CtClass> inputs)
             throws IOException, TransformException {
+        String classOutputDir = getOutput(context);
         List<Pair<CtClass, File>> files = new LinkedList<>();
         try {
             for (CtClass clazz : inputs) {
-                clazz.writeFile("");
+                clazz.writeFile(classOutputDir);
                 String entryName = clazz.getName()
                         .replace('.', File.separatorChar);
                 File file = new File(context.mClassPool
