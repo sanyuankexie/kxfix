@@ -8,10 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 import javassist.CannotCompileException;
-import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
+import javassist.CtNewConstructor;
+import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
 public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtClass> {
@@ -31,11 +32,13 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
             patch.defrost();
             CtClass superClass = context.mClassPool.get(PATCH_SUPER_CLASS_NAME);
             patch.subclassOf(superClass);
+            String source = buildConstructor();
+            patch.addConstructor(CtNewConstructor.make(source, patch));
             Map<CtMethod, Integer> hashIds = new HashMap<>();
-            String source = buildInvokeDynamicMethod(hashIds, context.mClassPool, patch, methods);
-            patch.addMethod(CtMethod.make(source, patch));
-            source = buildOnLoad(hashIds, fields, methods);
-            patch.addMethod(CtMethod.make(source, patch));
+            source = buildInvokeDynamic(hashIds, methods);
+            patch.addMethod(CtNewMethod.make(source, patch));
+            source = buildOnLoad(hashIds, fields);
+            patch.addMethod(CtNewMethod.make(source, patch));
             patch.freeze();
             return patch;
         } catch (NotFoundException | CannotCompileException e) {
@@ -43,11 +46,15 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
         }
     }
 
-    private static String buildInvokeDynamicMethod(
+    private static String buildConstructor() {
+        return "public ExecutableImpl" +
+                "(org.kexie.android.hotfix.internal.DynamicExecutionEngine executionEngine)" +
+                "{super(executionEngine);}";
+    }
+
+    private static String buildInvokeDynamic(
             Map<CtMethod, Integer> hashIds,
-            ClassPool classPool,
-            CtClass clazz,
-            List<CtMethod> methods) {
+            List<CtMethod> methods) throws NotFoundException, CannotCompileException {
         StringBuilder methodsBuilder = new StringBuilder(
                 "protected java.lang.Object " +
                         "invokeDynamicMethod(" +
@@ -61,9 +68,22 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
         );
         for (CtMethod method : methods) {
             int id = hashMethodId(hashIds, method);
-            methodsBuilder.append("case ").append(id).append(": {");
-            //TODO ......
-            methodsBuilder.append("}");
+            methodsBuilder.append("case ")
+                    .append(id)
+                    .append(": {");
+            CtClass[] pramTypes = method.getParameterTypes();
+            for (int i = 0; i < pramTypes.length; ++i) {
+                methodsBuilder.append(pramTypes[i].getName())
+                        .append(" $")
+                        .append(i)
+                        .append("=(")
+                        .append(pramTypes[i].getName())
+                        .append(")prams[")
+                        .append(i)
+                        .append("];");
+            }
+
+            methodsBuilder.append("return null;}");
         }
         methodsBuilder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
         return methodsBuilder.toString();
@@ -72,8 +92,7 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
 
     private static String buildOnLoad(
             Map<CtMethod, Integer> hashIds,
-            List<CtField> fields,
-            List<CtMethod> methods) throws NotFoundException {
+            List<CtField> fields) throws NotFoundException {
         StringBuilder methodsBuilder = new StringBuilder("protected void " +
                 "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
         for (CtField field : fields) {
@@ -83,15 +102,15 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
                     .append(field.getName())
                     .append("\");");
         }
-        for (CtMethod method : methods) {
+        for (Map.Entry<CtMethod, Integer> entry : hashIds.entrySet()) {
             methodsBuilder.append("metadata.addMethod(")
-                    .append(hashIds.get(method))
+                    .append(entry.getValue())
                     .append(",\"")
-                    .append(method.getDeclaringClass().getName())
+                    .append(entry.getKey().getDeclaringClass().getName())
                     .append("\",\"")
-                    .append(method.getName())
+                    .append(entry.getKey().getName())
                     .append("\",");
-            CtClass[] pramTypes = method.getParameterTypes();
+            CtClass[] pramTypes = entry.getKey().getParameterTypes();
             if (pramTypes.length < 1) {
                 methodsBuilder.append("null");
             } else {

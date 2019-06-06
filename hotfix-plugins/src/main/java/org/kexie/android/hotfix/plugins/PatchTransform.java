@@ -71,8 +71,6 @@ public class PatchTransform extends Transform {
         dialogTask.apply(mContext, packageFile);
     }
 
-
-
     @Override
     public Set<QualifiedContent.ContentType> getInputTypes() {
         return TransformManager.CONTENT_CLASS;

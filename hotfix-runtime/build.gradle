@@ -39,8 +39,8 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'org.aspectj:aspectjrt:1.8.9'
-    implementation project(":hotfix-annotations")
-    implementation 'androidx.annotation:annotation:1.0.0-beta01'
+    api project(":hotfix-annotations")
+    api 'androidx.annotation:annotation:1.1.0-rc01'
 
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.0-alpha4'
