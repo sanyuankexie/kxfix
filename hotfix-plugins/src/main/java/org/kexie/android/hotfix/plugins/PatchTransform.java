@@ -11,8 +11,10 @@ import com.android.build.api.transform.TransformInput;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.AppExtension;
 import com.android.build.gradle.internal.pipeline.TransformManager;
+import com.android.utils.Pair;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.kexie.android.hotfix.Hotfix;
@@ -22,6 +24,8 @@ import java.awt.Desktop;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -34,6 +38,8 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
@@ -59,10 +65,18 @@ public class PatchTransform extends Transform {
     private final Logger mLogger;
     private final ClassPool mClassPool = new ClassPool();
     private final Project mProject;
+    private final String mClassOutput;
+    private final String mPatchOutput;
 
     PatchTransform(Project project) {
         mProject = project;
         mLogger = project.getLogger();
+        String base = mProject.getBuildDir()
+                .getAbsolutePath() + File.separator +
+                "output" + File.separator +
+                "hotfix" + File.separator;
+        mClassOutput = base + "classes" + File.separator;
+        mPatchOutput = base + "patch" + File.separator + "patch.jar";
     }
 
     @Override
@@ -157,20 +171,21 @@ public class PatchTransform extends Transform {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private File doTransform(List<CtClass> loaded)
             throws TransformException, IOException {
-        String path = mProject.getBuildDir().getAbsolutePath() + File.separator
-                + "output" + File.separator
-                + "patch" + File.separator;
-        File output = new File(path);
-        output.delete();
+        File output = new File(mClassOutput);
+        if (output.exists()) {
+            output.delete();
+        }
+        output.mkdirs();
         List<CtClass> classes = new LinkedList<>();
         List<CtField> fields = new LinkedList<>();
         List<CtMethod> methods = new LinkedList<>();
-        getPatchedElements(loaded, classes, fields, methods);
-        buildClasses(path, classes, fields, methods);
+        findPatchedElements(loaded, classes, fields, methods);
+        List<Pair<String, File>> outFiles = buildClasses(classes, fields, methods);
+        zipToFile(outFiles);
         return output;
     }
 
-    private void getPatchedElements(
+    private void findPatchedElements(
             List<CtClass> loaded,
             List<CtClass> outClasses,
             List<CtField> outFields,
@@ -204,18 +219,36 @@ public class PatchTransform extends Transform {
         }
     }
 
-    private void buildClasses(
-            String output,
+    private List<Pair<String, File>> buildClasses(
             List<CtClass> classes,
             List<CtField> fields,
             List<CtMethod> methods)
             throws IOException, TransformException {
+        List<Pair<String, File>> files = new LinkedList<Pair<String, File>>();
         try {
             for (CtClass clazz : classes) {
-                clazz.writeFile(output);
+
+                clazz.writeFile(mClassOutput);
+                String entryName = clazz.getName()
+                        .replace('.', File.separatorChar);
+                File file = new File(mClassOutput
+                        + entryName
+                        + SdkConstants.DOT_CLASS);
+                if (file.exists()) {
+                    files.add(Pair.of(entryName, file));
+                }
             }
             CtClass executable = buildExecutable(fields, methods);
-            executable.writeFile(output);
+            executable.writeFile(mClassOutput);
+            String entryName = executable.getName()
+                    .replace('.', File.separatorChar);
+            File file = new File(mClassOutput
+                    + entryName
+                    + SdkConstants.DOT_CLASS);
+            if (file.exists()) {
+                files.add(Pair.of(entryName, file));
+            }
+            return files;
         } catch (CannotCompileException e) {
             throw new TransformException(e);
         }
@@ -310,6 +343,26 @@ public class PatchTransform extends Transform {
                 return id;
             }
             id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
+        }
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private void zipToFile(List<Pair<String, File>> inputs) throws IOException {
+        File output = new File(mPatchOutput);
+        if (output.exists()) {
+            output.delete();
+        }
+        output.createNewFile();
+        byte[] buffer = new byte[4096];
+        ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(output));
+        for (Pair<String, File> input : inputs) {
+            ZipEntry zipEntry = new ZipEntry(input.getFirst());
+            zipOutputStream.putNextEntry(zipEntry);
+            FileInputStream inputStream = new FileInputStream(input.getSecond());
+            IOUtils.copyLarge(inputStream, zipOutputStream, buffer);
+            inputStream.close();
+            zipOutputStream.closeEntry();
+            zipOutputStream.flush();
         }
     }
 

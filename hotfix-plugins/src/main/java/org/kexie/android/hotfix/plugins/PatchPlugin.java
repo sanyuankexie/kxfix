@@ -18,7 +18,6 @@ public class PatchPlugin implements Plugin<Project> {
             AppExtension android = project.getExtensions().getByType(AppExtension.class);
             PatchTransform transform = new PatchTransform(project);
             android.registerTransform(transform);
-
         }
     }
 }
