@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import javassist.CannotCompileException;
+import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
@@ -29,69 +30,87 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
             );
             patch.defrost();
             CtClass superClass = context.mClassPool.get(PATCH_SUPER_CLASS_NAME);
-            StringBuilder methodsBuilder = new StringBuilder(
-                    "protected java.lang.Object " +
-                            "invokeDynamicMethod(" +
-                            "int id, " +
-                            "java.lang.Object target, " +
-                            "java.lang.Object[] prams)" +
-                            "throws java.lang.Throwable {" +
-                            "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                            "executionEngine = this.getExecutionEngine();" +
-                            "switch (id) {"
-            );
             patch.subclassOf(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
-            for (CtMethod method : methods) {
-                int id = hashMethodId(hashIds, method);
-                methodsBuilder.append("case ").append(id).append(": {");
-                //TODO ......
-                methodsBuilder.append("}");
-            }
-            methodsBuilder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
-            patch.addMethod(CtMethod.make(methodsBuilder.toString(), patch));
-            methodsBuilder = new StringBuilder("protected void " +
-                    "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
-            for (CtField field : fields) {
-                methodsBuilder.append("metadata.addFiled(\"")
-                        .append(field.getDeclaringClass().getName())
-                        .append("\",\"")
-                        .append(field.getName())
-                        .append("\");");
-            }
-            for (CtMethod method : methods) {
-                methodsBuilder.append("metadata.addMethod(")
-                        .append(hashIds.get(method))
-                        .append(",\"")
-                        .append(method.getDeclaringClass().getName())
-                        .append("\",\"")
-                        .append(method.getName())
-                        .append("\",");
-                CtClass[] pramTypes = method.getParameterTypes();
-                if (pramTypes.length < 1) {
-                    methodsBuilder.append("null");
-                } else {
-                    methodsBuilder.append("new java.lang.String[")
-                            .append(pramTypes.length)
-                            .append("]{\"")
-                            .append(pramTypes[0].getName())
-                            .append('\"');
-                    for (int i = 1; i < pramTypes.length; ++i) {
-                        methodsBuilder.append(",\"")
-                                .append(pramTypes[i].getName())
-                                .append("\"");
-                    }
-                    methodsBuilder.append("}");
-                }
-                methodsBuilder.append(");");
-            }
-            methodsBuilder.append("}");
-            patch.addMethod(CtMethod.make(methodsBuilder.toString(), patch));
+            String source = buildInvokeDynamicMethod(hashIds, context.mClassPool, patch, methods);
+            patch.addMethod(CtMethod.make(source, patch));
+            source = buildOnLoad(hashIds, fields, methods);
+            patch.addMethod(CtMethod.make(source, patch));
             patch.freeze();
             return patch;
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
         }
+    }
+
+    private static String buildInvokeDynamicMethod(
+            Map<CtMethod, Integer> hashIds,
+            ClassPool classPool,
+            CtClass clazz,
+            List<CtMethod> methods) {
+        StringBuilder methodsBuilder = new StringBuilder(
+                "protected java.lang.Object " +
+                        "invokeDynamicMethod(" +
+                        "int id, " +
+                        "java.lang.Object target, " +
+                        "java.lang.Object[] prams)" +
+                        "throws java.lang.Throwable {" +
+                        "org.kexie.android.hotfix.internal.ExecutionEngine " +
+                        "executionEngine = this.getExecutionEngine();" +
+                        "switch (id) {"
+        );
+        for (CtMethod method : methods) {
+            int id = hashMethodId(hashIds, method);
+            methodsBuilder.append("case ").append(id).append(": {");
+            //TODO ......
+            methodsBuilder.append("}");
+        }
+        methodsBuilder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
+        return methodsBuilder.toString();
+    }
+
+
+    private static String buildOnLoad(
+            Map<CtMethod, Integer> hashIds,
+            List<CtField> fields,
+            List<CtMethod> methods) throws NotFoundException {
+        StringBuilder methodsBuilder = new StringBuilder("protected void " +
+                "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
+        for (CtField field : fields) {
+            methodsBuilder.append("metadata.addFiled(\"")
+                    .append(field.getDeclaringClass().getName())
+                    .append("\",\"")
+                    .append(field.getName())
+                    .append("\");");
+        }
+        for (CtMethod method : methods) {
+            methodsBuilder.append("metadata.addMethod(")
+                    .append(hashIds.get(method))
+                    .append(",\"")
+                    .append(method.getDeclaringClass().getName())
+                    .append("\",\"")
+                    .append(method.getName())
+                    .append("\",");
+            CtClass[] pramTypes = method.getParameterTypes();
+            if (pramTypes.length < 1) {
+                methodsBuilder.append("null");
+            } else {
+                methodsBuilder.append("new java.lang.String[")
+                        .append(pramTypes.length)
+                        .append("]{\"")
+                        .append(pramTypes[0].getName())
+                        .append('\"');
+                for (int i = 1; i < pramTypes.length; ++i) {
+                    methodsBuilder.append(",\"")
+                            .append(pramTypes[i].getName())
+                            .append("\"");
+                }
+                methodsBuilder.append("}");
+            }
+            methodsBuilder.append(");");
+        }
+        methodsBuilder.append("}");
+        return methodsBuilder.toString();
     }
 
 
