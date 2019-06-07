@@ -34,6 +34,6 @@ public class Jar2DexTask extends TempWorkflow<File,File> {
 
     @Override
     protected String getOutput(Context context) {
-        return super.getOutput(context) + "dex.jar";
+        return super.getOutput(context) + "jar" + File.separator + "classes-dex.jar";
     }
 }
