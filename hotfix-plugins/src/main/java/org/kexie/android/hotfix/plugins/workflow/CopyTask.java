@@ -1,7 +1,6 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.SdkConstants;
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.io.File;
@@ -9,22 +8,18 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 
-public class CopingTask implements Task<List<CtClass>, List<Pair<CtClass,File>>> {
-
-    private static String getOutput(Context context) {
-        return context.mBaseWorkDir + "tmp" + File.separator + "classes" + File.separator;
-    }
-
+public class CopyTask extends TempWorkflow<List<CtClass>,  List<Pair<CtClass, File>>> {
     @Override
-    public List<Pair<CtClass, File>> apply(Context context, List<CtClass> inputs)
-            throws IOException, TransformException {
-        String classOutputDir = getOutput(context);
+    public ContextWith<List<Pair<CtClass, File>>>
+    apply(ContextWith<List<CtClass>> contextWith) {
+        String classOutputDir = getOutput(contextWith.getContext());
         List<Pair<CtClass, File>> files = new LinkedList<>();
         try {
-            for (CtClass clazz : inputs) {
+            for (CtClass clazz : contextWith.getInput()) {
                 clazz.writeFile(classOutputDir);
                 String entryName = clazz.getName()
                         .replace(".",
@@ -35,9 +30,14 @@ public class CopingTask implements Task<List<CtClass>, List<Pair<CtClass,File>>>
                     files.add(Pair.of(clazz, file));
                 }
             }
-        } catch (CannotCompileException e) {
-            throw new TransformException(e);
+        } catch (CannotCompileException | IOException e) {
+            throw Exceptions.propagate(e);
         }
-        return files;
+        return contextWith.getContext().with(files);
+    }
+
+    @Override
+    protected String getOutput(Context context) {
+        return super.getOutput(context) + "classes";
     }
 }

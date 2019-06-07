@@ -1,29 +1,26 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.gradle.AppExtension;
-
 import org.gradle.api.Project;
-import org.gradle.api.logging.Logger;
-
-import java.io.File;
 
 import javassist.ClassPool;
 
 public class Context {
-    final ClassPool mClassPool;
-    final Project mProject;
-    final Logger mLogger;
-    final String mBaseWorkDir;
-    final AppExtension mAndroid;
+    private final ClassPool classPool = new ClassPool();
+    private final Project project;
 
     public Context(Project project) {
-        mProject = project;
-        mLogger = project.getLogger();
-        mAndroid = project.getExtensions().getByType(AppExtension.class);
-        mClassPool = new ClassPool();
-        mBaseWorkDir = mProject.getBuildDir()
-                .getAbsolutePath() + File.separator +
-                "outputs" + File.separator +
-                "hotfix" + File.separator;
+        this.project = project;
+    }
+
+    Project getProject() {
+        return project;
+    }
+
+    ClassPool getClasses() {
+        return classPool;
+    }
+
+    public <T> ContextWith<T> with(T input) {
+        return new ContextWith<>(this, input);
     }
 }

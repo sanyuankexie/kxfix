@@ -9,19 +9,18 @@ import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
 
-public class ScanningTask implements Task<List<CtClass>, ScanningTask.Result> {
+public class ScanTask implements Workflow<List<CtClass>,ScanResult> {
 
     private static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
     private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
 
     @Override
-    public Result apply(Context context, List<CtClass> inputs) throws TransformException {
+    public ContextWith<ScanResult>
+    apply(ContextWith<List<CtClass>> input) throws Exception {
         List<CtClass> outClasses = new LinkedList<>();
         List<CtField> outFields = new LinkedList<>();
         List<CtMethod> outMethods = new LinkedList<>();
-        for (CtClass ctClass : inputs) {
-            //ClassPool使用了默认的类加载器
-
+        for (CtClass ctClass : input.getInput()) {
             boolean patched = ctClass.hasAnnotation(HOTFIX_ANNOTATION);
             boolean hotfix = ctClass.hasAnnotation(PATCHED_ANNOTATION);
             if (patched && hotfix) {
@@ -46,20 +45,7 @@ public class ScanningTask implements Task<List<CtClass>, ScanningTask.Result> {
                 }
             }
         }
-        return new Result(outClasses, outFields, outMethods);
-    }
-
-    public static final class Result {
-        public final List<CtClass> mClasses;
-        public final List<CtField> mFields;
-        public final List<CtMethod> mMethods;
-
-        Result(List<CtClass> classes,
-               List<CtField> fields,
-               List<CtMethod> methods) {
-            mClasses = classes;
-            mFields = fields;
-            mMethods = methods;
-        }
+        return input.getContext().with(new ScanResult(outClasses,
+                outFields, outMethods));
     }
 }

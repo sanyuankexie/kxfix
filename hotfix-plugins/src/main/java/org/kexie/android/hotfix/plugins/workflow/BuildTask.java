@@ -1,12 +1,12 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.CtField;
@@ -15,22 +15,28 @@ import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
-public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtClass> {
+public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
     private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
 
     @Override
-    public CtClass apply(Context context, Pair<List<CtField>, List<CtMethod>> input)
-            throws TransformException {
-        List<CtField> fields = input.getFirst();
-        List<CtMethod> methods = input.getSecond();
+    public ContextWith<CtClass>
+    apply(ContextWith<Pair<List<CtField>, List<CtMethod>>> contextWith) {
+        List<CtField> fields = contextWith.getInput().getFirst();
+        List<CtMethod> methods = contextWith.getInput().getSecond();
         try {
-            CtClass patch = context.mClassPool.makeClass(
-                    PATCH_SUPER_CLASS_NAME + PATCH_CLASS_NAME_SUFFIX
-            );
+            CtClass patch = contextWith
+                    .getContext()
+                    .getClasses()
+                    .makeClass(
+                            PATCH_SUPER_CLASS_NAME + PATCH_CLASS_NAME_SUFFIX
+                    );
             patch.defrost();
-            CtClass superClass = context.mClassPool.get(PATCH_SUPER_CLASS_NAME);
+            CtClass superClass = contextWith
+                    .getContext()
+                    .getClasses()
+                    .get(PATCH_SUPER_CLASS_NAME);
             patch.setSuperclass(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
             String source = buildInvokeDynamic(hashIds, methods);
@@ -40,9 +46,9 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
             source = buildConstructor();
             patch.addConstructor(CtNewConstructor.make(source, patch));
             patch.freeze();
-            return patch;
+            return contextWith.getContext().with(patch);
         } catch (NotFoundException | CannotCompileException e) {
-            throw new TransformException(e);
+            throw Exceptions.propagate(e);
         }
     }
 
@@ -131,7 +137,6 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
         methodsBuilder.append("}");
         return methodsBuilder.toString();
     }
-
 
     /**
      * 开地址法确保散列始终不会碰撞
