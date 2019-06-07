@@ -4,55 +4,53 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.reactivex.exceptions.Exceptions;
-import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
-import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMethod;
-import javassist.CtNewConstructor;
-import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
-public class BuildTask implements Workflow<BuildTask.Input, CtClass> {
+
+//TODO 旧类拷贝一份，UUID生成名字防止冲突，然后在旧类的基础上修改，改完以后拷贝到新类
+public class BuildTask implements Workflow<List<CtClass>, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
     private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
 
     @Override
     public ContextWith<CtClass>
-    apply(ContextWith<Input> contextWith) {
-        List<CtField> fields = contextWith.getInput().getFields();
-        List<CtMethod> methods = contextWith.getInput().getMethods();
-        List<CtConstructor> constructors = contextWith.getInput().getConstructors();
-        try {
-            CtClass patch = contextWith
-                    .getContext()
-                    .getClasses()
-                    .makeClass(PATCH_SUPER_CLASS_NAME
-                            + PATCH_CLASS_NAME_SUFFIX);
-            patch.defrost();
-            CtClass superClass = contextWith
-                    .getContext()
-                    .getClasses()
-                    .get(PATCH_SUPER_CLASS_NAME);
-            patch.setSuperclass(superClass);
-            Map<CtMethod, Integer> hashIds = new HashMap<>();
-            String source = buildInvokeDynamic(patch,
-                    contextWith.getContext().getClasses(),
-                    hashIds, methods);
-            CtMethod method = CtNewMethod.make(source, patch);
-            patch.addMethod(method);
-            source = buildOnLoad(hashIds, fields);
-            patch.addMethod(CtNewMethod.make(source, patch));
-            source = buildConstructor();
-            patch.addConstructor(CtNewConstructor.make(source, patch));
-            patch.freeze();
-            return contextWith.getContext().with(patch);
-        } catch (NotFoundException | CannotCompileException e) {
-            throw Exceptions.propagate(e);
-        }
+    apply(ContextWith<List<CtClass>> contextWith) {
+//        List<CtField> fields = contextWith.getInput().getFields();
+//        List<CtMethod> methods = contextWith.getInput().getMethods();
+//        List<CtConstructor> constructors = contextWith.getInput().getConstructors();
+//        try {
+//            CtClass patch = contextWith
+//                    .getContext()
+//                    .getClasses()
+//                    .makeClass(PATCH_SUPER_CLASS_NAME
+//                            + PATCH_CLASS_NAME_SUFFIX);
+//            patch.defrost();
+//            CtClass superClass = contextWith
+//                    .getContext()
+//                    .getClasses()
+//                    .get(PATCH_SUPER_CLASS_NAME);
+//            patch.setSuperclass(superClass);
+//            Map<CtMethod, Integer> hashIds = new HashMap<>();
+//            String source = buildInvokeDynamic(patch,
+//                    contextWith.getContext().getClasses(),
+//                    hashIds, methods);
+//            CtMethod method = CtNewMethod.make(source, patch);
+//            patch.addMethod(method);
+//            source = buildOnLoad(hashIds, fields);
+//            patch.addMethod(CtNewMethod.make(source, patch));
+//            source = buildConstructor();
+//            patch.addConstructor(CtNewConstructor.make(source, patch));
+//            patch.freeze();
+//            return contextWith.getContext().with(patch);
+//        } catch (NotFoundException | CannotCompileException e) {
+//            throw Exceptions.propagate(e);
+//        }
+        return null;
     }
 
     private static String buildConstructor() {
@@ -195,35 +193,41 @@ public class BuildTask implements Workflow<BuildTask.Input, CtClass> {
         }
     }
 
-    private static class Factory {
-        Factory(Context context) {
+    private final static class Factory {
+        private final Map<CtMethod, Integer> hashIds = new HashMap<>();
+        private final Map<CtClass, CtClass> primitiveMapping = new HashMap<>();
 
-        }
-    }
-
-    public static class Input {
-        private final List<CtField> fields;
-        private final List<CtMethod> methods;
-        private final List<CtConstructor> constructors;
-
-        List<CtConstructor> getConstructors() {
-            return constructors;
+        Factory(Context context) throws NotFoundException {
+            initMapping(context.getClasses());
         }
 
-        List<CtMethod> getMethods() {
-            return methods;
+
+        /**
+         * 开地址法确保散列始终不会碰撞
+         * {@link Integer#MIN_VALUE}是无效值
+         */
+        int hashMethodId(
+                Map<CtMethod, Integer> hashIds,
+                CtMethod method) {
+            int id = method.getLongName().hashCode();
+            while (true) {
+                if (!hashIds.containsValue(id)) {
+                    hashIds.put(method, id);
+                    return id;
+                }
+                id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
+            }
         }
 
-        List<CtField> getFields() {
-            return fields;
-        }
-
-        public Input(List<CtField> fields,
-                     List<CtMethod> methods,
-                     List<CtConstructor> constructors) {
-            this.fields = fields;
-            this.methods = methods;
-            this.constructors = constructors;
+        private void initMapping(ClassPool classPool)
+                throws NotFoundException {
+            primitiveMapping.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
+            primitiveMapping.put(CtClass.charType, classPool.get(Character.class.getName()));
+            primitiveMapping.put(CtClass.doubleType, classPool.get(Double.class.getName()));
+            primitiveMapping.put(CtClass.floatType, classPool.get(Float.class.getName()));
+            primitiveMapping.put(CtClass.intType, classPool.get(Integer.class.getName()));
+            primitiveMapping.put(CtClass.shortType, classPool.get(Short.class.getName()));
+            primitiveMapping.put(CtClass.longType, classPool.get(Long.class.getName()));
         }
     }
 }

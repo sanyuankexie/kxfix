@@ -17,8 +17,10 @@ dependencies {
     implementation 'org.smali:smali:2.2.7'
     //修改字节码
     implementation 'org.javassist:javassist:3.25.0-GA'
+
     implementation 'io.reactivex.rxjava2:rxjava:2.2.9'
-    //由于swing图形化界面被封,所以只能另找出路
+
+    implementation 'org.ow2.asm:asm:7.1'
 
     testImplementation 'junit:junit:4.12'
 }
