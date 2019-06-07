@@ -16,7 +16,10 @@ import androidx.annotation.Keep;
  */
 
 @Keep
-@Target({ElementType.METHOD,ElementType.FIELD,ElementType.TYPE})
+@Target({ElementType.METHOD,
+        ElementType.FIELD,
+        ElementType.TYPE,
+        ElementType.CONSTRUCTOR})
 @Retention(RetentionPolicy.CLASS)
 public @interface Patched {
 }

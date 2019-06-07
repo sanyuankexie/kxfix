@@ -4,7 +4,6 @@ import com.android.build.api.transform.QualifiedContent;
 import com.android.build.api.transform.Transform;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.internal.pipeline.TransformManager;
-import com.android.utils.Pair;
 
 import org.gradle.api.Project;
 import org.kexie.android.hotfix.plugins.workflow.BuildTask;
@@ -13,7 +12,6 @@ import org.kexie.android.hotfix.plugins.workflow.ContextWith;
 import org.kexie.android.hotfix.plugins.workflow.CopyTask;
 import org.kexie.android.hotfix.plugins.workflow.Jar2DexTask;
 import org.kexie.android.hotfix.plugins.workflow.LoadTask;
-import org.kexie.android.hotfix.plugins.workflow.ScanResult;
 import org.kexie.android.hotfix.plugins.workflow.ScanTask;
 import org.kexie.android.hotfix.plugins.workflow.ZipTask;
 
@@ -49,7 +47,7 @@ public class PatchTransform extends Transform {
             throws IOException {
         long startTime = System.currentTimeMillis();
         transformInvocation.getOutputProvider().deleteAll();
-        Single<ContextWith<ScanResult>> scanResult = Single.just(context)
+        Single<ContextWith<ScanTask.Output>> scanResult = Single.just(context)
                 .zipWith(Single.just(transformInvocation)
                         .map(TransformInvocation::getInputs), Context::with)
                 .map(new LoadTask())
@@ -57,8 +55,14 @@ public class PatchTransform extends Transform {
         Single<List<CtClass>> copyClasses = scanResult
                 .map(it -> it.getInput().getClasses());
         Single<ContextWith<CtClass>> buildClass = scanResult
-                .map(it -> it.getContext().with(Pair.of(it.getInput().getFields(),
-                        it.getInput().getMethods())))
+                .map(it -> {
+                    ScanTask.Output output = it.getInput();
+                    BuildTask.Input input = new BuildTask.Input(
+                            output.getFields(),
+                            output.getMethods(),
+                            output.getConstructors());
+                    return it.getContext().with(input);
+                })
                 .map(new BuildTask());
         copyClasses.zipWith(buildClass, (classes, contextWith) -> {
             classes.add(contextWith.getInput());

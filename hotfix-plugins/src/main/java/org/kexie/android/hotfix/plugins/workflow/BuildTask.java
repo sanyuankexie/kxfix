@@ -1,7 +1,5 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.utils.Pair;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,29 +8,30 @@ import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
-public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, CtClass> {
+public class BuildTask implements Workflow<BuildTask.Input, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
     private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
 
     @Override
     public ContextWith<CtClass>
-    apply(ContextWith<Pair<List<CtField>, List<CtMethod>>> contextWith) {
-        List<CtField> fields = contextWith.getInput().getFirst();
-        List<CtMethod> methods = contextWith.getInput().getSecond();
+    apply(ContextWith<Input> contextWith) {
+        List<CtField> fields = contextWith.getInput().getFields();
+        List<CtMethod> methods = contextWith.getInput().getMethods();
+        List<CtConstructor> constructors = contextWith.getInput().getConstructors();
         try {
             CtClass patch = contextWith
                     .getContext()
                     .getClasses()
-                    .makeClass(
-                            PATCH_SUPER_CLASS_NAME + PATCH_CLASS_NAME_SUFFIX
-                    );
+                    .makeClass(PATCH_SUPER_CLASS_NAME
+                            + PATCH_CLASS_NAME_SUFFIX);
             patch.defrost();
             CtClass superClass = contextWith
                     .getContext()
@@ -40,9 +39,11 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                     .get(PATCH_SUPER_CLASS_NAME);
             patch.setSuperclass(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
-            String source = buildInvokeDynamic(contextWith.getContext()
-                    .getClasses(), hashIds, methods);
-            patch.addMethod(CtNewMethod.make(source, patch));
+            String source = buildInvokeDynamic(patch,
+                    contextWith.getContext().getClasses(),
+                    hashIds, methods);
+            CtMethod method = CtNewMethod.make(source, patch);
+            patch.addMethod(method);
             source = buildOnLoad(hashIds, fields);
             patch.addMethod(CtNewMethod.make(source, patch));
             source = buildConstructor();
@@ -60,18 +61,25 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                 "{super(executionEngine);}";
     }
 
+    private static Map<CtClass, CtClass> getPrimitiveTypes(ClassPool classPool)
+            throws NotFoundException {
+        Map<CtClass, CtClass> primitiveTypes = new HashMap<>();
+        primitiveTypes.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
+        primitiveTypes.put(CtClass.charType, classPool.get(Character.class.getName()));
+        primitiveTypes.put(CtClass.doubleType, classPool.get(Double.class.getName()));
+        primitiveTypes.put(CtClass.floatType, classPool.get(Float.class.getName()));
+        primitiveTypes.put(CtClass.intType, classPool.get(Integer.class.getName()));
+        primitiveTypes.put(CtClass.shortType, classPool.get(Short.class.getName()));
+        primitiveTypes.put(CtClass.longType, classPool.get(Long.class.getName()));
+        return primitiveTypes;
+    }
+
     private static String buildInvokeDynamic(
+            CtClass ctClass,
             ClassPool classPool,
             Map<CtMethod, Integer> hashIds,
             List<CtMethod> methods) throws NotFoundException {
-        Map<CtClass, CtClass> bootTypes = new HashMap<>();
-        bootTypes.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
-        bootTypes.put(CtClass.charType, classPool.get(Character.class.getName()));
-        bootTypes.put(CtClass.doubleType, classPool.get(Double.class.getName()));
-        bootTypes.put(CtClass.floatType, classPool.get(Float.class.getName()));
-        bootTypes.put(CtClass.intType, classPool.get(Integer.class.getName()));
-        bootTypes.put(CtClass.shortType, classPool.get(Short.class.getName()));
-        bootTypes.put(CtClass.longType, classPool.get(Long.class.getName()));
+        Map<CtClass, CtClass> primitiveTypes = getPrimitiveTypes(classPool);
         StringBuilder methodsBuilder = new StringBuilder(
                 "protected java.lang.Object " +
                         "invokeDynamicMethod(" +
@@ -95,7 +103,7 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                         .append(" $")
                         .append(i);
                 CtClass box;
-                if ((box = bootTypes.get(pType)) != null) {
+                if ((box = primitiveTypes.get(pType)) != null) {
                     methodsBuilder.append("=((")
                             .append(box.getName())
                             .append(")prams[")
@@ -112,18 +120,26 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                             .append("];");
                 }
             }
-            methodsBuilder.append("return null;}");
+            methodsBuilder.append("return ")
+                    .append(method.getName())
+                    .append("(");
+            if (pramTypes.length > 1) {
+                methodsBuilder.append("$0");
+                for (int i = 1; i < pramTypes.length; ++i) {
+                    methodsBuilder.append(",$")
+                            .append(i);
+                }
+            }
+            methodsBuilder.append(");}");
+            //methodsBuilder.append("return null;}");
         }
         methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
         return methodsBuilder.toString();
     }
 
-
     private static String buildOnLoad(
             Map<CtMethod, Integer> hashIds,
             List<CtField> fields) throws NotFoundException {
-
-
         StringBuilder methodsBuilder = new StringBuilder("protected void " +
                 "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
         for (CtField field : fields) {
@@ -176,6 +192,38 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                 return id;
             }
             id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
+        }
+    }
+
+    private static class Factory {
+        Factory(Context context) {
+
+        }
+    }
+
+    public static class Input {
+        private final List<CtField> fields;
+        private final List<CtMethod> methods;
+        private final List<CtConstructor> constructors;
+
+        List<CtConstructor> getConstructors() {
+            return constructors;
+        }
+
+        List<CtMethod> getMethods() {
+            return methods;
+        }
+
+        List<CtField> getFields() {
+            return fields;
+        }
+
+        public Input(List<CtField> fields,
+                     List<CtMethod> methods,
+                     List<CtConstructor> constructors) {
+            this.fields = fields;
+            this.methods = methods;
+            this.constructors = constructors;
         }
     }
 }
