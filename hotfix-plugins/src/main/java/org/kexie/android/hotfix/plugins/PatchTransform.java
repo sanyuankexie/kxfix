@@ -8,18 +8,20 @@ import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.Pair;
 
 import org.gradle.api.Project;
-import org.kexie.android.hotfix.plugins.tasks.BuildExTask;
-import org.kexie.android.hotfix.plugins.tasks.Context;
-import org.kexie.android.hotfix.plugins.tasks.CopingTask;
-import org.kexie.android.hotfix.plugins.tasks.DxTask;
-import org.kexie.android.hotfix.plugins.tasks.DialogTask;
-import org.kexie.android.hotfix.plugins.tasks.LoadingTask;
-import org.kexie.android.hotfix.plugins.tasks.PackageTask;
-import org.kexie.android.hotfix.plugins.tasks.ScanningTask;
-import org.kexie.android.hotfix.plugins.tasks.ZipTask;
+import org.kexie.android.hotfix.plugins.workflow.BuildExTask;
+import org.kexie.android.hotfix.plugins.workflow.Context;
+import org.kexie.android.hotfix.plugins.workflow.CopingTask;
+import org.kexie.android.hotfix.plugins.workflow.DialogTask;
+import org.kexie.android.hotfix.plugins.workflow.DxTask;
+import org.kexie.android.hotfix.plugins.workflow.LoadingTask;
+import org.kexie.android.hotfix.plugins.workflow.PackageTask;
+import org.kexie.android.hotfix.plugins.workflow.ScanningTask;
+import org.kexie.android.hotfix.plugins.workflow.ZipTask;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +39,11 @@ public class PatchTransform extends Transform {
     private final Context mContext;
 
     PatchTransform(Project project) {
+        ClassLoader parent = Thread.currentThread().getContextClassLoader();
+        URL[] urls = {parent.getResource("./libs/dalvik-dx-9.0.0_r3.jar"),
+                parent.getResource("./libs/javassist-3.25.0-GA.jar")};
+        URLClassLoader classLoader = new URLClassLoader(urls, parent);
+        Thread.currentThread().setContextClassLoader(classLoader);
         mContext = new Context(project);
     }
 

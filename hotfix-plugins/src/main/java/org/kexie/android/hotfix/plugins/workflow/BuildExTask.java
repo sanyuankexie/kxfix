@@ -1,4 +1,4 @@
-package org.kexie.android.hotfix.plugins.tasks;
+package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
@@ -31,14 +31,14 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
             );
             patch.defrost();
             CtClass superClass = context.mClassPool.get(PATCH_SUPER_CLASS_NAME);
-            patch.subclassOf(superClass);
-            String source = buildConstructor();
-            patch.addConstructor(CtNewConstructor.make(source, patch));
+            patch.setSuperclass(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
-            source = buildInvokeDynamic(hashIds, methods);
+            String source = buildInvokeDynamic(hashIds, methods);
             patch.addMethod(CtNewMethod.make(source, patch));
             source = buildOnLoad(hashIds, fields);
             patch.addMethod(CtNewMethod.make(source, patch));
+            source = buildConstructor();
+            patch.addConstructor(CtNewConstructor.make(source, patch));
             patch.freeze();
             return patch;
         } catch (NotFoundException | CannotCompileException e) {
@@ -54,7 +54,7 @@ public class BuildExTask implements Task<Pair<List<CtField>,List<CtMethod>>, CtC
 
     private static String buildInvokeDynamic(
             Map<CtMethod, Integer> hashIds,
-            List<CtMethod> methods) throws NotFoundException, CannotCompileException {
+            List<CtMethod> methods) throws NotFoundException {
         StringBuilder methodsBuilder = new StringBuilder(
                 "protected java.lang.Object " +
                         "invokeDynamicMethod(" +

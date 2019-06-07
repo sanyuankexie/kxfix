@@ -1,4 +1,4 @@
-package org.kexie.android.hotfix.plugins.tasks;
+package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.SdkConstants;
 import com.android.build.api.transform.TransformException;
@@ -15,7 +15,7 @@ import javassist.CtClass;
 public class CopingTask implements Task<List<CtClass>, List<Pair<CtClass,File>>> {
 
     private static String getOutput(Context context) {
-        return context.mBaseWorkDir + "classes" + File.separator;
+        return context.mBaseWorkDir + "tmp" + File.separator + "classes" + File.separator;
     }
 
     @Override
@@ -27,9 +27,9 @@ public class CopingTask implements Task<List<CtClass>, List<Pair<CtClass,File>>>
             for (CtClass clazz : inputs) {
                 clazz.writeFile(classOutputDir);
                 String entryName = clazz.getName()
-                        .replace('.', File.separatorChar);
-                File file = new File(context.mClassPool
-                        + entryName
+                        .replace(".",
+                                File.separator);
+                File file = new File(classOutputDir, entryName
                         + SdkConstants.DOT_CLASS);
                 if (file.exists()) {
                     files.add(Pair.of(clazz, file));

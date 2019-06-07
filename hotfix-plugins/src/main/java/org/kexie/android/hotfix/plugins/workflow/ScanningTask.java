@@ -1,9 +1,6 @@
-package org.kexie.android.hotfix.plugins.tasks;
+package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
-
-import org.kexie.android.hotfix.Hotfix;
-import org.kexie.android.hotfix.Patched;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -14,6 +11,9 @@ import javassist.CtMethod;
 
 public class ScanningTask implements Task<List<CtClass>, ScanningTask.Result> {
 
+    private static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
+    private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
+
     @Override
     public Result apply(Context context, List<CtClass> inputs) throws TransformException {
         List<CtClass> outClasses = new LinkedList<>();
@@ -21,11 +21,12 @@ public class ScanningTask implements Task<List<CtClass>, ScanningTask.Result> {
         List<CtMethod> outMethods = new LinkedList<>();
         for (CtClass ctClass : inputs) {
             //ClassPool使用了默认的类加载器
-            boolean patched = ctClass.hasAnnotation(Patched.class);
-            boolean hotfix = ctClass.hasAnnotation(Hotfix.class);
+
+            boolean patched = ctClass.hasAnnotation(HOTFIX_ANNOTATION);
+            boolean hotfix = ctClass.hasAnnotation(PATCHED_ANNOTATION);
             if (patched && hotfix) {
-                throw new TransformException("注解 " + Patched.class.getName()
-                        + " 和注解 " + Hotfix.class.getName()
+                throw new TransformException("注解 " + HOTFIX_ANNOTATION
+                        + " 和注解 " + PATCHED_ANNOTATION
                         + " 不能同时在class上出现");
             }
             if (patched) {
@@ -34,12 +35,12 @@ public class ScanningTask implements Task<List<CtClass>, ScanningTask.Result> {
             }
             if (hotfix) {
                 for (CtField field : ctClass.getDeclaredFields()) {
-                    if (field.hasAnnotation(Patched.class)) {
+                    if (field.hasAnnotation(PATCHED_ANNOTATION)) {
                         outFields.add(field);
                     }
                 }
                 for (CtMethod method : ctClass.getDeclaredMethods()) {
-                    if (method.hasAnnotation(Patched.class)) {
+                    if (method.hasAnnotation(PATCHED_ANNOTATION)) {
                         outMethods.add(method);
                     }
                 }

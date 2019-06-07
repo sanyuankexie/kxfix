@@ -1,4 +1,4 @@
-package org.kexie.android.hotfix.plugins.tasks;
+package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
 
