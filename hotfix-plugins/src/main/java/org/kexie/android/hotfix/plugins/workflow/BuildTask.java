@@ -11,7 +11,8 @@ import javassist.CtMethod;
 import javassist.NotFoundException;
 
 
-//TODO 旧类拷贝一份，UUID生成名字防止冲突，然后在旧类的基础上修改，改完以后拷贝到新类
+//TODO 旧类拷贝一份，UUID生成名字防止冲突
+//TODO 然后在旧类的基础上修改，消除访问权限和超类调用，然后拷贝到新类
 public class BuildTask implements Workflow<List<CtClass>, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
