@@ -48,7 +48,8 @@ public class PatchTransform extends Transform {
             throws IOException {
         long startTime = System.currentTimeMillis();
         transformInvocation.getOutputProvider().deleteAll();
-        Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>> scanResult = Single.just(context)
+        Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
+                scanResult = Single.just(context)
                 .zipWith(Single.just(transformInvocation)
                         .map(TransformInvocation::getInputs), Context::with)
                 .map(new LoadTask())
