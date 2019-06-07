@@ -8,24 +8,17 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     //gradle apis
-
     implementation 'com.android.tools.build:gradle:3.3.1'
     //基于aspectjx插粧
     implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.4'
-
     //dx
     implementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
-
     //smali
     implementation 'org.smali:smali:2.2.7'
-
     //修改字节码
     implementation 'org.javassist:javassist:3.25.0-GA'
-
-    implementation "io.reactivex.rxjava2:rxjava:2.2.9"
-
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.9'
     //由于swing图形化界面被封,所以只能另找出路
-
 
     testImplementation 'junit:junit:4.12'
 }

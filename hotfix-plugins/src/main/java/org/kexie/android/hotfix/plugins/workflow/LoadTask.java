@@ -27,6 +27,7 @@ public class LoadTask implements Workflow<Collection<TransformInput>, List<CtCla
     public ContextWith<List<CtClass>>
     apply(ContextWith<Collection<TransformInput>> input) {
         Collection<TransformInput> inputs = input.getInput();
+
         String[] extension = {SdkConstants.EXT_CLASS};
         List<String> classNames = new LinkedList<>();
         try {
@@ -84,6 +85,7 @@ public class LoadTask implements Workflow<Collection<TransformInput>, List<CtCla
                 classes.add(ctClass);
             }
         }
+        System.out.println(classes.size());
         return input.getContext().with(classes);
     }
 }

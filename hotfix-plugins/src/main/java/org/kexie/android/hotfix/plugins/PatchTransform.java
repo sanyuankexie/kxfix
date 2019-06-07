@@ -7,7 +7,6 @@ import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.Pair;
 
 import org.gradle.api.Project;
-import org.kexie.android.hotfix.plugins.face.SimpleFace;
 import org.kexie.android.hotfix.plugins.workflow.BuildTask;
 import org.kexie.android.hotfix.plugins.workflow.Context;
 import org.kexie.android.hotfix.plugins.workflow.ContextWith;
@@ -67,8 +66,10 @@ public class PatchTransform extends Transform {
         }).map(new CopyTask())
                 .map(new ZipTask())
                 .map(new Jar2DexTask())
-                .subscribe(contextWith -> SimpleFace.init(contextWith.getInput()),
-                        System.out::println);
+                .subscribe(contextWith -> {
+                }, it -> {
+                    throw new RuntimeException(it);
+                });
         long cost = (System.currentTimeMillis() - startTime) / 1000;
     }
 
@@ -80,6 +81,11 @@ public class PatchTransform extends Transform {
     @Override
     public Set<? super QualifiedContent.Scope> getScopes() {
         return TransformManager.SCOPE_FULL_PROJECT;
+    }
+
+    @Override
+    public boolean isCacheable() {
+        return true;
     }
 
     @Override

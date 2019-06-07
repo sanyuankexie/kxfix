@@ -39,7 +39,7 @@ public class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
             ZipEntry zipEntry = new ZipEntry(entryName);
             zipOutputStream.putNextEntry(zipEntry);
             FileInputStream inputStream = new FileInputStream(input.getSecond());
-            System.out.println(IOUtils.copyLarge(inputStream, zipOutputStream, buffer));
+            IOUtils.copyLarge(inputStream, zipOutputStream, buffer);
             inputStream.close();
             zipOutputStream.closeEntry();
             zipOutputStream.flush();

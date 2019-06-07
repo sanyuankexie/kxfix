@@ -8,6 +8,7 @@ import java.util.Map;
 
 import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
+import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
@@ -39,7 +40,8 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
                     .get(PATCH_SUPER_CLASS_NAME);
             patch.setSuperclass(superClass);
             Map<CtMethod, Integer> hashIds = new HashMap<>();
-            String source = buildInvokeDynamic(hashIds, methods);
+            String source = buildInvokeDynamic(contextWith.getContext()
+                    .getClasses(), hashIds, methods);
             patch.addMethod(CtNewMethod.make(source, patch));
             source = buildOnLoad(hashIds, fields);
             patch.addMethod(CtNewMethod.make(source, patch));
@@ -59,39 +61,60 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
     }
 
     private static String buildInvokeDynamic(
+            ClassPool classPool,
             Map<CtMethod, Integer> hashIds,
             List<CtMethod> methods) throws NotFoundException {
+        Map<CtClass, CtClass> bootTypes = new HashMap<>();
+        bootTypes.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
+        bootTypes.put(CtClass.charType, classPool.get(Character.class.getName()));
+        bootTypes.put(CtClass.doubleType, classPool.get(Double.class.getName()));
+        bootTypes.put(CtClass.floatType, classPool.get(Float.class.getName()));
+        bootTypes.put(CtClass.intType, classPool.get(Integer.class.getName()));
+        bootTypes.put(CtClass.shortType, classPool.get(Short.class.getName()));
+        bootTypes.put(CtClass.longType, classPool.get(Long.class.getName()));
         StringBuilder methodsBuilder = new StringBuilder(
                 "protected java.lang.Object " +
                         "invokeDynamicMethod(" +
-                        "int id, " +
-                        "java.lang.Object target, " +
+                        "int id," +
+                        "java.lang.Object target," +
                         "java.lang.Object[] prams)" +
-                        "throws java.lang.Throwable {" +
+                        "throws java.lang.Throwable{" +
                         "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                        "executionEngine = this.getExecutionEngine();" +
-                        "switch (id) {"
+                        "executionEngine=this.getExecutionEngine();" +
+                        "switch(id){"
         );
         for (CtMethod method : methods) {
             int id = hashMethodId(hashIds, method);
             methodsBuilder.append("case ")
                     .append(id)
-                    .append(": {");
+                    .append(":{");
             CtClass[] pramTypes = method.getParameterTypes();
             for (int i = 0; i < pramTypes.length; ++i) {
-                methodsBuilder.append(pramTypes[i].getName())
+                CtClass pType = pramTypes[i];
+                methodsBuilder.append(pType.getName())
                         .append(" $")
-                        .append(i)
-                        .append("=(")
-                        .append(pramTypes[i].getName())
-                        .append(")prams[")
-                        .append(i)
-                        .append("];");
+                        .append(i);
+                CtClass box;
+                if ((box = bootTypes.get(pType)) != null) {
+                    methodsBuilder.append("=((")
+                            .append(box.getName())
+                            .append(")prams[")
+                            .append(i)
+                            .append("]).")
+                            .append(pType.getName())
+                            .append("Value();");
+                } else {
+                    methodsBuilder
+                            .append("=(")
+                            .append(pType.getName())
+                            .append(")prams[")
+                            .append(i)
+                            .append("];");
+                }
             }
-
             methodsBuilder.append("return null;}");
         }
-        methodsBuilder.append("default: {throw new java.lang.NoSuchMethodException();}}}");
+        methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
         return methodsBuilder.toString();
     }
 
@@ -99,6 +122,8 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
     private static String buildOnLoad(
             Map<CtMethod, Integer> hashIds,
             List<CtField> fields) throws NotFoundException {
+
+
         StringBuilder methodsBuilder = new StringBuilder("protected void " +
                 "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
         for (CtField field : fields) {
@@ -120,9 +145,7 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
             if (pramTypes.length < 1) {
                 methodsBuilder.append("null");
             } else {
-                methodsBuilder.append("new java.lang.String[")
-                        .append(pramTypes.length)
-                        .append("]{\"")
+                methodsBuilder.append("new java.lang.String[]{\"")
                         .append(pramTypes[0].getName())
                         .append('\"');
                 for (int i = 1; i < pramTypes.length; ++i) {
@@ -135,6 +158,7 @@ public class BuildTask implements Workflow<Pair<List<CtField>,List<CtMethod>>, C
             methodsBuilder.append(");");
         }
         methodsBuilder.append("}");
+        System.out.println(methodsBuilder);
         return methodsBuilder.toString();
     }
 

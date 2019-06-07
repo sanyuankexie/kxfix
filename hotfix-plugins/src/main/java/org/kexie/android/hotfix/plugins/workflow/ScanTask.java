@@ -21,25 +21,32 @@ public class ScanTask implements Workflow<List<CtClass>,ScanResult> {
         List<CtField> outFields = new LinkedList<>();
         List<CtMethod> outMethods = new LinkedList<>();
         for (CtClass ctClass : input.getInput()) {
-            boolean patched = ctClass.hasAnnotation(HOTFIX_ANNOTATION);
-            boolean hotfix = ctClass.hasAnnotation(PATCHED_ANNOTATION);
+            boolean patched = ctClass.hasAnnotation(PATCHED_ANNOTATION);
+            boolean hotfix = ctClass.hasAnnotation(HOTFIX_ANNOTATION);
             if (patched && hotfix) {
                 throw new TransformException("注解 " + HOTFIX_ANNOTATION
                         + " 和注解 " + PATCHED_ANNOTATION
                         + " 不能同时在class上出现");
             }
             if (patched) {
+                input.getContext().getLogger()
+                        .quiet("patch class " + ctClass.getName());
                 outClasses.add(ctClass);
                 continue;
             }
             if (hotfix) {
+
                 for (CtField field : ctClass.getDeclaredFields()) {
                     if (field.hasAnnotation(PATCHED_ANNOTATION)) {
+                        input.getContext().getLogger()
+                                .quiet("patch field " + field.getName());
                         outFields.add(field);
                     }
                 }
                 for (CtMethod method : ctClass.getDeclaredMethods()) {
                     if (method.hasAnnotation(PATCHED_ANNOTATION)) {
+                        input.getContext().getLogger()
+                                .quiet("patch method " + method.getName());
                         outMethods.add(method);
                     }
                 }
