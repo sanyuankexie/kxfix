@@ -38,6 +38,6 @@ public class Looper {
             }
         }
         //任务已完成,退出子程序
-        Thread.currentThread().interrupt();
+        System.exit(0);
     }
 }

@@ -11,12 +11,13 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 import io.reactivex.exceptions.Exceptions;
 import javassist.CtClass;
@@ -41,48 +42,39 @@ public class LoadTask extends Workflow<Collection<TransformInput>, List<CtClass>
                 for (DirectoryInput directoryInput : input1.getDirectoryInputs()) {
                     String directory = directoryInput.getFile().getAbsolutePath();
                     context.getClasses().insertClassPath(directory);
-                    for (File file : FileUtils.listFiles(directoryInput.getFile(),
-                            extension, true)) {
-                        String className = file.getAbsolutePath().substring(
-                                directory.length() + 1,
-                                file.getAbsolutePath().length() -
-                                        SdkConstants.DOT_CLASS.length()
-                        ).replaceAll(Matcher.quoteReplacement(File.separator),
-                                ".");
-                        classNames.add(className);
-                    }
+                    FileUtils.listFiles(directoryInput.getFile(), extension, true)
+                            .stream()
+                            .map(file -> file.getAbsolutePath().substring(
+                                    directory.length() + 1,
+                                    file.getAbsolutePath().length() -
+                                            SdkConstants.DOT_CLASS.length()
+                            ).replaceAll(Matcher.quoteReplacement(File.separator),
+                                    "."))
+                            .forEach(classNames::add);
                 }
                 for (JarInput jarInput : input1.getJarInputs()) {
-                    context.getClasses()
-                            .insertClassPath(jarInput.getFile()
-                                    .getAbsolutePath());
+                    context.getClasses().insertClassPath(jarInput.getFile()
+                            .getAbsolutePath());
                     JarFile jarFile = new JarFile(jarInput.getFile());
-                    Enumeration<JarEntry> enumeration = jarFile.entries();
-                    while (enumeration.hasMoreElements()) {
-                        JarEntry jarEntry = enumeration.nextElement();
-                        String className = jarEntry.getName();
-                        if (className.endsWith(SdkConstants.DOT_CLASS)) {
-                            className = className.substring(0,
+                    jarFile.stream().map(JarEntry::getName)
+                            .filter(className -> className.endsWith(SdkConstants.DOT_CLASS))
+                            .map(className -> className.substring(0,
                                     className.length() - SdkConstants.DOT_CLASS.length()
                             ).replaceAll(Matcher.quoteReplacement("/"),
-                                    ".");
-                            classNames.add(className);
-                        }
-                    }
+                                    "."))
+                            .forEach(classNames::add);
                 }
             }
         } catch (NotFoundException | IOException e) {
             throw Exceptions.propagate(e);
         }
-        List<CtClass> classes = new LinkedList<>();
-        for (String className : classNames) {
-            CtClass ctClass = context
-                    .getClasses()
-                    .getOrNull(className);
-            if (ctClass != null) {
-                classes.add(ctClass);
-            }
-        }
+        List<CtClass> classes = classNames
+                .stream()
+                .map(className -> context
+                .getClasses()
+                .getOrNull(className))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedList::new));
         return context.with(classes);
     }
 }
