@@ -1,13 +1,18 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.reactivex.exceptions.Exceptions;
+import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
 import javassist.CtMethod;
+import javassist.CtNewConstructor;
+import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
 
@@ -26,39 +31,31 @@ final class BuildTask extends Workflow<List<CtClass>, CtClass> {
         } catch (NotFoundException e) {
             e.printStackTrace();
         }
-
-
-//        List<CtField> fields = contextWith.getData().getFields();
-//        List<CtMethod> methods = contextWith.getData().getMethods();
-//        List<CtConstructor> constructors = contextWith.getData().getConstructors();
-//        try {
-//            CtClass patch = contextWith
-//                    .getContext()
-//                    .getClasses()
-//                    .makeClass(PATCH_SUPER_CLASS_NAME
-//                            + PATCH_CLASS_NAME_SUFFIX);
-//            patch.defrost();
-//            CtClass superClass = contextWith
-//                    .getContext()
-//                    .getClasses()
-//                    .get(PATCH_SUPER_CLASS_NAME);
-//            patch.setSuperclass(superClass);
-//            Map<CtMethod, Integer> hashIds = new HashMap<>();
-//            String source = buildInvokeDynamic(patch,
-//                    contextWith.getContext().getClasses(),
-//                    hashIds, methods);
-//            CtMethod method = CtNewMethod.make(source, patch);
-//            patch.addMethod(method);
-//            source = buildOnLoad(hashIds, fields);
-//            patch.addMethod(CtNewMethod.make(source, patch));
-//            source = buildConstructor();
-//            patch.addConstructor(CtNewConstructor.make(source, patch));
-//            patch.freeze();
-//            return contextWith.getContext().with(patch);
-//        } catch (NotFoundException | CannotCompileException e) {
-//            throw Exceptions.propagate(e);
-//        }
-        return null;
+        try {
+            CtClass patch = context
+                    .getClasses()
+                    .makeClass(PATCH_SUPER_CLASS_NAME
+                            + PATCH_CLASS_NAME_SUFFIX);
+            patch.defrost();
+            CtClass superClass = context
+                    .getClasses()
+                    .get(PATCH_SUPER_CLASS_NAME);
+            patch.setSuperclass(superClass);
+            Map<CtMethod, Integer> hashIds = new HashMap<>();
+            String source = buildInvokeDynamic(patch,
+                    context.getClasses(),
+                    hashIds, Collections.emptyList());
+            CtMethod method = CtNewMethod.make(source, patch);
+            patch.addMethod(method);
+            source = buildOnLoad(hashIds,Collections.emptyList());
+            patch.addMethod(CtNewMethod.make(source, patch));
+            source = buildConstructor();
+            patch.addConstructor(CtNewConstructor.make(source, patch));
+            patch.freeze();
+            return context.with(patch);
+        } catch (NotFoundException | CannotCompileException e) {
+            throw Exceptions.propagate(e);
+        }
     }
 
     private static String buildConstructor() {
@@ -139,7 +136,7 @@ final class BuildTask extends Workflow<List<CtClass>, CtClass> {
                 }
             }
             methodsBuilder.append(");}");
-            //methodsBuilder.append("return null;}");
+
         }
         methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
         return methodsBuilder.toString();

@@ -5,7 +5,8 @@ import com.google.common.util.concurrent.AtomicDouble;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javassist.ClassPool;
 
@@ -13,7 +14,7 @@ final class ContextImpl extends Context {
     private final ClassPool classPool = new ClassPool();
     private final Project project;
     private final AtomicDouble progress = new AtomicDouble();
-    private final AtomicReference<String> taskName = new AtomicReference<>();
+    private final ConcurrentLinkedQueue<String> taskNames = new ConcurrentLinkedQueue<>();
 
     ContextImpl(Project project) {
         this.project = project;
@@ -31,9 +32,11 @@ final class ContextImpl extends Context {
         return project.getLogger();
     }
 
+
     @Override
-    void setTaskName(String name) {
-        taskName.set(name == null ? "" : name);
+    void pushNewTask(Class<? extends Workflow> name) {
+        taskNames.add(name.getName());
+        progress.set(0);
     }
 
     @Override
@@ -42,8 +45,8 @@ final class ContextImpl extends Context {
     }
 
     @Override
-    public String getTaskName() {
-        return taskName.get();
+    public Queue<String> getTaskQueue() {
+        return taskNames;
     }
 
     @Override

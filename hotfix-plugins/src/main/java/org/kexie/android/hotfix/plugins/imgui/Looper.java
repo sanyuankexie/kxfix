@@ -7,19 +7,19 @@ import org.ice1000.jimgui.JImStyle;
 import org.ice1000.jimgui.util.JniLoader;
 import org.kexie.android.hotfix.plugins.workflow.Context;
 
-public class Looper2 {
+public class Looper {
 
     private static final int LIMIT = 3;
 
     private final Context context;
 
-    private Looper2(Context context) {
+    private Looper(Context context) {
         this.context = context;
         JniLoader.load();
     }
 
-    public static Looper2 make(Context context) {
-        return new Looper2(context);
+    public static Looper make(Context context) {
+        return new Looper(context);
     }
 
     public void loop() throws InterruptedException {
@@ -32,7 +32,11 @@ public class Looper2 {
                 Thread.sleep(LIMIT - deltaTime < 0 ? 0 : (LIMIT - deltaTime));
                 gui.initNewFrame();
                 gui.begin("Task");
-                gui.text(context.getTaskName());
+                StringBuilder builder = new StringBuilder();
+                for (String name : context.getTaskQueue()) {
+                    builder.append(name).append('\n');
+                }
+                gui.text(builder.toString());
                 JImGuiGen.end();
                 gui.render();
             }

@@ -7,6 +7,7 @@ import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 
 import org.gradle.api.Project;
+import org.kexie.android.hotfix.plugins.imgui.Looper;
 import org.kexie.android.hotfix.plugins.workflow.Context;
 import org.kexie.android.hotfix.plugins.workflow.Works;
 
@@ -36,10 +37,12 @@ public class PatchTransform extends Transform {
 
     @Override
     public void transform(TransformInvocation transformInvocation)
-            throws IOException {
+            throws IOException, InterruptedException {
         transformInvocation.getOutputProvider().deleteAll();
         Collection<TransformInput> inputs = transformInvocation.getInputs();
         Works.doWorksWith(context, inputs);
+        Looper looper = Looper.make(context);
+        looper.loop();
     }
 
     @Override

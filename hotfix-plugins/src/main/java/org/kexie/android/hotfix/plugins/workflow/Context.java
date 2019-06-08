@@ -3,6 +3,8 @@ package org.kexie.android.hotfix.plugins.workflow;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
+import java.util.Queue;
+
 import javassist.ClassPool;
 
 public abstract class Context {
@@ -15,11 +17,11 @@ public abstract class Context {
 
     abstract void setProgress(float value);
 
-    abstract void setTaskName(String name);
+    abstract void pushNewTask(Class<? extends Workflow> name);
 
     public abstract float getProgress();
 
-    public abstract String getTaskName();
+    public abstract Queue<String> getTaskQueue();
 
     public abstract <T> ContextWith<T> with(T data);
 

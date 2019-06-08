@@ -10,12 +10,8 @@ abstract class Workflow<I,O> implements Function<ContextWith<I>,ContextWith<O>> 
 
     @Override
     public final ContextWith<O> apply(ContextWith<I> in) throws Exception {
-        in.setTaskName(getClass().getSimpleName());
-        in.setProgress(0);
-        ContextWith<O> out = doWork(in);
-        in.setTaskName("");
-        in.setProgress(0);
-        return out;
+        in.pushNewTask(getClass());
+        return doWork(in);
     }
 
     abstract ContextWith<O> doWork(ContextWith<I> data) throws TransformException, IOException;

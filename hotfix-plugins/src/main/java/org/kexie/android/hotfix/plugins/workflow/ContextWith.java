@@ -3,6 +3,8 @@ package org.kexie.android.hotfix.plugins.workflow;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
+import java.util.Queue;
+
 import javassist.ClassPool;
 
 final class ContextWith<T> extends Context {
@@ -39,13 +41,13 @@ final class ContextWith<T> extends Context {
     }
 
     @Override
-    void setTaskName(String name) {
-        context.setTaskName(name);
+    void pushNewTask(Class<? extends Workflow> name) {
+        context.pushNewTask(name);
     }
 
     @Override
-    public String getTaskName() {
-        return context.getTaskName();
+    public Queue<String> getTaskQueue() {
+        return context.getTaskQueue();
     }
 
     @Override
