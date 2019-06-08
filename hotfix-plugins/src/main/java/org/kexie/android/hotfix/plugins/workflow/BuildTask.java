@@ -1,14 +1,21 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
+import com.android.build.api.transform.TransformException;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
@@ -16,209 +23,169 @@ import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
 
-//TODO 旧类拷贝一份，UUID生成名字防止冲突
-//TODO 然后在旧类的基础上修改，消除访问权限和超类调用，然后拷贝到新类
-
 /**
  * 生成Executable的class
  */
 final class BuildTask extends Work<List<CtClass>, CtClass> {
 
-    private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
-    private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
+    private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
 
     @Override
     ContextWith<CtClass>
-    doWork(ContextWith<List<CtClass>> context) {
+    doWork(ContextWith<List<CtClass>> context) throws TransformException {
         try {
-            Factory factory = new Factory(context);
-        } catch (NotFoundException e) {
-            e.printStackTrace();
-        }
-        try {
-            CtClass patch = context
-                    .getClasses()
-                    .makeClass(PATCH_SUPER_CLASS_NAME
-                            + PATCH_CLASS_NAME_SUFFIX);
-            patch.defrost();
-            CtClass superClass = context
-                    .getClasses()
-                    .get(PATCH_SUPER_CLASS_NAME);
-            patch.setSuperclass(superClass);
-            Map<CtMethod, Integer> hashIds = new HashMap<>();
-            String source = buildInvokeDynamic(patch,
-                    context.getClasses(),
-                    hashIds, Collections.emptyList());
-            CtMethod method = CtNewMethod.make(source, patch);
-            patch.addMethod(method);
-            source = buildOnLoad(hashIds,Collections.emptyList());
-            patch.addMethod(CtNewMethod.make(source, patch));
-            source = buildConstructor();
-            patch.addConstructor(CtNewConstructor.make(source, patch));
-            patch.freeze();
-            return context.with(patch);
+            List<CtMethod> methods = context.getData().stream()
+                    .flatMap((Function<CtClass, Stream<CtMethod>>)
+                            ctClass -> Arrays.stream(ctClass.getDeclaredMethods()))
+                    .filter(method -> method.hasAnnotation(PATCHED_ANNOTATION))
+                    .collect(Collectors.toCollection(LinkedList::new));
+            Builder builder = new Builder(context, methods,
+                    Collections.emptyList());
+            return context.with(builder.get());
         } catch (NotFoundException | CannotCompileException e) {
-            throw Exceptions.propagate(e);
+            throw new TransformException(e);
         }
     }
 
-    private static String buildConstructor() {
-        return "public ExecutableImpl" +
+    private final static class Builder extends ContextWrapper {
+        private static final String CONSTRUCTOR_SOURCE = "public ExecutableImpl" +
                 "(org.kexie.android.hotfix.internal.DynamicExecutionEngine executionEngine)" +
                 "{super(executionEngine);}";
-    }
+        private static final String PATCH_SUPER_CLASS_NAME
+                = "org.kexie.android.hotfix.internal.Executable";
+        private static final String PATCH_CLASS_NAME
+                = "org.kexie.android.hotfix.internal.ExecutableImpl";
 
-    private static Map<CtClass, CtClass> getPrimitiveTypes(ClassPool classPool)
-            throws NotFoundException {
-        Map<CtClass, CtClass> primitiveTypes = new HashMap<>();
-        primitiveTypes.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
-        primitiveTypes.put(CtClass.charType, classPool.get(Character.class.getName()));
-        primitiveTypes.put(CtClass.doubleType, classPool.get(Double.class.getName()));
-        primitiveTypes.put(CtClass.floatType, classPool.get(Float.class.getName()));
-        primitiveTypes.put(CtClass.intType, classPool.get(Integer.class.getName()));
-        primitiveTypes.put(CtClass.shortType, classPool.get(Short.class.getName()));
-        primitiveTypes.put(CtClass.longType, classPool.get(Long.class.getName()));
-        return primitiveTypes;
-    }
-
-    private static String buildInvokeDynamic(
-            CtClass ctClass,
-            ClassPool classPool,
-            Map<CtMethod, Integer> hashIds,
-            List<CtMethod> methods) throws NotFoundException {
-
-
-        Map<CtClass, CtClass> primitiveTypes = getPrimitiveTypes(classPool);
-        StringBuilder methodsBuilder = new StringBuilder(
-                "protected java.lang.Object " +
-                        "invokeDynamicMethod(" +
-                        "int id," +
-                        "java.lang.Object target," +
-                        "java.lang.Object[] prams)" +
-                        "throws java.lang.Throwable{" +
-                        "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                        "executionEngine=this.getExecutionEngine();" +
-                        "switch(id){"
-        );
-        for (CtMethod method : methods) {
-            int id = hashMethodId(hashIds, method);
-            methodsBuilder.append("case ")
-                    .append(id)
-                    .append(":{");
-            CtClass[] pramTypes = method.getParameterTypes();
-            for (int i = 0; i < pramTypes.length; ++i) {
-                CtClass pType = pramTypes[i];
-                methodsBuilder.append(pType.getName())
-                        .append(" $")
-                        .append(i);
-                CtClass box;
-                if ((box = primitiveTypes.get(pType)) != null) {
-                    methodsBuilder.append("=((")
-                            .append(box.getName())
-                            .append(")prams[")
-                            .append(i)
-                            .append("]).")
-                            .append(pType.getName())
-                            .append("Value();");
-                } else {
-                    methodsBuilder
-                            .append("=(")
-                            .append(pType.getName())
-                            .append(")prams[")
-                            .append(i)
-                            .append("];");
-                }
-            }
-            methodsBuilder.append("return ")
-                    .append(method.getName())
-                    .append("(");
-            if (pramTypes.length > 1) {
-                methodsBuilder.append("$0");
-                for (int i = 1; i < pramTypes.length; ++i) {
-                    methodsBuilder.append(",$")
-                            .append(i);
-                }
-            }
-            methodsBuilder.append(");}");
-
-        }
-        methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
-        return methodsBuilder.toString();
-    }
-
-    private static String buildOnLoad(
-            Map<CtMethod, Integer> hashIds,
-            List<CtField> fields) throws NotFoundException {
-        StringBuilder methodsBuilder = new StringBuilder("protected void " +
-                "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
-        for (CtField field : fields) {
-            methodsBuilder.append("metadata.addFiled(\"")
-                    .append(field.getDeclaringClass().getName())
-                    .append("\",\"")
-                    .append(field.getName())
-                    .append("\");");
-        }
-        for (Map.Entry<CtMethod, Integer> entry : hashIds.entrySet()) {
-            methodsBuilder.append("metadata.addMethod(")
-                    .append(entry.getValue())
-                    .append(",\"")
-                    .append(entry.getKey().getDeclaringClass().getName())
-                    .append("\",\"")
-                    .append(entry.getKey().getName())
-                    .append("\",");
-            CtClass[] pramTypes = entry.getKey().getParameterTypes();
-            if (pramTypes.length < 1) {
-                methodsBuilder.append("null");
-            } else {
-                methodsBuilder.append("new java.lang.String[]{\"")
-                        .append(pramTypes[0].getName())
-                        .append('\"');
-                for (int i = 1; i < pramTypes.length; ++i) {
-                    methodsBuilder.append(",\"")
-                            .append(pramTypes[i].getName())
-                            .append("\"");
-                }
-                methodsBuilder.append("}");
-            }
-            methodsBuilder.append(");");
-        }
-        methodsBuilder.append("}");
-        System.out.println(methodsBuilder);
-        return methodsBuilder.toString();
-    }
-
-    /**
-     * 开地址法确保散列始终不会碰撞
-     * {@link Integer#MIN_VALUE}是无效值
-     */
-    private static int hashMethodId(
-            Map<CtMethod, Integer> hashIds,
-            CtMethod method) {
-        int id = method.getLongName().hashCode();
-        while (true) {
-            if (!hashIds.containsValue(id)) {
-                hashIds.put(method, id);
-                return id;
-            }
-            id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
-        }
-    }
-
-    private final static class Factory {
         private final Map<CtMethod, Integer> hashIds = new HashMap<>();
         private final Map<CtClass, CtClass> primitiveMapping;
+        private final CtClass clazz;
 
-        Factory(Context context) throws NotFoundException {
+        Builder(
+                Context context,
+                List<CtMethod> methods,
+                List<CtField> fields)
+                throws NotFoundException, CannotCompileException {
+            super(context);
             primitiveMapping = getMapping(context.getClasses());
+            clazz = context.getClasses().makeClass(PATCH_CLASS_NAME);
+            clazz.setSuperclass(context.getClasses().get(PATCH_SUPER_CLASS_NAME));
+            clazz.addConstructor(getConstructor());
+            clazz.addMethod(getMethodImpl1(methods));
+            clazz.addMethod(getMethodImpl2(fields));
         }
 
+        private CtConstructor getConstructor() throws CannotCompileException {
+            return CtNewConstructor.make(CONSTRUCTOR_SOURCE, clazz);
+        }
+
+        private CtMethod getMethodImpl1(List<CtMethod> methods)
+                throws NotFoundException, CannotCompileException {
+            StringBuilder methodsBuilder = new StringBuilder(
+                    "protected java.lang.Object " +
+                            "invokeDynamicMethod(" +
+                            "int id," +
+                            "java.lang.Object target," +
+                            "java.lang.Object[] prams)" +
+                            "throws java.lang.Throwable{" +
+                            "org.kexie.android.hotfix.internal.ExecutionEngine " +
+                            "executionEngine=this.getExecutionEngine();" +
+                            "switch(id){"
+            );
+            for (CtMethod method : methods) {
+                int id = hash(method);
+                methodsBuilder.append("case ")
+                        .append(id)
+                        .append(":{");
+                CtClass[] pramTypes = method.getParameterTypes();
+                for (int i = 0; i < pramTypes.length; ++i) {
+                    CtClass pType = pramTypes[i];
+                    methodsBuilder.append(pType.getName())
+                            .append(" $")
+                            .append(i);
+                    CtClass box;
+                    if ((box = primitiveMapping.get(pType)) != null) {
+                        methodsBuilder.append("=((")
+                                .append(box.getName())
+                                .append(")prams[")
+                                .append(i)
+                                .append("]).")
+                                .append(pType.getName())
+                                .append("Value();");
+                    } else {
+                        methodsBuilder
+                                .append("=(")
+                                .append(pType.getName())
+                                .append(")prams[")
+                                .append(i)
+                                .append("];");
+                    }
+                }
+                methodsBuilder.append("return ")
+                        .append(method.getName())
+                        .append("(");
+                if (pramTypes.length > 1) {
+                    methodsBuilder.append("$0");
+                    for (int i = 1; i < pramTypes.length; ++i) {
+                        methodsBuilder.append(",$")
+                                .append(i);
+                    }
+                }
+                methodsBuilder.append(");}");
+
+            }
+            methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
+            return CtNewMethod.make(methodsBuilder.toString(), clazz);
+        }
+
+        private CtMethod getMethodImpl2(List<CtField> fields)
+                throws CannotCompileException, NotFoundException {
+            StringBuilder methodsBuilder = new StringBuilder("protected void " +
+                    "onLoad(org.kexie.android.hotfix.internal.Metadata metadata){");
+            for (CtField field : fields) {
+                methodsBuilder.append("metadata.addFiled(\"")
+                        .append(field.getDeclaringClass().getName())
+                        .append("\",\"")
+                        .append(field.getName())
+                        .append("\");");
+            }
+            for (Map.Entry<CtMethod, Integer> entry : hashIds.entrySet()) {
+                methodsBuilder.append("metadata.addMethod(")
+                        .append(entry.getValue())
+                        .append(",\"")
+                        .append(entry.getKey().getDeclaringClass().getName())
+                        .append("\",\"")
+                        .append(entry.getKey().getName())
+                        .append("\",");
+                CtClass[] pramTypes = entry.getKey().getParameterTypes();
+                if (pramTypes.length < 1) {
+                    methodsBuilder.append("null");
+                } else {
+                    methodsBuilder.append("new java.lang.String[]{\"")
+                            .append(pramTypes[0].getName())
+                            .append('\"');
+                    for (int i = 1; i < pramTypes.length; ++i) {
+                        methodsBuilder.append(",\"")
+                                .append(pramTypes[i].getName())
+                                .append("\"");
+                    }
+                    methodsBuilder.append("}");
+                }
+                methodsBuilder.append(");");
+            }
+            methodsBuilder.append("}");
+            return CtNewMethod.make(methodsBuilder.toString(), clazz);
+        }
+
+
+        CtClass get() {
+            return clazz;
+        }
 
         /**
          * 开地址法确保散列始终不会碰撞
          * {@link Integer#MIN_VALUE}是无效值
          */
-        int hash(Map<CtMethod, Integer> hashIds,
-                 CtMethod method) {
+        private int hash(CtMethod method) {
             int id = method.getLongName().hashCode();
             while (true) {
                 if (!hashIds.containsValue(id)) {
