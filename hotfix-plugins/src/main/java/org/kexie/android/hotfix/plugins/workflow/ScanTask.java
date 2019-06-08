@@ -16,7 +16,6 @@ import javassist.CtClass;
 final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
 
 
-
     @Override
     ContextWith<Pair<List<CtClass>, List<CtClass>>>
     doWork(ContextWith<List<CtClass>> context) throws TransformException {
@@ -36,10 +35,10 @@ final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass
                 added.add(clazz);
                 continue;
             }
-            if (hotfix && Arrays.stream(clazz.getDeclaredFields())
+            if (hotfix && (Arrays.stream(clazz.getDeclaredFields())
                     .anyMatch(ctField -> ctField.hasAnnotation(Annotations.PATCHED_ANNOTATION))
-                    && Arrays.stream(clazz.getDeclaredBehaviors())
-                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(Annotations.PATCHED_ANNOTATION))) {
+                    || Arrays.stream(clazz.getDeclaredBehaviors())
+                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(Annotations.PATCHED_ANNOTATION)))) {
                 context.getLogger()
                         .quiet("fixed class " + clazz.getName());
                 fixed.add(clazz);

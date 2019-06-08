@@ -20,10 +20,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate: " + Environment.getDataDirectory());
+        test(0, null);
     }
 
-    @Patched
-    public static void text(int xx, Test activity) {
+    public static void test(int xx, Test activity) {
 
     }
 }

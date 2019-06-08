@@ -10,11 +10,13 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javassist.CannotCompileException;
+import javassist.ClassMap;
 import javassist.ClassPool;
 import javassist.CtBehavior;
 import javassist.CtClass;
@@ -23,8 +25,9 @@ import javassist.CtField;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
-import javassist.Modifier;
 import javassist.NotFoundException;
+import javassist.bytecode.AccessFlag;
+import javassist.bytecode.ClassFile;
 
 
 /**
@@ -36,6 +39,7 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
     ContextWith<CtClass>
     doWork(ContextWith<List<CtClass>> context) throws TransformException, IOException {
         try {
+
             List<CtBehavior> methods = context.getData().stream()
                     .flatMap((Function<CtClass, Stream<CtBehavior>>)
                             ctClass -> Arrays.stream(ctClass.getDeclaredBehaviors()))
@@ -47,8 +51,11 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                     .filter(field -> field.hasAnnotation(Annotations.PATCHED_ANNOTATION))
                     .collect(Collectors.toCollection(LinkedList::new));
             Builder builder = new Builder(context);
-            return context.with(builder.skeleton(methods, fields)
-                    .inline(context.getData())
+            for (CtClass ctClass : context.getData()) {
+                ctClass = builder.cloneClass(ctClass);
+                System.out.println(ctClass);
+            }
+            return context.with(builder.load(methods, fields)
                     .build());
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
@@ -74,33 +81,24 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
             super(context);
             primitiveMapping = getMapping(context.getClasses());
             clazz = getClasses().makeClass(PATCH_CLASS_NAME);
+            clazz.getClassFile().setMajorVersion(ClassFile.JAVA_7);
             clazz.defrost();
         }
 
         /**
          * 构造骨架类
          */
-        Builder skeleton(List<CtBehavior> methods,
-                         List<CtField> fields)
+        Builder load(List<CtBehavior> methods,
+                     List<CtField> fields)
                 throws NotFoundException,
                 CannotCompileException {
             clazz.setSuperclass(getClasses().get(PATCH_SUPER_CLASS_NAME));
             clazz.addConstructor(getConstructor());
-            clazz.addMethod(getMethodImpl1(methods));
+
             clazz.addMethod(getMethodImpl2(fields));
             return this;
         }
 
-        /**
-         * 内联受调用方法
-         */
-        Builder inline(List<CtClass> classes) throws IOException, CannotCompileException {
-            for (CtClass clazz : classes) {
-                InputStream inputStream = toInputStream(clazz);
-
-            }
-            return this;
-        }
 
         CtClass build() {
             clazz.freeze();
@@ -112,7 +110,7 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
             return CtNewConstructor.make(CONSTRUCTOR_SOURCE, clazz);
         }
 
-        private CtMethod getMethodImpl1(List<CtBehavior> methods)
+        private CtMethod getMethodImpl1(List<CtClass> classes)
                 throws NotFoundException, CannotCompileException {
             StringBuilder methodsBuilder = new StringBuilder(
                     "protected java.lang.Object " +
@@ -122,49 +120,66 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                             "java.lang.Object[] prams)" +
                             "throws java.lang.Throwable{" +
                             "org.kexie.android.hotfix.internal.ExecutionEngine " +
-                            "executionEngine=this.getExecutionEngine();" +
-                            "switch(id){"
+                            "executionEngine=this.getExecutionEngine();"
             );
-            for (CtBehavior method : methods) {
-                int id = hash(method);
-                methodsBuilder.append("case ")
-                        .append(id)
-                        .append(":{");
-                CtClass[] pramTypes = method.getParameterTypes();
-                for (int i = 0; i < pramTypes.length; ++i) {
-                    CtClass pramType = pramTypes[i];
-                    methodsBuilder.append(pramType.getName())
-                            .append(" $")
-                            .append(i);
-                    CtClass box;
-                    if ((box = primitiveMapping.get(pramType)) != null) {
-                        methodsBuilder.append("=((")
-                                .append(box.getName())
-                                .append(")prams[")
-                                .append(i)
-                                .append("]).")
-                                .append(pramType.getName())
-                                .append("Value();");
-                    } else if (Modifier.isPackage(pramType.getModifiers())) {
-                        methodsBuilder.append("=pram[")
-                                .append(i)
-                                .append("];");
-                    } else {
-                        methodsBuilder
-                                .append("=(")
-                                .append(pramType.getName())
-                                .append(")prams[")
-                                .append(i)
-                                .append("];");
-                    }
-                }
-                
-                methodsBuilder.append("return null;}");
-            }
-            methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
+            methodsBuilder.append("throw new java.lang.NoSuchMethodException();}");
             String source = methodsBuilder.toString();
-            getLogger().quiet(source);
-            return CtNewMethod.make(source, clazz);
+            CtMethod ctMethod = CtNewMethod.make(source, clazz);
+            for (CtClass clazz : classes) {
+                CtClass clone = cloneClass(clazz);
+            }
+            return ctMethod;
+        }
+
+
+        private CtClass cloneClass(CtClass source)
+                throws NotFoundException, CannotCompileException {
+            String cloneName = source.getPackageName() + ".$" + UUID.randomUUID();
+            cloneName = cloneName.replace('-', '_');
+            CtClass clone = getClasses().makeClass(cloneName);
+            clone.defrost();
+            clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
+            clone.setSuperclass(source.getSuperclass());
+            for (CtField field : source.getDeclaredFields()) {
+                clone.addField(new CtField(field, clone));
+            }
+            ClassMap classMap = new ClassMap();
+            classMap.put(cloneName, source.getName());
+            classMap.fix(source);
+            for (CtMethod method : source.getDeclaredMethods()) {
+                if (method.hasAnnotation(Annotations.PATCHED_ANNOTATION)) {
+                    clone.addMethod(new CtMethod(method, clone, classMap));
+                }
+            }
+            clone.setModifiers(AccessFlag.clear(clone.getModifiers(), AccessFlag.ABSTRACT));
+            return clone;
+        }
+
+        private void x() {
+//            String source = methodsBuilder.toString();
+//            getLogger().quiet(source);
+//            for (int i = 0; i < pramTypes.length; ++i) {
+//                CtClass pramType = pramTypes[i];
+//                methodsBuilder.append(pramType.getName())
+//                        .append(" $")
+//                        .append(i);
+//                CtClass box;
+//                if ((box = primitiveMapping.get(pramType)) != null) {
+//                    methodsBuilder.append("=((")
+//                            .append(box.getName())
+//                            .append(")prams[")
+//                            .append(i)
+//                            .append("]).")
+//                            .append(pramType.getName())
+//                            .append("Value();");
+//                } else {
+//                    methodsBuilder.append("=(")
+//                            .append(pramType.getName())
+//                            .append(")prams[")
+//                            .append(i)
+//                            .append("];");
+//                }
+//            }
         }
 
         private CtMethod getMethodImpl2(List<CtField> fields)
@@ -223,12 +238,6 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
             }
         }
 
-        private static InputStream toInputStream(CtClass ctClass)
-                throws IOException, CannotCompileException {
-            byte[] bytes = ctClass.toBytecode();
-            return new ByteArrayInputStream(bytes);
-        }
-
         private CtClass toCtClass(byte[] bytes) throws IOException {
             InputStream inputStream = new ByteArrayInputStream(bytes);
             return getClasses().makeClass(inputStream);
@@ -246,5 +255,7 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
             primitiveMapping.put(CtClass.longType, classPool.get(Long.class.getName()));
             return primitiveMapping;
         }
+
+
     }
 }
