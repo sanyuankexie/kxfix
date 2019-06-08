@@ -6,11 +6,20 @@ import org.gradle.api.logging.Logger;
 import javassist.ClassPool;
 
 public abstract class Context {
+
     abstract Project getProject();
 
     abstract ClassPool getClasses();
 
     abstract Logger getLogger();
+
+    public abstract float getProgress();
+
+    abstract void setProgress(float value);
+
+    abstract void setTaskName(String name);
+
+    public abstract String getTaskName();
 
     public abstract <T> ContextWith<T> with(T data);
 

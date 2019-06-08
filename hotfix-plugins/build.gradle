@@ -22,6 +22,7 @@ dependencies {
 
     //implementation 'org.ow2.asm:asm:7.1'
 
+    //swing 被封,想要界面只能另想办法
     implementation "org.ice1000.jimgui:core:v0.8.1"
 
     testImplementation 'junit:junit:4.12'

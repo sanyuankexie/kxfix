@@ -34,6 +34,26 @@ public class ContextWith<T> extends Context {
     }
 
     @Override
+    void setProgress(float value) {
+        context.setProgress(value);
+    }
+
+    @Override
+    void setTaskName(String name) {
+        context.setTaskName(name);
+    }
+
+    @Override
+    public String getTaskName() {
+        return context.getTaskName();
+    }
+
+    @Override
+    public float getProgress() {
+        return context.getProgress();
+    }
+
+    @Override
     public <X> ContextWith<X> with(X data) {
         return context.with(data);
     }

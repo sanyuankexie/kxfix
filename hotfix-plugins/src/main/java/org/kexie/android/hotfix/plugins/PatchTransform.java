@@ -2,11 +2,13 @@ package org.kexie.android.hotfix.plugins;
 
 import com.android.build.api.transform.QualifiedContent;
 import com.android.build.api.transform.Transform;
+import com.android.build.api.transform.TransformInput;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.internal.pipeline.TransformManager;
 import com.android.utils.Pair;
 
 import org.gradle.api.Project;
+import org.kexie.android.hotfix.plugins.imgui.Looper;
 import org.kexie.android.hotfix.plugins.workflow.BuildTask;
 import org.kexie.android.hotfix.plugins.workflow.Context;
 import org.kexie.android.hotfix.plugins.workflow.ContextWith;
@@ -17,10 +19,12 @@ import org.kexie.android.hotfix.plugins.workflow.ScanTask;
 import org.kexie.android.hotfix.plugins.workflow.ZipTask;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
 import io.reactivex.Single;
+import io.reactivex.schedulers.Schedulers;
 import javassist.CtClass;
 
 /**
@@ -42,34 +46,44 @@ public class PatchTransform extends Transform {
         return getClass().getSimpleName();
     }
 
-    @SuppressWarnings({"ResultOfMethodCallIgnored", "CheckResult"})
+
     @Override
     public void transform(TransformInvocation transformInvocation)
             throws IOException {
-        long startTime = System.currentTimeMillis();
         transformInvocation.getOutputProvider().deleteAll();
+        doWorks(context, transformInvocation.getInputs());
+        Looper looper = Looper.make(context);
+        looper.loop();
+    }
+
+    @SuppressWarnings({"ResultOfMethodCallIgnored", "CheckResult"})
+    private static void doWorks(
+            Context context,
+            Collection<TransformInput> inputs) {
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
                 scanResult = Single.just(context)
-                .zipWith(Single.just(transformInvocation)
-                        .map(TransformInvocation::getInputs), Context::with)
+                .zipWith(Single.just(inputs), Context::with)
+                .observeOn(Schedulers.io())
                 .map(new LoadTask())
+                .observeOn(Schedulers.computation())
                 .map(new ScanTask());
         Single<List<CtClass>> copyClasses = scanResult
                 .map(it -> it.getData().getFirst());
         Single<ContextWith<CtClass>> buildClass = scanResult
                 .map(it -> it.with(it.getData().getSecond()))
                 .map(new BuildTask());
-        copyClasses.zipWith(buildClass, (classes, context) -> {
-            classes.add(context.getData());
-            return context.with(classes);
-        }).map(new CopyTask())
+        copyClasses.zipWith(buildClass, (classes, contextWith) -> {
+            classes.add(contextWith.getData());
+            return contextWith.with(classes);
+        }).observeOn(Schedulers.io())
+                .map(new CopyTask())
                 .map(new ZipTask())
                 .map(new Jar2DexTask())
+                .observeOn(Schedulers.computation())
                 .subscribe(contextWith -> {
                 }, it -> {
                     throw new RuntimeException(it);
                 });
-        long cost = (System.currentTimeMillis() - startTime) / 1000;
     }
 
     @Override
@@ -91,4 +105,5 @@ public class PatchTransform extends Transform {
     public boolean isIncremental() {
         return false;
     }
+
 }
