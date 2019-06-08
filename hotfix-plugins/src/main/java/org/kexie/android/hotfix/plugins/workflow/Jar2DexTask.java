@@ -7,7 +7,7 @@ import java.io.IOException;
 
 import io.reactivex.exceptions.Exceptions;
 
-public class Jar2DexTask extends TempWorkflow<File,File> {
+final class Jar2DexTask extends TempWorkflow<File,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override

@@ -7,19 +7,19 @@ import org.ice1000.jimgui.JImStyle;
 import org.ice1000.jimgui.util.JniLoader;
 import org.kexie.android.hotfix.plugins.workflow.Context;
 
-public class Looper {
+public class Looper2 {
 
     private static final int LIMIT = 3;
 
     private final Context context;
 
-    private Looper(Context context) {
+    private Looper2(Context context) {
         this.context = context;
         JniLoader.load();
     }
 
-    public static Looper make(Context context) {
-        return new Looper(context);
+    public static Looper2 make(Context context) {
+        return new Looper2(context);
     }
 
     public void loop() throws InterruptedException {

@@ -13,11 +13,11 @@ public abstract class Context {
 
     abstract Logger getLogger();
 
-    public abstract float getProgress();
-
     abstract void setProgress(float value);
 
     abstract void setTaskName(String name);
+
+    public abstract float getProgress();
 
     public abstract String getTaskName();
 

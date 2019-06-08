@@ -9,7 +9,7 @@ import java.util.List;
 import javassist.CtClass;
 
 
-public class ScanTask extends Workflow<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
+final class ScanTask extends Workflow<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
 
     private static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
     private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";

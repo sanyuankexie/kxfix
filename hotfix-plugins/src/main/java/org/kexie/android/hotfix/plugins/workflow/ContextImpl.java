@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javassist.ClassPool;
 
-class ContextImpl extends Context {
+final class ContextImpl extends Context {
     private final ClassPool classPool = new ClassPool();
     private final Project project;
     private final AtomicDouble progress = new AtomicDouble();

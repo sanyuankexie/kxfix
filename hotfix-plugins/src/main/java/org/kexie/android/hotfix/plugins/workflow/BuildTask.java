@@ -13,7 +13,7 @@ import javassist.NotFoundException;
 
 //TODO 旧类拷贝一份，UUID生成名字防止冲突
 //TODO 然后在旧类的基础上修改，消除访问权限和超类调用，然后拷贝到新类
-public class BuildTask extends Workflow<List<CtClass>, CtClass> {
+final class BuildTask extends Workflow<List<CtClass>, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
     private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";
@@ -21,6 +21,13 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
     @Override
     ContextWith<CtClass>
     doWork(ContextWith<List<CtClass>> context) {
+        try {
+            Factory factory = new Factory(context);
+        } catch (NotFoundException e) {
+            e.printStackTrace();
+        }
+
+
 //        List<CtField> fields = contextWith.getData().getFields();
 //        List<CtMethod> methods = contextWith.getData().getMethods();
 //        List<CtConstructor> constructors = contextWith.getData().getConstructors();
@@ -78,6 +85,8 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
             ClassPool classPool,
             Map<CtMethod, Integer> hashIds,
             List<CtMethod> methods) throws NotFoundException {
+
+
         Map<CtClass, CtClass> primitiveTypes = getPrimitiveTypes(classPool);
         StringBuilder methodsBuilder = new StringBuilder(
                 "protected java.lang.Object " +

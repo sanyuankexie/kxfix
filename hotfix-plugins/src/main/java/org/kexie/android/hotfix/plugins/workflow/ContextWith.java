@@ -5,7 +5,7 @@ import org.gradle.api.logging.Logger;
 
 import javassist.ClassPool;
 
-public class ContextWith<T> extends Context {
+final class ContextWith<T> extends Context {
     private final ContextImpl context;
     private final T data;
 
@@ -14,7 +14,7 @@ public class ContextWith<T> extends Context {
         this.data = data;
     }
 
-    public T getData() {
+    T getData() {
         return data;
     }
 

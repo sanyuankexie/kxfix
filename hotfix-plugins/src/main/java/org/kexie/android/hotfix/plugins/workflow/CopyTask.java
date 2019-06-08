@@ -12,7 +12,7 @@ import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 
-public class CopyTask extends TempWorkflow<List<CtClass>,  List<Pair<CtClass, File>>> {
+final class CopyTask extends TempWorkflow<List<CtClass>,  List<Pair<CtClass, File>>> {
     @Override
     ContextWith<List<Pair<CtClass, File>>> doWork(ContextWith<List<CtClass>> context) {
         String classOutputDir = getOutput(context);

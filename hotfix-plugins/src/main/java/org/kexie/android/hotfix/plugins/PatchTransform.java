@@ -5,27 +5,14 @@ import com.android.build.api.transform.Transform;
 import com.android.build.api.transform.TransformInput;
 import com.android.build.api.transform.TransformInvocation;
 import com.android.build.gradle.internal.pipeline.TransformManager;
-import com.android.utils.Pair;
 
 import org.gradle.api.Project;
-import org.kexie.android.hotfix.plugins.imgui.Looper;
-import org.kexie.android.hotfix.plugins.workflow.BuildTask;
 import org.kexie.android.hotfix.plugins.workflow.Context;
-import org.kexie.android.hotfix.plugins.workflow.ContextWith;
-import org.kexie.android.hotfix.plugins.workflow.CopyTask;
-import org.kexie.android.hotfix.plugins.workflow.Jar2DexTask;
-import org.kexie.android.hotfix.plugins.workflow.LoadTask;
-import org.kexie.android.hotfix.plugins.workflow.ScanTask;
-import org.kexie.android.hotfix.plugins.workflow.ZipTask;
+import org.kexie.android.hotfix.plugins.workflow.Works;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
-
-import io.reactivex.Single;
-import io.reactivex.schedulers.Schedulers;
-import javassist.CtClass;
 
 /**
  * Android Studio Plugin 可以完全使用Java来进行开发
@@ -49,41 +36,10 @@ public class PatchTransform extends Transform {
 
     @Override
     public void transform(TransformInvocation transformInvocation)
-            throws IOException, InterruptedException {
+            throws IOException {
         transformInvocation.getOutputProvider().deleteAll();
-        doWorks(context, transformInvocation.getInputs());
-        Looper looper = Looper.make(context);
-        looper.loop();
-    }
-
-    @SuppressWarnings({"ResultOfMethodCallIgnored", "CheckResult"})
-    private static void doWorks(
-            Context context,
-            Collection<TransformInput> inputs) {
-        Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
-                scanResult = Single.just(context)
-                .zipWith(Single.just(inputs), Context::with)
-                .observeOn(Schedulers.io())
-                .map(new LoadTask())
-                .observeOn(Schedulers.computation())
-                .map(new ScanTask());
-        Single<List<CtClass>> copyClasses = scanResult
-                .map(it -> it.getData().getFirst());
-        Single<ContextWith<CtClass>> buildClass = scanResult
-                .map(it -> it.with(it.getData().getSecond()))
-                .map(new BuildTask());
-        copyClasses.zipWith(buildClass, (classes, contextWith) -> {
-            classes.add(contextWith.getData());
-            return contextWith.with(classes);
-        }).observeOn(Schedulers.io())
-                .map(new CopyTask())
-                .map(new ZipTask())
-                .observeOn(Schedulers.computation())
-                .map(new Jar2DexTask())
-                .subscribe(contextWith -> {
-                }, it -> {
-                    throw new RuntimeException(it);
-                });
+        Collection<TransformInput> inputs = transformInvocation.getInputs();
+        Works.doWorksWith(context, inputs);
     }
 
     @Override

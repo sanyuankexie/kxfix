@@ -15,7 +15,7 @@ import java.util.zip.ZipOutputStream;
 
 import javassist.CtClass;
 
-public class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
+final class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
