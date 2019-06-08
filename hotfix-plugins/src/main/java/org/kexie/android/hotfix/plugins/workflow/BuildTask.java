@@ -158,6 +158,7 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                                 .append("];");
                     }
                 }
+                
                 methodsBuilder.append("return null;}");
             }
             methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
