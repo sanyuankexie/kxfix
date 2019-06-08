@@ -3,6 +3,7 @@ package org.kexie.android.hotfix.plugins.workflow;
 import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -36,7 +37,10 @@ final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass
                 added.add(clazz);
                 continue;
             }
-            if (hotfix) {
+            if (hotfix && Arrays.stream(clazz.getDeclaredFields())
+                    .anyMatch(ctField -> ctField.hasAnnotation(PATCHED_ANNOTATION))
+                    && Arrays.stream(clazz.getDeclaredBehaviors())
+                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(PATCHED_ANNOTATION))) {
                 context.getLogger()
                         .quiet("fixed class " + clazz.getName());
                 fixed.add(clazz);

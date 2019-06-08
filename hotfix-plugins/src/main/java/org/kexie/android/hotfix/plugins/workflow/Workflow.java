@@ -43,9 +43,6 @@ public final class Workflow {
                 .map(new ZipTask())
                 .observeOn(Schedulers.computation())
                 .map(new Jar2DexTask())
-                .subscribe(contextWith -> {
-                }, it -> {
-                    throw new RuntimeException(it);
-                });
+                .blockingGet();
     }
 }

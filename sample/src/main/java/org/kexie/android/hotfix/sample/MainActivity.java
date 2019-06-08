@@ -1,6 +1,5 @@
 package org.kexie.android.hotfix.sample;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -24,7 +23,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Patched
-    public static void text(int xx, Activity activity) {
+    public static void text(int xx, Test activity) {
 
     }
+}
+
+final class Test {
+
 }

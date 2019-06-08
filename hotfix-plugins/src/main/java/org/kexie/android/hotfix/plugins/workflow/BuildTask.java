@@ -2,8 +2,10 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,12 +16,14 @@ import java.util.stream.Stream;
 
 import javassist.CannotCompileException;
 import javassist.ClassPool;
+import javassist.CtBehavior;
 import javassist.CtClass;
 import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
+import javassist.Modifier;
 import javassist.NotFoundException;
 
 
@@ -32,16 +36,22 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
 
     @Override
     ContextWith<CtClass>
-    doWork(ContextWith<List<CtClass>> context) throws TransformException {
+    doWork(ContextWith<List<CtClass>> context) throws TransformException, IOException {
         try {
-            List<CtMethod> methods = context.getData().stream()
-                    .flatMap((Function<CtClass, Stream<CtMethod>>)
-                            ctClass -> Arrays.stream(ctClass.getDeclaredMethods()))
+            List<CtBehavior> methods = context.getData().stream()
+                    .flatMap((Function<CtClass, Stream<CtBehavior>>)
+                            ctClass -> Arrays.stream(ctClass.getDeclaredBehaviors()))
                     .filter(method -> method.hasAnnotation(PATCHED_ANNOTATION))
                     .collect(Collectors.toCollection(LinkedList::new));
-            Builder builder = new Builder(context, methods,
-                    Collections.emptyList());
-            return context.with(builder.get());
+            List<CtField> fields = context.getData().stream()
+                    .flatMap((Function<CtClass, Stream<CtField>>)
+                            ctClass -> Arrays.stream(ctClass.getDeclaredFields()))
+                    .filter(field -> field.hasAnnotation(PATCHED_ANNOTATION))
+                    .collect(Collectors.toCollection(LinkedList::new));
+            Builder builder = new Builder(context);
+            return context.with(builder.skeleton(methods, fields)
+                    .inline(context.getData())
+                    .build());
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
         }
@@ -56,29 +66,54 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
         private static final String PATCH_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.ExecutableImpl";
 
-        private final Map<CtMethod, Integer> hashIds = new HashMap<>();
+        private final Map<CtBehavior, Integer> hashIds = new HashMap<>();
         private final Map<CtClass, CtClass> primitiveMapping;
-        private final CtClass clazz;
+        private CtClass clazz;
 
-        Builder(
-                Context context,
-                List<CtMethod> methods,
-                List<CtField> fields)
-                throws NotFoundException, CannotCompileException {
+        Builder(Context context)
+                throws NotFoundException {
             super(context);
             primitiveMapping = getMapping(context.getClasses());
-            clazz = context.getClasses().makeClass(PATCH_CLASS_NAME);
-            clazz.setSuperclass(context.getClasses().get(PATCH_SUPER_CLASS_NAME));
+            clazz = getClasses().makeClass(PATCH_CLASS_NAME);
+            clazz.defrost();
+        }
+
+        /**
+         * 构造骨架类
+         */
+        Builder skeleton(List<CtBehavior> methods,
+                         List<CtField> fields)
+                throws NotFoundException,
+                CannotCompileException {
+            clazz.setSuperclass(getClasses().get(PATCH_SUPER_CLASS_NAME));
             clazz.addConstructor(getConstructor());
             clazz.addMethod(getMethodImpl1(methods));
             clazz.addMethod(getMethodImpl2(fields));
+            return this;
         }
 
-        private CtConstructor getConstructor() throws CannotCompileException {
+        /**
+         * 内联受调用方法
+         */
+        Builder inline(List<CtClass> classes) throws IOException, CannotCompileException {
+            for (CtClass clazz : classes) {
+                InputStream inputStream = toInputStream(clazz);
+
+            }
+            return this;
+        }
+
+        CtClass build() {
+            clazz.freeze();
+            return clazz;
+        }
+
+        private CtConstructor getConstructor()
+                throws CannotCompileException {
             return CtNewConstructor.make(CONSTRUCTOR_SOURCE, clazz);
         }
 
-        private CtMethod getMethodImpl1(List<CtMethod> methods)
+        private CtMethod getMethodImpl1(List<CtBehavior> methods)
                 throws NotFoundException, CannotCompileException {
             StringBuilder methodsBuilder = new StringBuilder(
                     "protected java.lang.Object " +
@@ -91,50 +126,45 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                             "executionEngine=this.getExecutionEngine();" +
                             "switch(id){"
             );
-            for (CtMethod method : methods) {
+            for (CtBehavior method : methods) {
                 int id = hash(method);
                 methodsBuilder.append("case ")
                         .append(id)
                         .append(":{");
                 CtClass[] pramTypes = method.getParameterTypes();
                 for (int i = 0; i < pramTypes.length; ++i) {
-                    CtClass pType = pramTypes[i];
-                    methodsBuilder.append(pType.getName())
+                    CtClass pramType = pramTypes[i];
+                    methodsBuilder.append(pramType.getName())
                             .append(" $")
                             .append(i);
                     CtClass box;
-                    if ((box = primitiveMapping.get(pType)) != null) {
+                    if ((box = primitiveMapping.get(pramType)) != null) {
                         methodsBuilder.append("=((")
                                 .append(box.getName())
                                 .append(")prams[")
                                 .append(i)
                                 .append("]).")
-                                .append(pType.getName())
+                                .append(pramType.getName())
                                 .append("Value();");
+                    } else if (Modifier.isPackage(pramType.getModifiers())) {
+                        methodsBuilder.append("=pram[")
+                                .append(i)
+                                .append("];");
                     } else {
                         methodsBuilder
                                 .append("=(")
-                                .append(pType.getName())
+                                .append(pramType.getName())
                                 .append(")prams[")
                                 .append(i)
                                 .append("];");
                     }
                 }
-                methodsBuilder.append("return ")
-                        .append(method.getName())
-                        .append("(");
-                if (pramTypes.length > 1) {
-                    methodsBuilder.append("$0");
-                    for (int i = 1; i < pramTypes.length; ++i) {
-                        methodsBuilder.append(",$")
-                                .append(i);
-                    }
-                }
-                methodsBuilder.append(");}");
-
+                methodsBuilder.append("return null;}");
             }
             methodsBuilder.append("default:{throw new java.lang.NoSuchMethodException();}}}");
-            return CtNewMethod.make(methodsBuilder.toString(), clazz);
+            String source = methodsBuilder.toString();
+            getLogger().quiet(source);
+            return CtNewMethod.make(source, clazz);
         }
 
         private CtMethod getMethodImpl2(List<CtField> fields)
@@ -148,7 +178,7 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                         .append(field.getName())
                         .append("\");");
             }
-            for (Map.Entry<CtMethod, Integer> entry : hashIds.entrySet()) {
+            for (Map.Entry<CtBehavior, Integer> entry : hashIds.entrySet()) {
                 methodsBuilder.append("metadata.addMethod(")
                         .append(entry.getValue())
                         .append(",\"")
@@ -173,19 +203,16 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                 methodsBuilder.append(");");
             }
             methodsBuilder.append("}");
-            return CtNewMethod.make(methodsBuilder.toString(), clazz);
-        }
-
-
-        CtClass get() {
-            return clazz;
+            String source = methodsBuilder.toString();
+            getLogger().quiet(source);
+            return CtNewMethod.make(source, clazz);
         }
 
         /**
          * 开地址法确保散列始终不会碰撞
          * {@link Integer#MIN_VALUE}是无效值
          */
-        private int hash(CtMethod method) {
+        private int hash(CtBehavior method) {
             int id = method.getLongName().hashCode();
             while (true) {
                 if (!hashIds.containsValue(id)) {
@@ -194,6 +221,17 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
                 }
                 id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
             }
+        }
+
+        private static InputStream toInputStream(CtClass ctClass)
+                throws IOException, CannotCompileException {
+            byte[] bytes = ctClass.toBytecode();
+            return new ByteArrayInputStream(bytes);
+        }
+
+        private CtClass toCtClass(byte[] bytes) throws IOException {
+            InputStream inputStream = new ByteArrayInputStream(bytes);
+            return getClasses().makeClass(inputStream);
         }
 
         private static Map<CtClass, CtClass> getMapping(ClassPool classPool)
