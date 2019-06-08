@@ -13,6 +13,7 @@ abstract class Workflow<I,O> implements Function<ContextWith<I>,ContextWith<O>> 
         in.setProgress(0);
         ContextWith<O> out = doWork(in);
         in.setTaskName("");
+        in.setProgress(0);
         return out;
     }
 

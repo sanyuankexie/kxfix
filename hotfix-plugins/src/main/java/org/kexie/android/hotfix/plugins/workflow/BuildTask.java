@@ -196,10 +196,10 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
 
     private final static class Factory {
         private final Map<CtMethod, Integer> hashIds = new HashMap<>();
-        private final Map<CtClass, CtClass> primitiveMapping = new HashMap<>();
+        private final Map<CtClass, CtClass> primitiveMapping;
 
-        Factory(ContextImpl context) throws NotFoundException {
-            initMapping(context.getClasses());
+        Factory(Context context) throws NotFoundException {
+            primitiveMapping = getMapping(context.getClasses());
         }
 
 
@@ -207,9 +207,8 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
          * 开地址法确保散列始终不会碰撞
          * {@link Integer#MIN_VALUE}是无效值
          */
-        int hashMethodId(
-                Map<CtMethod, Integer> hashIds,
-                CtMethod method) {
+        int hash(Map<CtMethod, Integer> hashIds,
+                 CtMethod method) {
             int id = method.getLongName().hashCode();
             while (true) {
                 if (!hashIds.containsValue(id)) {
@@ -220,8 +219,9 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
             }
         }
 
-        private void initMapping(ClassPool classPool)
+        private static Map<CtClass, CtClass> getMapping(ClassPool classPool)
                 throws NotFoundException {
+            Map<CtClass, CtClass> primitiveMapping = new HashMap<>();
             primitiveMapping.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
             primitiveMapping.put(CtClass.charType, classPool.get(Character.class.getName()));
             primitiveMapping.put(CtClass.doubleType, classPool.get(Double.class.getName()));
@@ -229,6 +229,7 @@ public class BuildTask extends Workflow<List<CtClass>, CtClass> {
             primitiveMapping.put(CtClass.intType, classPool.get(Integer.class.getName()));
             primitiveMapping.put(CtClass.shortType, classPool.get(Short.class.getName()));
             primitiveMapping.put(CtClass.longType, classPool.get(Long.class.getName()));
+            return primitiveMapping;
         }
     }
 }
