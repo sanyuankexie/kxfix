@@ -78,8 +78,8 @@ public class PatchTransform extends Transform {
         }).observeOn(Schedulers.io())
                 .map(new CopyTask())
                 .map(new ZipTask())
-                .map(new Jar2DexTask())
                 .observeOn(Schedulers.computation())
+                .map(new Jar2DexTask())
                 .subscribe(contextWith -> {
                 }, it -> {
                     throw new RuntimeException(it);

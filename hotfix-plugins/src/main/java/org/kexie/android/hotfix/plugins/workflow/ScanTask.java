@@ -15,7 +15,7 @@ public class ScanTask extends Workflow<List<CtClass>, Pair<List<CtClass>,List<Ct
     private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
 
     @Override
-    public ContextWith<Pair<List<CtClass>, List<CtClass>>>
+    ContextWith<Pair<List<CtClass>, List<CtClass>>>
     doWork(ContextWith<List<CtClass>> context) throws TransformException {
         List<CtClass> added = new LinkedList<>();
         List<CtClass> fixed = new LinkedList<>();
