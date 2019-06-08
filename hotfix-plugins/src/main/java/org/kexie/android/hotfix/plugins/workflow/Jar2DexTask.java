@@ -7,7 +7,10 @@ import java.io.IOException;
 
 import io.reactivex.exceptions.Exceptions;
 
-final class Jar2DexTask extends TempWorkflow<File,File> {
+/**
+ * 将普通的jar转换成dex
+ */
+final class Jar2DexTask extends TempWork<File,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override

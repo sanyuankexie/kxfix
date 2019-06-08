@@ -15,7 +15,11 @@ import java.util.zip.ZipOutputStream;
 
 import javassist.CtClass;
 
-final class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
+
+/**
+ * 将classes 用zip打包到指定文件夹
+ */
+class ZipTask extends TempWork<List<Pair<CtClass,File>>,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override

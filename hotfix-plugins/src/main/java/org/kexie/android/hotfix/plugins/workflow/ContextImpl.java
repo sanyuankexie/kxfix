@@ -10,6 +10,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javassist.ClassPool;
 
+/**
+ * 具体实现类
+ */
 final class ContextImpl extends Context {
     private final ClassPool classPool = new ClassPool();
     private final Project project;
@@ -34,7 +37,7 @@ final class ContextImpl extends Context {
 
 
     @Override
-    void pushNewTask(Class<? extends Workflow> name) {
+    void pushNewTask(Class<? extends Work> name) {
         taskNames.add(name.getName());
         progress.set(0);
     }

@@ -23,7 +23,11 @@ import io.reactivex.exceptions.Exceptions;
 import javassist.CtClass;
 import javassist.NotFoundException;
 
-final class LoadTask extends Workflow<Collection<TransformInput>, List<CtClass>> {
+
+/**
+ * 将所有类加载到{@link javassist.ClassPool}中
+ */
+final class LoadTask extends Work<Collection<TransformInput>, List<CtClass>> {
     @Override
     ContextWith<List<CtClass>> doWork(ContextWith<Collection<TransformInput>> context) {
         Collection<TransformInput> inputs = context.getData();

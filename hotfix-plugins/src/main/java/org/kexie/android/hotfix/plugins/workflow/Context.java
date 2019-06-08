@@ -7,6 +7,10 @@ import java.util.Queue;
 
 import javassist.ClassPool;
 
+/**
+ * 任务运行的上下文环境
+ * 装饰者模式
+ */
 public abstract class Context {
 
     abstract Project getProject();
@@ -17,7 +21,7 @@ public abstract class Context {
 
     abstract void setProgress(float value);
 
-    abstract void pushNewTask(Class<? extends Workflow> name);
+    abstract void pushNewTask(Class<? extends Work> name);
 
     public abstract float getProgress();
 

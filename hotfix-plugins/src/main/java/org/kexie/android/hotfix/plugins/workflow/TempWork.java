@@ -2,7 +2,10 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import java.io.File;
 
-abstract class TempWorkflow<I,O> extends FileWorkflow<I,O> {
+/**
+ * 中间过程任务
+ */
+abstract class TempWork<I,O> extends FileWork<I,O> {
     @Override
     protected String getOutput(Context context) {
         return super.getOutput(context) + "tmp" + File.separator;

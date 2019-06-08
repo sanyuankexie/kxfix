@@ -7,11 +7,15 @@ import java.util.Queue;
 
 import javassist.ClassPool;
 
+
+/**
+ * 携带数据的{@link Context}
+ */
 final class ContextWith<T> extends Context {
-    private final ContextImpl context;
+    private final Context context;
     private final T data;
 
-    ContextWith(ContextImpl context, T data) {
+    ContextWith(Context context, T data) {
         this.context = context;
         this.data = data;
     }
@@ -41,7 +45,7 @@ final class ContextWith<T> extends Context {
     }
 
     @Override
-    void pushNewTask(Class<? extends Workflow> name) {
+    void pushNewTask(Class<? extends Work> name) {
         context.pushNewTask(name);
     }
 

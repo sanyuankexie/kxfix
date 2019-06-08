@@ -36,6 +36,8 @@ public class Looper {
                 for (String name : context.getTaskQueue()) {
                     builder.append(name).append('\n');
                 }
+                builder.append(context.getProgress() * 100)
+                        .append("%");
                 gui.text(builder.toString());
                 JImGuiGen.end();
                 gui.render();

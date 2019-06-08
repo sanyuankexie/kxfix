@@ -9,7 +9,10 @@ import java.util.List;
 import javassist.CtClass;
 
 
-final class ScanTask extends Workflow<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
+/**
+ * 扫描输入中的所有符合条件的类
+ */
+final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
 
     private static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
     private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";

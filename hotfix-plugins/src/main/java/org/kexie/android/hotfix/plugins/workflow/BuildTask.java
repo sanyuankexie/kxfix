@@ -18,7 +18,11 @@ import javassist.NotFoundException;
 
 //TODO 旧类拷贝一份，UUID生成名字防止冲突
 //TODO 然后在旧类的基础上修改，消除访问权限和超类调用，然后拷贝到新类
-final class BuildTask extends Workflow<List<CtClass>, CtClass> {
+
+/**
+ * 生成Executable的class
+ */
+final class BuildTask extends Work<List<CtClass>, CtClass> {
 
     private static final String PATCH_SUPER_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable";
     private static final String PATCH_CLASS_NAME_SUFFIX = "Impl";

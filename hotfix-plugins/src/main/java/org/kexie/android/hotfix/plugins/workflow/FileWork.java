@@ -2,7 +2,10 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import java.io.File;
 
-abstract class FileWorkflow<I,O> extends Workflow<I,O> {
+/**
+ * 需要操作文件的任务
+ */
+abstract class FileWork<I,O> extends Work<I,O> {
     protected String getOutput(Context context) {
         return context.getProject().getBuildDir()
                 .getAbsolutePath() + File.separator +
