@@ -5,8 +5,6 @@ import com.google.common.util.concurrent.AtomicDouble;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javassist.ClassPool;
@@ -14,7 +12,6 @@ import javassist.ClassPool;
 class ContextImpl extends Context {
     private final ClassPool classPool = new ClassPool();
     private final Project project;
-    private final Executor singleTask = Executors.newSingleThreadExecutor();
     private final AtomicDouble progress = new AtomicDouble();
     private final AtomicReference<String> taskName = new AtomicReference<>();
 

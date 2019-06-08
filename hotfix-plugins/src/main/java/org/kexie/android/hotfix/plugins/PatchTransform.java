@@ -49,7 +49,7 @@ public class PatchTransform extends Transform {
 
     @Override
     public void transform(TransformInvocation transformInvocation)
-            throws IOException {
+            throws IOException, InterruptedException {
         transformInvocation.getOutputProvider().deleteAll();
         doWorks(context, transformInvocation.getInputs());
         Looper looper = Looper.make(context);
