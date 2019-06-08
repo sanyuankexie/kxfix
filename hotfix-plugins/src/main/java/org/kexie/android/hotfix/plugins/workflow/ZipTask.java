@@ -19,7 +19,7 @@ import javassist.CtClass;
 /**
  * 将classes 用zip打包到指定文件夹
  */
-class ZipTask extends TempWork<List<Pair<CtClass,File>>,File> {
+final class ZipTask extends TempWork<List<Pair<CtClass,File>>,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override

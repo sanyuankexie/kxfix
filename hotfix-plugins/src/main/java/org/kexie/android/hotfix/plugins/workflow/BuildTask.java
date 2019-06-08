@@ -32,8 +32,6 @@ import javassist.NotFoundException;
  */
 final class BuildTask extends Work<List<CtClass>, CtClass> {
 
-    private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
-
     @Override
     ContextWith<CtClass>
     doWork(ContextWith<List<CtClass>> context) throws TransformException, IOException {
@@ -41,12 +39,12 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
             List<CtBehavior> methods = context.getData().stream()
                     .flatMap((Function<CtClass, Stream<CtBehavior>>)
                             ctClass -> Arrays.stream(ctClass.getDeclaredBehaviors()))
-                    .filter(method -> method.hasAnnotation(PATCHED_ANNOTATION))
+                    .filter(method -> method.hasAnnotation(Annotations.PATCHED_ANNOTATION))
                     .collect(Collectors.toCollection(LinkedList::new));
             List<CtField> fields = context.getData().stream()
                     .flatMap((Function<CtClass, Stream<CtField>>)
                             ctClass -> Arrays.stream(ctClass.getDeclaredFields()))
-                    .filter(field -> field.hasAnnotation(PATCHED_ANNOTATION))
+                    .filter(field -> field.hasAnnotation(Annotations.PATCHED_ANNOTATION))
                     .collect(Collectors.toCollection(LinkedList::new));
             Builder builder = new Builder(context);
             return context.with(builder.skeleton(methods, fields)
@@ -58,7 +56,8 @@ final class BuildTask extends Work<List<CtClass>, CtClass> {
     }
 
     private final static class Builder extends ContextWrapper {
-        private static final String CONSTRUCTOR_SOURCE = "public ExecutableImpl" +
+        private static final String CONSTRUCTOR_SOURCE
+                = "public ExecutableImpl" +
                 "(org.kexie.android.hotfix.internal.DynamicExecutionEngine executionEngine)" +
                 "{super(executionEngine);}";
         private static final String PATCH_SUPER_CLASS_NAME

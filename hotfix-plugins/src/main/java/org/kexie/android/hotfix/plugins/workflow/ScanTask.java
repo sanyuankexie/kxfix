@@ -15,8 +15,7 @@ import javassist.CtClass;
  */
 final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
 
-    private static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
-    private static final String PATCHED_ANNOTATION = "org.kexie.android.hotfix.Patched";
+
 
     @Override
     ContextWith<Pair<List<CtClass>, List<CtClass>>>
@@ -24,11 +23,11 @@ final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass
         List<CtClass> added = new LinkedList<>();
         List<CtClass> fixed = new LinkedList<>();
         for (CtClass clazz : context.getData()) {
-            boolean patched = clazz.hasAnnotation(PATCHED_ANNOTATION);
-            boolean hotfix = clazz.hasAnnotation(HOTFIX_ANNOTATION);
+            boolean patched = clazz.hasAnnotation(Annotations.PATCHED_ANNOTATION);
+            boolean hotfix = clazz.hasAnnotation(Annotations.HOTFIX_ANNOTATION);
             if (patched && hotfix) {
-                throw new TransformException("注解 " + HOTFIX_ANNOTATION
-                        + " 和注解 " + PATCHED_ANNOTATION
+                throw new TransformException("注解 " + Annotations.HOTFIX_ANNOTATION
+                        + " 和注解 " + Annotations.PATCHED_ANNOTATION
                         + " 不能同时在class上出现");
             }
             if (patched) {
@@ -38,9 +37,9 @@ final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass
                 continue;
             }
             if (hotfix && Arrays.stream(clazz.getDeclaredFields())
-                    .anyMatch(ctField -> ctField.hasAnnotation(PATCHED_ANNOTATION))
+                    .anyMatch(ctField -> ctField.hasAnnotation(Annotations.PATCHED_ANNOTATION))
                     && Arrays.stream(clazz.getDeclaredBehaviors())
-                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(PATCHED_ANNOTATION))) {
+                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(Annotations.PATCHED_ANNOTATION))) {
                 context.getLogger()
                         .quiet("fixed class " + clazz.getName());
                 fixed.add(clazz);
