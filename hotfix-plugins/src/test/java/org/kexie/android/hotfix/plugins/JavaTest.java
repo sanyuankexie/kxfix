@@ -20,6 +20,5 @@ public class JavaTest implements Function<Object,Object> {
 
     @Test
     public void test() throws Throwable {
-        System.out.println();
     }
 }

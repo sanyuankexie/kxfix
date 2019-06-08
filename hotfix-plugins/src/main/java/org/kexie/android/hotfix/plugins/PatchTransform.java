@@ -34,7 +34,7 @@ public class PatchTransform extends Transform {
     private final Context context;
 
     PatchTransform(Project project) {
-        context = new Context(project);
+        context = Context.make(project);
     }
 
     @Override
@@ -55,13 +55,13 @@ public class PatchTransform extends Transform {
                 .map(new LoadTask())
                 .map(new ScanTask());
         Single<List<CtClass>> copyClasses = scanResult
-                .map(it -> it.getInput().getFirst());
+                .map(it -> it.getData().getFirst());
         Single<ContextWith<CtClass>> buildClass = scanResult
-                .map(it -> it.getContext().with(it.getInput().getSecond()))
+                .map(it -> it.with(it.getData().getSecond()))
                 .map(new BuildTask());
-        copyClasses.zipWith(buildClass, (classes, contextWith) -> {
-            classes.add(contextWith.getInput());
-            return contextWith.getContext().with(classes);
+        copyClasses.zipWith(buildClass, (classes, context) -> {
+            classes.add(context.getData());
+            return context.with(classes);
         }).map(new CopyTask())
                 .map(new ZipTask())
                 .map(new Jar2DexTask())

@@ -1,19 +1,40 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-public class ContextWith<T> {
-    private final Context context;
-    private final T input;
+import org.gradle.api.Project;
+import org.gradle.api.logging.Logger;
 
-    ContextWith(Context context, T input) {
+import javassist.ClassPool;
+
+public class ContextWith<T> extends Context {
+    private final ContextImpl context;
+    private final T data;
+
+    ContextWith(ContextImpl context, T data) {
         this.context = context;
-        this.input = input;
+        this.data = data;
     }
 
-    public Context getContext() {
-        return context;
+    public T getData() {
+        return data;
     }
 
-    public T getInput() {
-        return input;
+    @Override
+    Project getProject() {
+        return context.getProject();
+    }
+
+    @Override
+    ClassPool getClasses() {
+        return context.getClasses();
+    }
+
+    @Override
+    Logger getLogger() {
+        return context.getLogger();
+    }
+
+    @Override
+    public <X> ContextWith<X> with(X data) {
+        return context.with(data);
     }
 }

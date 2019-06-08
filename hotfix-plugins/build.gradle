@@ -22,8 +22,16 @@ dependencies {
 
     //implementation 'org.ow2.asm:asm:7.1'
 
+    implementation "org.ice1000.jimgui:core:v0.8.1"
+
     testImplementation 'junit:junit:4.12'
 }
+
+//run {
+//    if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
+//        jvmArgs "-XstartOnFirstThread"
+//    }
+//}
 
 uploadArchives {
     repositories {

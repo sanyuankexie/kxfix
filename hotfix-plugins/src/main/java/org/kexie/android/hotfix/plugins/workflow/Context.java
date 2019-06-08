@@ -5,27 +5,16 @@ import org.gradle.api.logging.Logger;
 
 import javassist.ClassPool;
 
-public class Context {
-    private final ClassPool classPool = new ClassPool();
-    private final Project project;
+public abstract class Context {
+    abstract Project getProject();
 
-    public Context(Project project) {
-        this.project = project;
-    }
+    abstract ClassPool getClasses();
 
-    Project getProject() {
-        return project;
-    }
+    abstract Logger getLogger();
 
-    ClassPool getClasses() {
-        return classPool;
-    }
+    public abstract <T> ContextWith<T> with(T data);
 
-    Logger getLogger() {
-        return project.getLogger();
-    }
-
-    public <T> ContextWith<T> with(T input) {
-        return new ContextWith<>(this, input);
+    public static Context make(Project project) {
+        return new ContextImpl(project);
     }
 }

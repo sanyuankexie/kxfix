@@ -11,9 +11,8 @@ public class Jar2DexTask extends TempWorkflow<File,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
-    public ContextWith<File>
-    apply(ContextWith<File> contextWith) {
-        String out = getOutput(contextWith.getContext());
+    ContextWith<File> doWork(ContextWith<File> context) {
+        String out = getOutput(context);
         File outFile = new File(out);
         File parent = outFile.getParentFile();
         if (!parent.exists()) {
@@ -27,9 +26,9 @@ public class Jar2DexTask extends TempWorkflow<File,File> {
         } catch (IOException e) {
             throw Exceptions.propagate(e);
         }
-        String[] cmd = {"--dex", "--output=" + out, contextWith.getInput().getAbsolutePath()};
+        String[] cmd = {"--dex", "--output=" + out, context.getData().getAbsolutePath()};
         Main.main(cmd);
-        return contextWith.getContext().with(outFile);
+        return context.with(outFile);
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.apache.commons.io.IOUtils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -15,11 +16,11 @@ import java.util.zip.ZipOutputStream;
 import javassist.CtClass;
 
 public class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
+
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
-    public ContextWith<File>
-    apply(ContextWith<List<Pair<CtClass, File>>> contextWith) throws Exception {
-        String out = getOutput(contextWith.getContext());
+    ContextWith<File> doWork(ContextWith<List<Pair<CtClass, File>>> context) throws IOException {
+        String out = getOutput(context);
         File output = new File(out);
         File file = output.getParentFile();
         if (!file.exists()) {
@@ -31,7 +32,7 @@ public class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
         output.createNewFile();
         byte[] buffer = new byte[4096];
         ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(output));
-        for (Pair<CtClass, File> input : contextWith.getInput()) {
+        for (Pair<CtClass, File> input : context.getData()) {
             String entryName = input.getFirst().getName()
                     .replace(".",
                             File.separator)
@@ -45,7 +46,7 @@ public class ZipTask extends TempWorkflow<List<Pair<CtClass,File>>,File> {
             zipOutputStream.flush();
         }
         zipOutputStream.close();
-        return contextWith.getContext().with(output);
+        return context.with(output);
     }
 
     @Override

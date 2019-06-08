@@ -22,26 +22,25 @@ import io.reactivex.exceptions.Exceptions;
 import javassist.CtClass;
 import javassist.NotFoundException;
 
-public class LoadTask implements Workflow<Collection<TransformInput>, List<CtClass>> {
+public class LoadTask extends Workflow<Collection<TransformInput>, List<CtClass>> {
     @Override
-    public ContextWith<List<CtClass>>
-    apply(ContextWith<Collection<TransformInput>> input) {
-        Collection<TransformInput> inputs = input.getInput();
+    ContextWith<List<CtClass>> doWork(ContextWith<Collection<TransformInput>> context) {
+        Collection<TransformInput> inputs = context.getData();
         String[] extension = {SdkConstants.EXT_CLASS};
         List<String> classNames = new LinkedList<>();
         try {
-            for (File classpath : input.getContext()
+            for (File classpath : context
                     .getProject()
                     .getExtensions()
                     .getByType(AppExtension.class)
                     .getBootClasspath()) {
-                input.getContext().getClasses()
+                context.getClasses()
                         .appendClassPath(classpath.getAbsolutePath());
             }
             for (TransformInput input1 : inputs) {
                 for (DirectoryInput directoryInput : input1.getDirectoryInputs()) {
                     String directory = directoryInput.getFile().getAbsolutePath();
-                    input.getContext().getClasses().insertClassPath(directory);
+                    context.getClasses().insertClassPath(directory);
                     for (File file : FileUtils.listFiles(directoryInput.getFile(),
                             extension, true)) {
                         String className = file.getAbsolutePath().substring(
@@ -54,7 +53,7 @@ public class LoadTask implements Workflow<Collection<TransformInput>, List<CtCla
                     }
                 }
                 for (JarInput jarInput : input1.getJarInputs()) {
-                    input.getContext().getClasses()
+                    context.getClasses()
                             .insertClassPath(jarInput.getFile()
                                     .getAbsolutePath());
                     JarFile jarFile = new JarFile(jarInput.getFile());
@@ -77,14 +76,13 @@ public class LoadTask implements Workflow<Collection<TransformInput>, List<CtCla
         }
         List<CtClass> classes = new LinkedList<>();
         for (String className : classNames) {
-            CtClass ctClass = input.getContext()
+            CtClass ctClass = context
                     .getClasses()
                     .getOrNull(className);
             if (ctClass != null) {
                 classes.add(ctClass);
             }
         }
-        System.out.println(classes.size());
-        return input.getContext().with(classes);
+        return context.with(classes);
     }
 }

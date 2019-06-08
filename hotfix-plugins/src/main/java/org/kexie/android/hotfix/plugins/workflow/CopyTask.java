@@ -14,12 +14,11 @@ import javassist.CtClass;
 
 public class CopyTask extends TempWorkflow<List<CtClass>,  List<Pair<CtClass, File>>> {
     @Override
-    public ContextWith<List<Pair<CtClass, File>>>
-    apply(ContextWith<List<CtClass>> contextWith) {
-        String classOutputDir = getOutput(contextWith.getContext());
+    ContextWith<List<Pair<CtClass, File>>> doWork(ContextWith<List<CtClass>> context) {
+        String classOutputDir = getOutput(context);
         List<Pair<CtClass, File>> files = new LinkedList<>();
         try {
-            for (CtClass clazz : contextWith.getInput()) {
+            for (CtClass clazz : context.getData()) {
                 clazz.writeFile(classOutputDir);
                 String entryName = clazz.getName()
                         .replace(".",
@@ -33,7 +32,7 @@ public class CopyTask extends TempWorkflow<List<CtClass>,  List<Pair<CtClass, Fi
         } catch (CannotCompileException | IOException e) {
             throw Exceptions.propagate(e);
         }
-        return contextWith.getContext().with(files);
+        return context.with(files);
     }
 
     @Override
