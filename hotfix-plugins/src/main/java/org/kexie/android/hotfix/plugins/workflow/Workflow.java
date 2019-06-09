@@ -32,11 +32,11 @@ public final class Workflow {
                 .map(new ScanTask());
         Single<List<CtClass>> copyClasses = scanResult
                 .map(it -> it.getData().getFirst());
-        Single<ContextWith<CtClass>> buildClass = scanResult
+        Single<ContextWith<List<CtClass>>> buildClass = scanResult
                 .map(it -> it.with(it.getData().getSecond()))
                 .map(new BuildTask());
         copyClasses.zipWith(buildClass, (classes, contextWith) -> {
-            classes.add(contextWith.getData());
+            classes.addAll(contextWith.getData());
             return contextWith.with(classes);
         }).observeOn(Schedulers.io())
                 .map(new CopyTask())

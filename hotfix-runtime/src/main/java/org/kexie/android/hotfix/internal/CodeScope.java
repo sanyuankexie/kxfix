@@ -158,7 +158,6 @@ final class CodeScope {
         return mClassLoader;
     }
 
-
     final Object receiveInvoke(ProceedingJoinPoint joinPoint)
             throws Throwable {
         CodeSignature codeSignature = (CodeSignature) joinPoint.getSignature();

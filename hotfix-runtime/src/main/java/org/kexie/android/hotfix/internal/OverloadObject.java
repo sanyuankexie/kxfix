@@ -6,6 +6,8 @@ import androidx.annotation.RestrictTo;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public abstract class OverloadObject {
 
+    public OverloadObject() { }
+
     abstract void modifyWithId(int id, Object o, Object newValue);
 
     abstract Object accessWithId(int id, Object o);
