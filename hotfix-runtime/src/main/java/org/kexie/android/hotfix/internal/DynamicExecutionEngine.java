@@ -20,7 +20,7 @@ final class DynamicExecutionEngine
     static final DynamicExecutionEngine INSTANCE = new DynamicExecutionEngine();
 
     private static final AtomicReferenceFieldUpdater<DynamicExecutionEngine, CodeScope>
-            sExecutableUpdater = AtomicReferenceFieldUpdater
+            sCodeScopeUpdater = AtomicReferenceFieldUpdater
             .newUpdater(DynamicExecutionEngine.class, CodeScope.class, "mCodeScope");
 
     private volatile CodeScope mCodeScope;
@@ -41,7 +41,7 @@ final class DynamicExecutionEngine
                 .getAbsolutePath();
         CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
         CodeScope codeScope = new CodeScope(this, classLoader);
-        sExecutableUpdater.set(this, codeScope);
+        sCodeScopeUpdater.set(this, codeScope);
     }
 
     @Override
