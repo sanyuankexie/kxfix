@@ -7,7 +7,7 @@
 
 
 JNIEXPORT jobject JNICALL
-Java_org_keixe_android_hotfix_internal_ReflectExecutionEngine_invokeNonVirtual(
+Java_org_kexie_android_hotfix_internal_ReflectOperation_invokeNonVirtual(
         JNIEnv *env,
         jclass _,
         jclass type,

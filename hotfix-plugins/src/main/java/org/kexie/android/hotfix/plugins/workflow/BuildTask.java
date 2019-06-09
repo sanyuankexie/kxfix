@@ -25,7 +25,11 @@ import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.ArrayMemberValue;
 import javassist.bytecode.annotation.ClassMemberValue;
 import javassist.bytecode.annotation.IntegerMemberValue;
+import javassist.expr.Cast;
 import javassist.expr.ExprEditor;
+import javassist.expr.FieldAccess;
+import javassist.expr.MethodCall;
+import javassist.expr.NewExpr;
 
 
 /**
@@ -58,7 +62,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         //Object invokeWithId(int id, Object o, Object[] args)throws Throwable { throw new NoSuchMethodException(); }
         private static final String EMPTY_INVOKE
                 = "java.lang.Object invokeWithId(int id, java.lang.Object o, java.lang.Object[] args)" +
-                "throws Throwable " +
+                "throws java.lang.Throwable " +
                 "{ throw new NoSuchMethodException(); }";
 
 
@@ -93,8 +97,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             String cloneName
                     = packageName
                     + (TextUtils.isEmpty(packageName) ? "" : ".")
-                    + "Overload-"
-                    + source.getSimpleName();
+                    + source.getSimpleName()
+                    + "$$Overload";
             CtClass clone = getClasses().makeClass(cloneName);
             clone.defrost();
             clone.setSuperclass(source.getSuperclass());
@@ -322,6 +326,28 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private final CtClass source;
         private MethodTransform(CtClass source) {
             this.source = source;
+        }
+
+        @Override
+        public void edit(Cast c) throws CannotCompileException {
+        }
+
+        @Override
+        public void edit(NewExpr e) throws CannotCompileException {
+        }
+
+        @Override
+        public void edit(MethodCall m) throws CannotCompileException {
+        }
+
+        @Override
+        public void edit(FieldAccess f) throws CannotCompileException {
+            if (f.isReader()) {
+
+            }
+            else {
+
+            }
         }
     }
 }

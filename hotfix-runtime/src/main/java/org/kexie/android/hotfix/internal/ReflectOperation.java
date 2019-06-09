@@ -10,15 +10,13 @@ import androidx.annotation.Keep;
  */
 @Keep
 @SuppressWarnings("WeakerAccess")
-class ReflectExecutionEngine implements ExecutionEngine {
+final class ReflectOperation extends Operation {
 
-    protected ReflectExecutionEngine() {
+    ReflectOperation() {
     }
 
-    static final ReflectExecutionEngine JVM = new ReflectExecutionEngine();
-
     static {
-        System.loadLibrary("reflection");
+        System.loadLibrary("hotfix");
     }
 
     @Override

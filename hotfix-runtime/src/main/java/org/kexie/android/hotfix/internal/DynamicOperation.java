@@ -9,21 +9,25 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import androidx.annotation.Keep;
 
 /**
- * 热更新执行引擎
+ * 动态化
  */
 @Keep
-final class DynamicExecutionEngine
-        extends ReflectExecutionEngine
+final class DynamicOperation
+        extends OperationWrapper
         implements Hooker,
-        CodeScopeExecutionEngine {
+        CodeScopeManager {
 
-    static final DynamicExecutionEngine INSTANCE = new DynamicExecutionEngine();
+    static final DynamicOperation INSTANCE = new DynamicOperation();
 
-    private static final AtomicReferenceFieldUpdater<DynamicExecutionEngine, CodeScope>
+    private static final AtomicReferenceFieldUpdater<DynamicOperation, CodeScope>
             sExecutableUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(DynamicExecutionEngine.class, CodeScope.class, "mCodeScope");
+            .newUpdater(DynamicOperation.class, CodeScope.class, "mCodeScope");
 
     private volatile CodeScope mCodeScope;
+
+    private DynamicOperation() {
+        super(new ReflectOperation());
+    }
 
     @Override
     public final boolean isThat(CodeScope codeScope) {
