@@ -31,9 +31,9 @@ public final class InvokeDispatcher {
      * 因为新增的方法只能以原本已经存在的方法作为入口点
      * 所以可以直接记录id即可
      */
-    @Around("execution(* (@org.keixe.android.hotfix.Hotfix *).*(..))" +
-            "||execution((@org.keixe.android.hotfix.Hotfix *).new(..))" +
-            "||staticinitialization((@org.keixe.android.hotfix.Hotfix *))")
+    @Around("execution(* (@org.keixe.android.hotfix.Overload *).*(..))" +
+            "||execution((@org.keixe.android.hotfix.Overload *).new(..))" +
+            "||staticinitialization((@org.keixe.android.hotfix.Overload *))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
         return Hooker.INSTANCE.hook(joinPoint);
     }

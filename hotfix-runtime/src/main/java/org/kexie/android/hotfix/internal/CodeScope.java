@@ -43,7 +43,7 @@ final class CodeScope {
                 return null;
             }
             if (metadata != null) {
-                overloadObject = (OverloadObject) metadata.getObject(mDynamicExecutionEngine);
+                overloadObject = (OverloadObject) metadata.getObject();
             }
         }
         mReadWriteLock.readLock().unlock();
@@ -69,13 +69,13 @@ final class CodeScope {
                 String overloadClassName
                         = (pack == null ? "" : pack.getName())
                         + (pack == null ? "" : ".")
-                        + clazz.getSimpleName()
-                        + "$$Overload";
+                        +"Overload-"
+                        + clazz.getSimpleName();
                 try {
                     Class overloadClass = mClassLoader.loadClass(overloadClassName);
                     metadata = new OverloadMetadata(overloadClass);
                     mMetadata.put(clazz, metadata);
-                    overloadObject = (OverloadObject) metadata.getObject(mDynamicExecutionEngine);
+                    overloadObject = (OverloadObject) metadata.getObject();
                     overloadObject.setInner(mDynamicExecutionEngine);
                     mOverloadObjects.put(object, overloadObject);
                 } catch (ClassNotFoundException ignored) {

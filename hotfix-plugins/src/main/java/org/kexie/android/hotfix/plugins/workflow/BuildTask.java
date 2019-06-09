@@ -96,8 +96,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             String cloneName
                     = packageName
                     + (TextUtils.isEmpty(packageName) ? "" : ".")
-                    + source.getSimpleName()
-                    + "$$Overload";
+                    +"Overload-"
+                    + source.getSimpleName();
             CtClass clone = getClasses().makeClass(cloneName);
             clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
             clone.defrost();
@@ -302,10 +302,10 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     .append(member.getName())
                     .append("(");
             //a no static method
-            if (offset == 0) {
+            if (offset != 0) {
                 builder.append("(")
                         .append(parameterTypes[0].getName())
-                        .append(")$2");
+                        .append(")$2,");
             }
             if (parameterTypes.length - offset > 0) {
                 builder.append("p0");

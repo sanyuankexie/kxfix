@@ -1,8 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,19 +11,17 @@ import androidx.annotation.Keep;
 
 @Keep
 final class OverloadMetadata extends Metadata {
-    private final boolean mIsMethodOnly;
-    private final Class<?> mClass;
-    private volatile OverloadObject mSharedOverloadObject;
+
+    private final Object mClassOrSharedObject;
     private final HashMap<String, FieldInfo> mFieldIds = new HashMap<>();
     private final HashMap<String, List<MethodInfo>> mMethodId = new HashMap<>();
 
     OverloadMetadata(Class clazz) {
-        mClass = clazz;
         Field[] fields = clazz.getDeclaredFields();
         if (fields.length == 0) {
-            mIsMethodOnly = true;
+            mClassOrSharedObject = newInstance(clazz);
         } else {
-            mIsMethodOnly = false;
+            mClassOrSharedObject = clazz;
             for (Field field : fields) {
                 FieldInfo fieldInfo = field.getAnnotation(FieldInfo.class);
                 if (fieldInfo != null) {
@@ -64,31 +60,20 @@ final class OverloadMetadata extends Metadata {
         return ID_NOT_FOUND;
     }
 
-    private OverloadObject newInstance(CodeContext codeContext) {
+    private static OverloadObject newInstance(Class<?> clazz) {
         try {
-            Constructor<?> constructor = mClass.getConstructor(CodeContext.class);
-            constructor.setAccessible(true);
-            return (OverloadObject) constructor.newInstance(codeContext);
+            return (OverloadObject) clazz.newInstance();
         } catch (IllegalAccessException
-                | InstantiationException
-                | NoSuchMethodException
-                | InvocationTargetException e) {
+                | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
-    OverloadObject getObject(CodeContext codeContext) {
-        if (mIsMethodOnly) {
-            if (mSharedOverloadObject == null) {
-                synchronized (this) {
-                    if (mSharedOverloadObject == null) {
-                        mSharedOverloadObject = newInstance(codeContext);
-                    }
-                }
-            }
-            return mSharedOverloadObject;
+    OverloadObject getObject() {
+        if (mClassOrSharedObject instanceof OverloadObject) {
+            return (OverloadObject) mClassOrSharedObject;
         } else {
-            return newInstance(codeContext);
+            return newInstance((Class) mClassOrSharedObject);
         }
     }
 }

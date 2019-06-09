@@ -19,7 +19,7 @@ abstract class Metadata {
         }
 
         @Override
-        Object getObject(CodeContext codeContext) {
+        Object getObject() {
             throw new UnsupportedOperationException();
         }
     };
@@ -28,5 +28,5 @@ abstract class Metadata {
 
     abstract int hasMethod(String name, Class[] parameterTypes);
 
-    abstract Object getObject(CodeContext codeContext);
+    abstract Object getObject();
 }
