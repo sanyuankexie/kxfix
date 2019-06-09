@@ -13,9 +13,11 @@ import javassist.CannotCompileException;
 import javassist.ClassMap;
 import javassist.ClassPool;
 import javassist.CtClass;
+import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMember;
 import javassist.CtMethod;
+import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.NotFoundException;
 import javassist.bytecode.AccessFlag;
@@ -64,8 +66,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 = "java.lang.Object invokeWithId(int id, java.lang.Object o, java.lang.Object[] args)" +
                 "throws java.lang.Throwable " +
                 "{ throw new NoSuchMethodException(); }";
-
-
+        private static final String CONSTRUCTOR_TAIL
+                = "(org.kexie.android.hotfix.internal.Operation inner){super(inner);}";
         private static final String SUPER_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.OverloadObject";
 
@@ -85,7 +87,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 CtClass clone = cloneClass(clazz);
                 fixClass(hashIds, clazz, clone);
                 buildEntry(hashIds, clone);
-                clone.freeze();
                 result.add(clone);
             }
             return result;
@@ -186,6 +187,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
 
         private void buildEntry(Map<CtMember, Integer> hashIds, CtClass clone)
                 throws CannotCompileException, NotFoundException {
+            CtConstructor constructor = CtNewConstructor.make("public "
+                    + clone.getSimpleName()
+                    + CONSTRUCTOR_TAIL, clone);
             CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
             CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
             CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);
@@ -202,6 +206,10 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     access.insertBefore(buildFieldAccess(field, entry.getValue()));
                 }
             }
+            clone.addConstructor(constructor);
+            clone.addMethod(invoke);
+            clone.addMethod(modify);
+            clone.addMethod(access);
         }
 
         private String buildFieldAccess(CtField field, int id) throws NotFoundException {
@@ -342,12 +350,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
 
         @Override
         public void edit(FieldAccess f) throws CannotCompileException {
-            if (f.isReader()) {
-
-            }
-            else {
-
-            }
         }
     }
 }
