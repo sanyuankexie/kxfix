@@ -9,5 +9,5 @@ interface Hooker {
 
     Object hook(ProceedingJoinPoint joinPoint) throws Throwable;
 
-    Hooker INSTANCE = DynamicOperation.INSTANCE;
+    Hooker INSTANCE = DynamicExecutionEngine.INSTANCE;
 }

@@ -12,17 +12,18 @@ import androidx.appcompat.app.AppCompatActivity;
 @Hotfix
 public class MainActivity extends AppCompatActivity {
 
+    @Overload
     private static final String TAG = "MainActivity";
 
-    @Overload
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.d(TAG, "onCreate: " + Environment.getDataDirectory());
+        Log.d(TAG, "onCreate: " + Environment.getDataDirectory() + savedInstanceState);
         test(0, null);
     }
 
+    @Overload
     public static void test(int xx, Test activity) {
 
     }

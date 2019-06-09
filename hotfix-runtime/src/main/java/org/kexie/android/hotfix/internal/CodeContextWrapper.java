@@ -1,14 +1,21 @@
 package org.kexie.android.hotfix.internal;
 
-class OperationWrapper extends Operation {
+class CodeContextWrapper extends CodeContext {
 
-    private final Operation inner;
+    private CodeContext inner;
 
-    OperationWrapper(Operation inner) {
+    CodeContextWrapper() {
+    }
+
+    CodeContextWrapper(CodeContext inner) {
         this.inner = inner;
     }
 
-    Operation getInner() {
+    void setInner(CodeContext inner) {
+        this.inner = inner;
+    }
+
+    CodeContext getInner() {
         return inner;
     }
 

@@ -1,15 +1,13 @@
 package org.kexie.android.hotfix.internal;
 
 import androidx.annotation.Keep;
-import androidx.annotation.RestrictTo;
 
 /**
  * 定义操作原语
  */
 @Keep
 @SuppressWarnings("WeakerAccess")
-@RestrictTo(RestrictTo.Scope.LIBRARY)
-abstract class Operation {
+abstract class CodeContext {
 
     public abstract Class typeOf(String name)
             throws Throwable;

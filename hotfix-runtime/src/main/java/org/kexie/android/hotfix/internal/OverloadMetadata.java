@@ -1,6 +1,8 @@
 package org.kexie.android.hotfix.internal;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -11,9 +13,9 @@ import androidx.annotation.Keep;
 
 @Keep
 final class OverloadMetadata extends Metadata {
-
-    private final Class mClass;
-    private final OverloadObject mSharedOverloadObject;
+    private final boolean mIsMethodOnly;
+    private final Class<?> mClass;
+    private volatile OverloadObject mSharedOverloadObject;
     private final HashMap<String, FieldInfo> mFieldIds = new HashMap<>();
     private final HashMap<String, List<MethodInfo>> mMethodId = new HashMap<>();
 
@@ -21,13 +23,9 @@ final class OverloadMetadata extends Metadata {
         mClass = clazz;
         Field[] fields = clazz.getDeclaredFields();
         if (fields.length == 0) {
-            try {
-                mSharedOverloadObject = (OverloadObject) clazz.newInstance();
-            } catch (IllegalAccessException | InstantiationException e) {
-                throw new AssertionError(e);
-            }
+            mIsMethodOnly = true;
         } else {
-            mSharedOverloadObject = null;
+            mIsMethodOnly = false;
             for (Field field : fields) {
                 FieldInfo fieldInfo = field.getAnnotation(FieldInfo.class);
                 if (fieldInfo != null) {
@@ -66,13 +64,31 @@ final class OverloadMetadata extends Metadata {
         return ID_NOT_FOUND;
     }
 
-    OverloadObject getObject() {
+    private OverloadObject newInstance(CodeContext codeContext) {
         try {
-            return mSharedOverloadObject == null
-                    ? (OverloadObject) mClass.newInstance()
-                    : mSharedOverloadObject;
-        } catch (IllegalAccessException | InstantiationException e) {
+            Constructor<?> constructor = mClass.getConstructor(CodeContext.class);
+            constructor.setAccessible(true);
+            return (OverloadObject) constructor.newInstance(codeContext);
+        } catch (IllegalAccessException
+                | InstantiationException
+                | NoSuchMethodException
+                | InvocationTargetException e) {
             throw new AssertionError(e);
+        }
+    }
+
+    OverloadObject getObject(CodeContext codeContext) {
+        if (mIsMethodOnly) {
+            if (mSharedOverloadObject == null) {
+                synchronized (this) {
+                    if (mSharedOverloadObject == null) {
+                        mSharedOverloadObject = newInstance(codeContext);
+                    }
+                }
+            }
+            return mSharedOverloadObject;
+        } else {
+            return newInstance(codeContext);
         }
     }
 }

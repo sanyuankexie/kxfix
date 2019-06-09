@@ -12,5 +12,5 @@ public interface CodeScopeManager {
 
     void apply(Context context, String path) throws Throwable;
 
-    CodeScopeManager INSTANCE = DynamicOperation.INSTANCE;
+    CodeScopeManager INSTANCE = DynamicExecutionEngine.INSTANCE;
 }

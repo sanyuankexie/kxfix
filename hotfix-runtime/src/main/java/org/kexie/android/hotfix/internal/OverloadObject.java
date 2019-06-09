@@ -4,11 +4,9 @@ import androidx.annotation.RestrictTo;
 
 @SuppressWarnings("WeakerAccess")
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public abstract class OverloadObject extends OperationWrapper {
+public abstract class OverloadObject extends CodeContextWrapper {
 
-    public OverloadObject(Operation inner) {
-        super(inner);
-    }
+    public OverloadObject() { }
 
     abstract void modifyWithId(int id, Object o, Object newValue);
 

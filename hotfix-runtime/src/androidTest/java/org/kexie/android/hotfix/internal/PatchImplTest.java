@@ -2,7 +2,7 @@ package org.kexie.android.hotfix.internal;
 
 public class PatchImplTest extends OverloadObject {
 
-    public PatchImplTest(Operation inner) {
+    public PatchImplTest(CodeContext inner) {
         super(inner);
     }
 

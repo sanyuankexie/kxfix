@@ -10,7 +10,7 @@ import androidx.annotation.Keep;
  */
 @Keep
 @SuppressWarnings("WeakerAccess")
-final class ReflectOperation extends Operation {
+final class ReflectOperation extends CodeContext {
 
     ReflectOperation() {
     }

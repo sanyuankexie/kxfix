@@ -12,20 +12,20 @@ import androidx.annotation.Keep;
  * 动态化
  */
 @Keep
-final class DynamicOperation
-        extends OperationWrapper
+final class DynamicExecutionEngine
+        extends CodeContextWrapper
         implements Hooker,
         CodeScopeManager {
 
-    static final DynamicOperation INSTANCE = new DynamicOperation();
+    static final DynamicExecutionEngine INSTANCE = new DynamicExecutionEngine();
 
-    private static final AtomicReferenceFieldUpdater<DynamicOperation, CodeScope>
+    private static final AtomicReferenceFieldUpdater<DynamicExecutionEngine, CodeScope>
             sExecutableUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(DynamicOperation.class, CodeScope.class, "mCodeScope");
+            .newUpdater(DynamicExecutionEngine.class, CodeScope.class, "mCodeScope");
 
     private volatile CodeScope mCodeScope;
 
-    private DynamicOperation() {
+    private DynamicExecutionEngine() {
         super(new ReflectOperation());
     }
 

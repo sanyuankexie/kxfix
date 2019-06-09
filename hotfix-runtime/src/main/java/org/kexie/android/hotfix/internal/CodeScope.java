@@ -25,7 +25,7 @@ final class CodeScope {
 
     private final HashMap<Class, Metadata> mMetadata = new HashMap<>();
 
-    private final DynamicOperation mDynamicOperation;
+    private final DynamicExecutionEngine mDynamicExecutionEngine;
 
     private final ClassLoader mClassLoader;
 
@@ -43,7 +43,7 @@ final class CodeScope {
                 return null;
             }
             if (metadata != null) {
-                overloadObject = (OverloadObject) metadata.getObject();
+                overloadObject = (OverloadObject) metadata.getObject(mDynamicExecutionEngine);
             }
         }
         mReadWriteLock.readLock().unlock();
@@ -75,7 +75,8 @@ final class CodeScope {
                     Class overloadClass = mClassLoader.loadClass(overloadClassName);
                     metadata = new OverloadMetadata(overloadClass);
                     mMetadata.put(clazz, metadata);
-                    overloadObject = (OverloadObject) metadata.getObject();
+                    overloadObject = (OverloadObject) metadata.getObject(mDynamicExecutionEngine);
+                    overloadObject.setInner(mDynamicExecutionEngine);
                     mOverloadObjects.put(object, overloadObject);
                 } catch (ClassNotFoundException ignored) {
                     mMetadata.put(clazz, Metadata.EMPTY);
@@ -148,9 +149,9 @@ final class CodeScope {
         return id;
     }
 
-    CodeScope(DynamicOperation executionEngine,
+    CodeScope(DynamicExecutionEngine executionEngine,
               ClassLoader classLoader) {
-        mDynamicOperation = executionEngine;
+        mDynamicExecutionEngine = executionEngine;
         mClassLoader = classLoader;
     }
 
@@ -184,11 +185,11 @@ final class CodeScope {
             return invokeOverloadMethod(id, type,
                     target, prams);
         } else {
-            if (mDynamicOperation.isThat(this)) {
-                return mDynamicOperation.getInner()
+            if (mDynamicExecutionEngine.isThat(this)) {
+                return mDynamicExecutionEngine.getInner()
                         .invoke(type, name, pramsTypes, target, prams);
             } else {
-                return mDynamicOperation.invoke(type, name, pramsTypes, target, prams);
+                return mDynamicExecutionEngine.invoke(type, name, pramsTypes, target, prams);
             }
         }
     }
@@ -201,10 +202,10 @@ final class CodeScope {
         if (id != Metadata.ID_NOT_FOUND) {
             return accessOverloadField(id, type, o);
         } else {
-            if (mDynamicOperation.isThat(this)) {
+            if (mDynamicExecutionEngine.isThat(this)) {
                 throw new NoSuchFieldException();
             } else {
-                return mDynamicOperation.access(type, name, o);
+                return mDynamicExecutionEngine.access(type, name, o);
             }
         }
     }
@@ -218,10 +219,10 @@ final class CodeScope {
         if (id != Metadata.ID_NOT_FOUND) {
             modifyOverloadField(id, type, o, newValue);
         } else {
-            if (mDynamicOperation.isThat(this)) {
+            if (mDynamicExecutionEngine.isThat(this)) {
                 throw new NoSuchFieldException();
             } else {
-                mDynamicOperation.modify(type, name, o, newValue);
+                mDynamicExecutionEngine.modify(type, name, o, newValue);
             }
         }
     }

@@ -13,15 +13,15 @@ import javassist.CannotCompileException;
 import javassist.ClassMap;
 import javassist.ClassPool;
 import javassist.CtClass;
-import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMember;
 import javassist.CtMethod;
-import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
+import javassist.Modifier;
 import javassist.NotFoundException;
 import javassist.bytecode.AccessFlag;
 import javassist.bytecode.AnnotationsAttribute;
+import javassist.bytecode.ClassFile;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.ArrayMemberValue;
@@ -35,7 +35,7 @@ import javassist.expr.NewExpr;
 
 
 /**
- * 生成Executable的class
+ * 生成补丁
  */
 final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
 
@@ -66,8 +66,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 = "java.lang.Object invokeWithId(int id, java.lang.Object o, java.lang.Object[] args)" +
                 "throws java.lang.Throwable " +
                 "{ throw new NoSuchMethodException(); }";
-        private static final String CONSTRUCTOR_TAIL
-                = "(org.kexie.android.hotfix.internal.Operation inner){super(inner);}";
         private static final String SUPER_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.OverloadObject";
 
@@ -85,7 +83,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             for (CtClass clazz : classes) {
                 hashIds.clear();
                 CtClass clone = cloneClass(clazz);
-                fixClass(hashIds, clazz, clone);
+                fixClass(hashIds, clone, clazz);
                 buildEntry(hashIds, clone);
                 result.add(clone);
             }
@@ -101,10 +99,13 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     + source.getSimpleName()
                     + "$$Overload";
             CtClass clone = getClasses().makeClass(cloneName);
+            clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
             clone.defrost();
             clone.setSuperclass(source.getSuperclass());
             for (CtField field : source.getDeclaredFields()) {
-                clone.addField(new CtField(field, clone));
+                if (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                    clone.addField(new CtField(field, clone));
+                }
             }
             ClassMap classMap = new ClassMap();
             classMap.put(cloneName, source.getName());
@@ -124,19 +125,13 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             CtClass methodInfoClass = getClasses().get(Annotations.METHOD_INFO_ANNOTATION);
             ConstPool constPool = clone.getClassFile().getConstPool();
             for (CtField field : clone.getDeclaredFields()) {
-                if (!field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                    clone.removeField(field);
-                } else {
-                    fixFieldAnnotation(hashIds, constPool, fieldInfoClass, field);
-                }
+                getLogger().quiet("fixed field " + field.getName());
+                fixFieldAnnotation(hashIds, constPool, fieldInfoClass, field);
             }
             for (CtMethod method : clone.getDeclaredMethods()) {
-                if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                    clone.removeMethod(method);
-                } else {
-                    fixMethodAnnotation(hashIds, constPool, methodInfoClass, method);
-                    fixMethod(method, source);
-                }
+                getLogger().quiet("fixed method " + method.getName());
+                fixMethodAnnotation(hashIds, constPool, methodInfoClass, method);
+                fixMethod(method, source);
             }
             clone.setSuperclass(getClasses().get(SUPER_CLASS_NAME));
         }
@@ -148,9 +143,15 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 throws NotFoundException {
             AnnotationsAttribute annotationsAttribute = (AnnotationsAttribute)
                     field.getFieldInfo().getAttribute(AnnotationsAttribute.visibleTag);
+            if (annotationsAttribute == null) {
+                annotationsAttribute = new AnnotationsAttribute(constPool,
+                        AnnotationsAttribute.visibleTag);
+            }
             Annotation annotation = new Annotation(constPool, annotationClass);
             int id = hash(hashIds, field);
-            annotation.addMemberValue("id", new IntegerMemberValue(id, constPool));
+            IntegerMemberValue integerMemberValue = new IntegerMemberValue(constPool);
+            integerMemberValue.setValue(id);
+            annotation.addMemberValue("id", integerMemberValue);
             annotationsAttribute.addAnnotation(annotation);
         }
 
@@ -161,9 +162,15 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 throws NotFoundException {
             AnnotationsAttribute annotationsAttribute = (AnnotationsAttribute)
                     method.getMethodInfo().getAttribute(AnnotationsAttribute.visibleTag);
+            if (annotationsAttribute == null) {
+                annotationsAttribute = new AnnotationsAttribute(constPool,
+                        AnnotationsAttribute.visibleTag);
+            }
             Annotation annotation = new Annotation(constPool, annotationClass);
             int id = hash(hashIds, method);
-            annotation.addMemberValue("id", new IntegerMemberValue(id, constPool));
+            IntegerMemberValue integerMemberValue = new IntegerMemberValue(constPool);
+            integerMemberValue.setValue(id);
+            annotation.addMemberValue("id", integerMemberValue);
             ArrayMemberValue arrayMemberValue = new ArrayMemberValue(constPool);
             CtClass[] parameterTypes = method.getParameterTypes();
             ClassMemberValue[] classMemberValues
@@ -181,15 +188,14 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
 
         private void fixMethod(CtMethod method, CtClass source)
                 throws CannotCompileException {
-            method.insertParameter(source);
+            if (!Modifier.isStatic(method.getModifiers())) {
+                method.insertParameter(source);
+            }
             method.instrument(new MethodTransform(source));
         }
 
         private void buildEntry(Map<CtMember, Integer> hashIds, CtClass clone)
                 throws CannotCompileException, NotFoundException {
-            CtConstructor constructor = CtNewConstructor.make("public "
-                    + clone.getSimpleName()
-                    + CONSTRUCTOR_TAIL, clone);
             CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
             CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
             CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);
@@ -202,11 +208,13 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     );
                 } else if (member instanceof CtField) {
                     CtField field = (CtField) member;
+                    if (Modifier.isFinal(field.getModifiers())) {
+                        continue;
+                    }
                     modify.insertBefore(buildFieldModify(field, entry.getValue()));
                     access.insertBefore(buildFieldAccess(field, entry.getValue()));
                 }
             }
-            clone.addConstructor(constructor);
             clone.addMethod(invoke);
             clone.addMethod(modify);
             clone.addMethod(access);
@@ -265,9 +273,11 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     .append("$1")
                     .append("){");
             CtClass[] parameterTypes = member.getParameterTypes();
-            for (int i = 1; i < parameterTypes.length; ++i) {
+            int offset = Modifier.isStatic(member.getModifiers()) ? 0 : 1;
+            for (int i = offset; i < parameterTypes.length; ++i) {
                 CtClass pramType = parameterTypes[i];
-                int index = i - 1;
+                //real index
+                int index = i - offset;
                 builder.append(pramType.getName())
                         .append(" p")
                         .append(index);
@@ -290,15 +300,24 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
             builder.append("return ")
                     .append(member.getName())
-                    .append("((")
-                    .append(parameterTypes[0].getName())
-                    .append(")$2");
-            for (int i = 0; i < parameterTypes.length - 1; ++i) {
-                builder.append(",p")
-                        .append(i);
+                    .append("(");
+            //a no static method
+            if (offset == 0) {
+                builder.append("(")
+                        .append(parameterTypes[0].getName())
+                        .append(")$2");
+            }
+            if (parameterTypes.length - offset > 0) {
+                builder.append("p0");
+                for (int i = 1; i < parameterTypes.length - offset; ++i) {
+                    builder.append(",p")
+                            .append(i);
+                }
             }
             builder.append(");}");
-            return builder.toString();
+            String source = builder.toString();
+            getLogger().quiet(source);
+            return source;
         }
 
         /**
