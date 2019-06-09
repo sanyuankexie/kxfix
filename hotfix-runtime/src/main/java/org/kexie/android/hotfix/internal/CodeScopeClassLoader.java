@@ -4,20 +4,15 @@ import androidx.annotation.Keep;
 import dalvik.system.BaseDexClassLoader;
 import dalvik.system.DexClassLoader;
 
-/**
- * 破坏双亲委托模型(反向)
- * 优先从自己加载
- * 自己加载失败再尝试从默认类加载器加载
- */
 @Keep
-final class MateClassLoader extends DexClassLoader {
-
+final class CodeScopeClassLoader extends DexClassLoader {
     /**
      * parent设置成BootClassLoader
      * 保证能够正确加载启动类型
      */
-    MateClassLoader(String dexPath, String cacheDir) {
-        super(dexPath, cacheDir, null, Thread.currentThread().getContextClassLoader());
+    CodeScopeClassLoader(String dexPath, String cacheDir) {
+        super(dexPath, cacheDir, null,
+                Thread.currentThread().getContextClassLoader());
     }
 
     @Override
