@@ -7,7 +7,6 @@ import androidx.annotation.Keep;
  * 代码执行的上下文
  */
 @Keep
-@SuppressWarnings("WeakerAccess")
 abstract class CodeContext {
 
     public abstract Class typeOf(String name)

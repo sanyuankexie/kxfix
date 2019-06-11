@@ -45,7 +45,7 @@ final class HotfixEngine
         CodeScope codeScope = (CodeScope) classLoader
                 .loadClass(CODE_SCOPE_TYPE_NAME)
                 .newInstance();
-        codeScope.init(this);
+        codeScope.load(this);
         sCodeScopeUpdater.set(this, codeScope);
     }
 

@@ -27,7 +27,7 @@ abstract class CodeScope {
 
     private HotfixEngine context;
 
-    abstract Class[] includeTypes()throws Throwable;
+    abstract Class[] onLoad() throws Throwable;
 
     private OverloadObject getOverloadObject(Class clazz, Object object) {
         if (object == null) {
@@ -98,9 +98,9 @@ abstract class CodeScope {
         return metadata.hasMethod(name, pramsTypes);
     }
 
-    void init(HotfixEngine context) throws Throwable {
+    void load(HotfixEngine context) throws Throwable {
         this.context = context;
-        for (Class clazz : includeTypes()) {
+        for (Class clazz : onLoad()) {
             includes.put(clazz, Metadata.loadByType(clazz));
         }
     }
