@@ -29,8 +29,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Overload
-    public static void test(int xx, Test activity) {
-
+    public static int test(int xx, Test activity) {
+        return 0;
     }
 }
 

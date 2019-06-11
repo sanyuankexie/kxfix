@@ -19,7 +19,8 @@ final class HotfixEngine
 
     static final HotfixEngine INSTANCE = new HotfixEngine();
 
-    private static final String CODE_SCOPE_TYPE_NAME = "org.kexie.android.hotfix.internal.Overload-CodeScope";
+    private static final String CODE_SCOPE_TYPE_NAME
+            = "org.kexie.android.hotfix.internal.Overload-CodeScope";
 
     private static final AtomicReferenceFieldUpdater<HotfixEngine, CodeScope>
             sCodeScopeUpdater = AtomicReferenceFieldUpdater
@@ -39,7 +40,7 @@ final class HotfixEngine
     @Override
     public final void apply(Context context, String path) throws Throwable {
         String cacheDir = context.getApplicationContext()
-                .getDir("patched", Context.MODE_PRIVATE)
+                .getDir("hotfix", Context.MODE_PRIVATE)
                 .getAbsolutePath();
         CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
         CodeScope codeScope = (CodeScope) classLoader
@@ -59,9 +60,9 @@ final class HotfixEngine
 
     @Override
     public final Class typeOf(String name) throws Throwable {
-        CodeScope executable = codeScope;
-        if (executable != null) {
-            return Class.forName(name, false, executable.getClassLoader());
+        CodeScope codeScope = this.codeScope;
+        if (codeScope != null) {
+            return Class.forName(name, false, codeScope.getClassLoader());
         }
         return super.typeOf(name);
     }
@@ -74,10 +75,10 @@ final class HotfixEngine
             Object target,
             Object[] prams)
             throws Throwable {
-        CodeScope executable = codeScope;
-        return executable == null
+        CodeScope codeScope = this.codeScope;
+        return codeScope == null
                 ? super.invoke(type, name, pramsTypes, target, prams)
-                : executable.dispatchInvoke(type, name, pramsTypes, target, prams);
+                : codeScope.dispatchInvoke(type, name, pramsTypes, target, prams);
     }
 
     @Override
@@ -86,10 +87,10 @@ final class HotfixEngine
             String name,
             Object target)
             throws Throwable {
-        CodeScope executable = codeScope;
-        return executable == null
+        CodeScope codeScope = this.codeScope;
+        return codeScope == null
                 ? super.access(type, name, target)
-                : executable.dispatchAccess(type, name, target);
+                : codeScope.dispatchAccess(type, name, target);
     }
 
     @Override
@@ -99,11 +100,11 @@ final class HotfixEngine
             Object target,
             Object newValue)
             throws Throwable {
-        CodeScope executable = codeScope;
-        if (executable == null) {
+        CodeScope codeScope = this.codeScope;
+        if (codeScope == null) {
             super.modify(type, name, target, newValue);
         } else {
-            executable.dispatchModify(type, name, target, newValue);
+            codeScope.dispatchModify(type, name, target, newValue);
         }
     }
 }

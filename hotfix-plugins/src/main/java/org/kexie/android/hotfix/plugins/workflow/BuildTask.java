@@ -2,11 +2,11 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javassist.CannotCompileException;
 import javassist.ClassMap;
@@ -130,7 +130,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             for (CtConstructor constructor : source.getDeclaredConstructors()) {
                 if (constructor.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
                     clone.addMethod(constructor.toMethod(
-                            "init$" + UUID.randomUUID().toString().replace('-', '_')
+                            "init$$" + Arrays.hashCode(
+                                    constructor.getParameterTypes()
+                            )
                             , clone));
                 }
             }
@@ -316,6 +318,12 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             if (!member.getReturnType().equals(CtClass.voidType)) {
                 builder.append("return ");
             }
+            CtClass box;
+            if ((box = primitiveMapping.get(member.getReturnType())) != null) {
+                builder.append(box.getName())
+                        .append(".valueOf(");
+                //Integer.valueOf(xxx());
+            }
             builder.append(member.getName())
                     .append("(");
             //a no static method
@@ -334,7 +342,11 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             .append(i);
                 }
             }
-            builder.append(");");
+            builder.append(')');
+            if (box != null) {
+                builder.append(')');
+            }
+            builder.append(';');
             if (member.getReturnType().equals(CtClass.voidType)) {
                 builder.append("return null;");
             }
