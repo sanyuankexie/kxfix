@@ -4,6 +4,7 @@ import androidx.annotation.Keep;
 
 /**
  * 定义操作原语
+ * 代码执行的上下文
  */
 @Keep
 @SuppressWarnings("WeakerAccess")

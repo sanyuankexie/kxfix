@@ -13,6 +13,11 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
     @Overload
+    MainActivity() {
+
+    }
+
+    @Overload
     private static final String TAG = "MainActivity";
 
     @Override

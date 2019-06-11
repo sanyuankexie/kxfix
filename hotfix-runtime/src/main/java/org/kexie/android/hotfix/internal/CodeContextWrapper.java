@@ -2,50 +2,67 @@ package org.kexie.android.hotfix.internal;
 
 class CodeContextWrapper extends CodeContext {
 
-    private CodeContext inner;
+    private CodeContext baseContext;
 
-    CodeContextWrapper() {
+    CodeContextWrapper(CodeContext baseContext) {
+        this.baseContext = baseContext;
     }
 
-    CodeContextWrapper(CodeContext inner) {
-        this.inner = inner;
+    void setBaseContext(CodeContext baseContext) {
+        this.baseContext = baseContext;
     }
 
-    void setInner(CodeContext inner) {
-        this.inner = inner;
-    }
-
-    CodeContext getInner() {
-        return inner;
+    CodeContext getBaseContext() {
+        return baseContext;
     }
 
     @Override
     public Class typeOf(String name) throws Throwable {
-        return inner.typeOf(name);
+        return baseContext.typeOf(name);
     }
 
     @Override
-    public Object invoke(Class type, String name, Class[] pramsTypes, Object target, Object[] prams) throws Throwable {
-        return inner.invoke(type, name, pramsTypes, target, prams);
+    public Object invoke(Class type,
+                         String name,
+                         Class[] pramsTypes,
+                         Object target,
+                         Object[] prams) throws
+            Throwable {
+        return baseContext.invoke(type, name, pramsTypes, target, prams);
     }
 
     @Override
-    public Object access(Class type, String name, Object target) throws Throwable {
-        return inner.access(type, name, target);
+    public Object access(Class type,
+                         String name,
+                         Object target)
+            throws Throwable {
+        return baseContext.access(type, name, target);
     }
 
     @Override
-    public void modify(Class type, String name, Object target, Object newValue) throws Throwable {
-        inner.modify(type, name, target, newValue);
+    public void modify(Class type,
+                       String name,
+                       Object target,
+                       Object newValue)
+            throws Throwable {
+        baseContext.modify(type, name, target, newValue);
     }
 
     @Override
-    public Object InvokeNonVirtual(Class type, String name, Class[] pramTypes, Object target, Object[] prams) throws Throwable {
-        return inner.InvokeNonVirtual(type, name, pramTypes, target, prams);
+    public Object InvokeNonVirtual(Class type,
+                                   String name,
+                                   Class[] pramTypes,
+                                   Object target,
+                                   Object[] prams)
+            throws Throwable {
+        return baseContext.InvokeNonVirtual(type, name, pramTypes, target, prams);
     }
 
     @Override
-    public Object newInstance(Class<?> type, Class[] pramTypes, Object[] prams) throws Throwable {
-        return inner.newInstance(type, pramTypes, prams);
+    public Object newInstance(Class<?> type,
+                              Class[] pramTypes,
+                              Object[] prams)
+            throws Throwable {
+        return baseContext.newInstance(type, pramTypes, prams);
     }
 }

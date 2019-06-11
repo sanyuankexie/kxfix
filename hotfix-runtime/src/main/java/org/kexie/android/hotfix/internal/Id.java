@@ -1,5 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -9,9 +10,9 @@ import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
 
 @Keep
-@Target({ElementType.FIELD})
+@Target({ElementType.FIELD,ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public @interface FieldInfo {
-    int id();
+public @interface Id {
+    int value();
 }

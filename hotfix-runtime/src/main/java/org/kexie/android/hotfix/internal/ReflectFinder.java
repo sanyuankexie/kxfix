@@ -16,7 +16,7 @@ final class ReflectFinder {
         throw new AssertionError();
     }
 
-    static Constructor<?> constructorBy(
+    static Constructor<?> findConstructor(
             Class<?> type,
             Class[] pramTypes
     ) throws NoSuchMethodException {
@@ -30,7 +30,7 @@ final class ReflectFinder {
         return constructor;
     }
 
-    static Field fieldBy(
+    static Field findField(
             Class type,
             String name
     ) throws NoSuchFieldException {
@@ -50,7 +50,7 @@ final class ReflectFinder {
         return field;
     }
 
-    static Method methodBy(
+    static Method findMethod(
             Class<?> type,
             String name,
             Class[] pramTypes

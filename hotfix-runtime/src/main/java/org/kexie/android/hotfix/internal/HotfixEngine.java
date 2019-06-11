@@ -12,26 +12,28 @@ import androidx.annotation.Keep;
  * 动态化
  */
 @Keep
-final class DynamicExecutionEngine
+final class HotfixEngine
         extends CodeContextWrapper
         implements Hooker,
         CodeScopeManager {
 
-    static final DynamicExecutionEngine INSTANCE = new DynamicExecutionEngine();
+    static final HotfixEngine INSTANCE = new HotfixEngine();
 
-    private static final AtomicReferenceFieldUpdater<DynamicExecutionEngine, CodeScope>
+    private static final String CODE_SCOPE_TYPE_NAME = "org.kexie.android.hotfix.internal.Overload-CodeScope";
+
+    private static final AtomicReferenceFieldUpdater<HotfixEngine, CodeScope>
             sCodeScopeUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(DynamicExecutionEngine.class, CodeScope.class, "mCodeScope");
+            .newUpdater(HotfixEngine.class, CodeScope.class, "codeScope");
 
-    private volatile CodeScope mCodeScope;
+    private volatile CodeScope codeScope;
 
-    private DynamicExecutionEngine() {
-        super(new ReflectOperation());
+    private HotfixEngine() {
+        super(new ReflectEngine());
     }
 
     @Override
     public final boolean isThat(CodeScope codeScope) {
-        return codeScope == mCodeScope;
+        return codeScope == this.codeScope;
     }
 
     @Override
@@ -40,21 +42,24 @@ final class DynamicExecutionEngine
                 .getDir("patched", Context.MODE_PRIVATE)
                 .getAbsolutePath();
         CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
-        CodeScope codeScope = new CodeScope(this, classLoader);
+        CodeScope codeScope = (CodeScope) classLoader
+                .loadClass(CODE_SCOPE_TYPE_NAME)
+                .newInstance();
+        codeScope.init(this);
         sCodeScopeUpdater.set(this, codeScope);
     }
 
     @Override
     public final Object hook(ProceedingJoinPoint joinPoint) throws Throwable {
-        CodeScope executable = mCodeScope;
-        return executable != null
-                ? executable.receiveInvoke(joinPoint)
+        CodeScope codeScope = this.codeScope;
+        return codeScope != null
+                ? codeScope.dispatchInvoke(joinPoint)
                 : joinPoint.proceed();
     }
 
     @Override
     public final Class typeOf(String name) throws Throwable {
-        CodeScope executable = mCodeScope;
+        CodeScope executable = codeScope;
         if (executable != null) {
             return Class.forName(name, false, executable.getClassLoader());
         }
@@ -69,10 +74,10 @@ final class DynamicExecutionEngine
             Object target,
             Object[] prams)
             throws Throwable {
-        CodeScope executable = mCodeScope;
+        CodeScope executable = codeScope;
         return executable == null
                 ? super.invoke(type, name, pramsTypes, target, prams)
-                : executable.receiveInvoke(type, name, pramsTypes, target, prams);
+                : executable.dispatchInvoke(type, name, pramsTypes, target, prams);
     }
 
     @Override
@@ -81,10 +86,10 @@ final class DynamicExecutionEngine
             String name,
             Object target)
             throws Throwable {
-        CodeScope executable = mCodeScope;
+        CodeScope executable = codeScope;
         return executable == null
                 ? super.access(type, name, target)
-                : executable.receiveAccess(type, name, target);
+                : executable.dispatchAccess(type, name, target);
     }
 
     @Override
@@ -94,11 +99,11 @@ final class DynamicExecutionEngine
             Object target,
             Object newValue)
             throws Throwable {
-        CodeScope executable = mCodeScope;
+        CodeScope executable = codeScope;
         if (executable == null) {
             super.modify(type, name, target, newValue);
         } else {
-            executable.receiveModify(type, name, target, newValue);
+            executable.dispatchModify(type, name, target, newValue);
         }
     }
 }

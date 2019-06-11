@@ -7,7 +7,6 @@ import dalvik.system.DexClassLoader;
 @Keep
 final class CodeScopeClassLoader extends DexClassLoader {
     /**
-     * parent设置成BootClassLoader
      * 保证能够正确加载启动类型
      */
     CodeScopeClassLoader(String dexPath, String cacheDir) {

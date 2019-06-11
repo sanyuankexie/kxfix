@@ -10,19 +10,18 @@ import androidx.annotation.Keep;
  */
 @Keep
 @SuppressWarnings("WeakerAccess")
-final class ReflectOperation extends CodeContext {
+final class ReflectEngine extends CodeContext {
 
-    ReflectOperation() {
+    ReflectEngine() {
     }
 
     static {
-        System.loadLibrary("hotfix");
+        System.loadLibrary("jni-reflect");
     }
 
     @Override
     public Class typeOf(String name) throws Throwable {
-        return Class.forName(name, false,
-                Thread.currentThread().getContextClassLoader());
+        return Class.forName(name);
     }
 
     @Override
@@ -30,7 +29,8 @@ final class ReflectOperation extends CodeContext {
                                     Class[] pramTypes,
                                     Object[] prams)
             throws Throwable {
-        return ReflectFinder.constructorBy(type, pramTypes).newInstance(prams);
+        return ReflectFinder.findConstructor(type, pramTypes)
+                .newInstance(prams);
     }
 
     @Override
@@ -39,14 +39,16 @@ final class ReflectOperation extends CodeContext {
                        Object target,
                        Object newValue)
             throws Throwable {
-        ReflectFinder.fieldBy(type, name).set(target, newValue);
+        ReflectFinder.findField(type, name)
+                .set(target, newValue);
     }
 
     public Object access(Class type,
                          String name,
                          Object target
     ) throws Throwable {
-        return ReflectFinder.fieldBy(type, name).get(target);
+        return ReflectFinder.findField(type, name)
+                .get(target);
     }
 
     @Override
@@ -55,8 +57,8 @@ final class ReflectOperation extends CodeContext {
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
-        Method method = ReflectFinder.methodBy(type, name, pramTypes);
-        return method.invoke(target, prams);
+        return ReflectFinder.findMethod(type, name, pramTypes)
+                .invoke(target, prams);
     }
 
     @Override
@@ -66,7 +68,7 @@ final class ReflectOperation extends CodeContext {
             Class[] pramTypes,
             Object target,
             Object[] prams) throws Throwable {
-        Method method = ReflectFinder.methodBy(type, name, pramTypes);
+        Method method = ReflectFinder.findMethod(type, name, pramTypes);
         if (Modifier.isStatic(method.getModifiers())) {
             throw new IllegalArgumentException();
         }

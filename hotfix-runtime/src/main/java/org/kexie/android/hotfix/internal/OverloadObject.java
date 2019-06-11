@@ -6,12 +6,14 @@ import androidx.annotation.RestrictTo;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public abstract class OverloadObject extends CodeContextWrapper {
 
-    public OverloadObject() { }
+    public OverloadObject() {
+        super(null);
+    }
 
-    abstract void modifyWithId(int id, Object o, Object newValue);
+    abstract void receiveModifyById(int id, Object o, Object newValue);
 
-    abstract Object accessWithId(int id, Object o);
+    abstract Object receiveAccessById(int id, Object o);
 
-    abstract Object invokeWithId(int id, Object o, Object[] args);
+    abstract Object receiveInvokeById(int id, Object o, Object[] args);
 
 }
