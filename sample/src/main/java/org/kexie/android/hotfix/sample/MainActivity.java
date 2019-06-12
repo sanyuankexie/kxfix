@@ -19,7 +19,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Overload
     private static final String TAG = "MainActivity";
+    private static String fl;
 
+    @Overload
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

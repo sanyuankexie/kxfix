@@ -2,14 +2,12 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.build.api.transform.TransformException;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import javassist.CannotCompileException;
-import javassist.ClassMap;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -25,12 +23,10 @@ import javassist.bytecode.ClassFile;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.IntegerMemberValue;
-import javassist.expr.Cast;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
 import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
-import javassist.expr.NewExpr;
 
 
 /**
@@ -69,7 +65,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 "throws java.lang.Throwable " +
                 "{ throw new NoSuchMethodException(); }";
         private static final String OBJECT_SUPER_CLASS_NAME
-                = "org.kexie.android.hotfix.internal.OverloadObject";
+                = "org.kexie.android.hotfix.internal.HotCodeExecutor";
 
         private final Map<CtClass, CtClass> primitiveMapping;
 
@@ -119,21 +115,15 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     clone.addField(new CtField(field, clone));
                 }
             }
-            ClassMap classMap = new ClassMap();
-            classMap.put(cloneName, source.getName());
-            classMap.fix(source);
             for (CtMethod method : source.getDeclaredMethods()) {
                 if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                    clone.addMethod(new CtMethod(method, clone, classMap));
+                    clone.addMethod(new CtMethod(method, clone, null));
                 }
             }
             for (CtConstructor constructor : source.getDeclaredConstructors()) {
                 if (constructor.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
                     clone.addMethod(constructor.toMethod(
-                            "init$$" + Arrays.hashCode(
-                                    constructor.getParameterTypes()
-                            )
-                            , clone));
+                            "$init$", clone));
                 }
             }
             clone.setModifiers(AccessFlag.clear(clone.getModifiers(), AccessFlag.ABSTRACT));
@@ -420,15 +410,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         }
 
         @Override
-        public void edit(Cast c) {
-        }
-
-        @Override
-        public void edit(NewExpr e) {
-        }
-
-        @Override
         public void edit(MethodCall m) {
+            
         }
 
         @Override
