@@ -9,7 +9,6 @@ import androidx.annotation.Keep;
  * JVM反射执行引擎
  */
 @Keep
-@SuppressWarnings("WeakerAccess")
 final class ReflectEngine extends CodeContext {
 
     ReflectEngine() {

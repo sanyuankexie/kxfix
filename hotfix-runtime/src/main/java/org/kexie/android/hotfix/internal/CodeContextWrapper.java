@@ -1,5 +1,8 @@
 package org.kexie.android.hotfix.internal;
 
+import androidx.annotation.Keep;
+
+@Keep
 class CodeContextWrapper extends CodeContext {
 
     private CodeContext baseContext;

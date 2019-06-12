@@ -1,6 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
-public class PatchImplTest extends OverloadObject {
+public class PatchImplTest extends ExtensionExecutor {
 
 
 

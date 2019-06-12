@@ -21,44 +21,44 @@ abstract class CodeScope {
     /**
      * 被修复的字段随{@link CodeScope}生命周期存在
      */
-    private final WeakHashMap<Object, OverloadObject> overloadObjects = new WeakHashMap<>();
+    private final WeakHashMap<Object, ExtensionExecutor> extensionExecutors = new WeakHashMap<>();
 
-    private final HashMap<Class, Metadata> includes = new HashMap<>();
+    private final HashMap<Class, ExtensionMetadata> includes = new HashMap<>();
 
-    private HotfixEngine context;
+    private CodeScopeContext context;
 
     abstract Class[] onLoad() throws Throwable;
 
-    private OverloadObject getOverloadObject(Class clazz, Object object) {
+    private ExtensionExecutor getExtensionExecutor(Class clazz, Object object) {
         if (object == null) {
             object = clazz;
         }
         //read
         readWriteLock.readLock().lock();
-        OverloadObject overloadObject = overloadObjects.get(object);
+        ExtensionExecutor extensionExecutor = extensionExecutors.get(object);
         readWriteLock.readLock().unlock();
         //write
-        if (overloadObject == null) {
-            overloadObject = loadOverloadObject(clazz, object);
+        if (extensionExecutor == null) {
+            extensionExecutor = loadExtensionExecutor(clazz, object);
         }
-        return overloadObject;
+        return extensionExecutor;
     }
 
-    private OverloadObject loadOverloadObject(Class clazz, Object object) {
+    private ExtensionExecutor loadExtensionExecutor(Class clazz, Object object) {
         readWriteLock.writeLock().lock();
-        OverloadObject overloadObject = overloadObjects.get(object);
-        if (overloadObject == null) {
-            Metadata metadata = includes.get(clazz);
-            if (metadata != null) {
-                overloadObject = metadata.obtainObject();
-                overloadObject.setBaseContext(context);
-                overloadObjects.put(object, overloadObject);
+        ExtensionExecutor extensionExecutor = extensionExecutors.get(object);
+        if (extensionExecutor == null) {
+            ExtensionMetadata extensionMetadata = includes.get(clazz);
+            if (extensionMetadata != null) {
+                extensionExecutor = extensionMetadata.obtainObject();
+                extensionExecutor.setBaseContext(context);
+                extensionExecutors.put(object, extensionExecutor);
             } else {
                 throw new AssertionError();
             }
         }
         readWriteLock.writeLock().unlock();
-        return overloadObject;
+        return extensionExecutor;
     }
 
     private Object dispatchInvokeById(
@@ -66,7 +66,7 @@ abstract class CodeScope {
             Class type,
             Object target,
             Object[] prams) {
-        return getOverloadObject(type, target)
+        return getExtensionExecutor(type, target)
                 .receiveInvokeById(id, target, prams);
     }
 
@@ -74,7 +74,7 @@ abstract class CodeScope {
             int id,
             Class type,
             Object target) {
-        return getOverloadObject(type, target)
+        return getExtensionExecutor(type, target)
                 .receiveAccessById(id, target);
     }
 
@@ -83,7 +83,7 @@ abstract class CodeScope {
             Class type,
             Object target,
             Object newValue) {
-        getOverloadObject(type, target)
+        getExtensionExecutor(type, target)
                 .receiveModifyById(id, target, newValue);
     }
 
@@ -91,26 +91,26 @@ abstract class CodeScope {
             Class type,
             String name,
             Class[] pramsTypes) {
-        Metadata metadata = includes.get(type);
-        if (metadata == null) {
-            return Metadata.ID_NOT_FOUND;
+        ExtensionMetadata extensionMetadata = includes.get(type);
+        if (extensionMetadata == null) {
+            return ExtensionMetadata.ID_NOT_FOUND;
         }
-        return metadata.hasMethod(name, pramsTypes);
+        return extensionMetadata.hasMethod(name, pramsTypes);
     }
 
-    void load(HotfixEngine context) throws Throwable {
+    void load(CodeScopeContext context) throws Throwable {
         this.context = context;
         for (Class clazz : onLoad()) {
-            includes.put(clazz, Metadata.loadByType(clazz));
+            includes.put(clazz, ExtensionMetadata.loadByType(clazz));
         }
     }
 
     private int hasField(Class type, String name) {
-        Metadata metadata = includes.get(type);
-        if (metadata == null) {
-            return Metadata.ID_NOT_FOUND;
+        ExtensionMetadata extensionMetadata = includes.get(type);
+        if (extensionMetadata == null) {
+            return ExtensionMetadata.ID_NOT_FOUND;
         }
-        return metadata.hasField(name);
+        return extensionMetadata.hasField(name);
     }
 
     final ClassLoader getClassLoader() {
@@ -124,7 +124,7 @@ abstract class CodeScope {
         String name = codeSignature.getName();
         Class[] pramsTypes = codeSignature.getParameterTypes();
         int id = hasMethod(type, name, pramsTypes);
-        if (id != Metadata.ID_NOT_FOUND) {
+        if (id != ExtensionMetadata.ID_NOT_FOUND) {
             return dispatchInvokeById(id, type,
                     joinPoint.getTarget(), joinPoint.getArgs());
         } else {
@@ -139,7 +139,7 @@ abstract class CodeScope {
                                 Object[] prams)
             throws Throwable {
         int id = hasMethod(type, name, pramsTypes);
-        if (id != Metadata.ID_NOT_FOUND) {
+        if (id != ExtensionMetadata.ID_NOT_FOUND) {
             return dispatchInvokeById(id, type,
                     target, prams);
         } else {
@@ -157,7 +157,7 @@ abstract class CodeScope {
                                 Object o)
             throws Throwable {
         int id = hasField(type, name);
-        if (id != Metadata.ID_NOT_FOUND) {
+        if (id != ExtensionMetadata.ID_NOT_FOUND) {
             return dispatchAccessById(id, type, o);
         } else {
             if (context.isThat(this)) {
@@ -174,7 +174,7 @@ abstract class CodeScope {
                               Object newValue)
             throws Throwable {
         int id = hasField(type, name);
-        if (id != Metadata.ID_NOT_FOUND) {
+        if (id != ExtensionMetadata.ID_NOT_FOUND) {
             dispatchModifyById(id, type, o, newValue);
         } else {
             if (context.isThat(this)) {

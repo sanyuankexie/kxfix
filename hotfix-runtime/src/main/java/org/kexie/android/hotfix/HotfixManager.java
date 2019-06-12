@@ -4,7 +4,8 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 
-import org.kexie.android.hotfix.internal.CodeScopeManager;
+
+import org.kexie.android.hotfix.internal.PatchLoader;
 
 import androidx.annotation.Keep;
 import androidx.annotation.MainThread;
@@ -15,8 +16,6 @@ public final class HotfixManager {
     private final Context mContext;
     private final HandlerThread mWorkThread;
     private final Handler mHandler;
-
-    private static final String PATCH_CLASS_NAME = "org.kexie.android.hotfix.internal.Executable$";
 
     public HotfixManager(Context context) {
         this.mContext = context;
@@ -31,7 +30,7 @@ public final class HotfixManager {
             @Override
             public void run() {
                 try {
-                    CodeScopeManager.INSTANCE.apply(mContext, patch.getDexPath());
+                    PatchLoader.INSTANCE.load(mContext, patch.getDexPath());
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

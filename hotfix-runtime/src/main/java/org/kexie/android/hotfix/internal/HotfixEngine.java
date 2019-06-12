@@ -4,8 +4,6 @@ import android.content.Context;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import androidx.annotation.Keep;
 
 /**
@@ -13,41 +11,19 @@ import androidx.annotation.Keep;
  */
 @Keep
 final class HotfixEngine
-        extends CodeContextWrapper
+        extends CodeScopeContext
         implements Hooker,
-        CodeScopeManager {
+        PatchLoader {
 
     static final HotfixEngine INSTANCE = new HotfixEngine();
-
-    private static final String CODE_SCOPE_TYPE_NAME
-            = "org.kexie.android.hotfix.internal.Overload-CodeScope";
-
-    private static final AtomicReferenceFieldUpdater<HotfixEngine, CodeScope>
-            sCodeScopeUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(HotfixEngine.class, CodeScope.class, "codeScope");
-
-    private volatile CodeScope codeScope;
 
     private HotfixEngine() {
         super(new ReflectEngine());
     }
 
     @Override
-    public final boolean isThat(CodeScope codeScope) {
-        return codeScope == this.codeScope;
-    }
-
-    @Override
-    public final void apply(Context context, String path) throws Throwable {
-        String cacheDir = context.getApplicationContext()
-                .getDir("hotfix", Context.MODE_PRIVATE)
-                .getAbsolutePath();
-        CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
-        CodeScope codeScope = (CodeScope) classLoader
-                .loadClass(CODE_SCOPE_TYPE_NAME)
-                .newInstance();
-        codeScope.load(this);
-        sCodeScopeUpdater.set(this, codeScope);
+    public final void load(Context context, String path) throws Throwable {
+        super.load(context, path);
     }
 
     @Override

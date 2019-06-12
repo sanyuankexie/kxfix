@@ -12,11 +12,11 @@ import java.util.Map;
 import androidx.annotation.Keep;
 
 @Keep
-final class Metadata {
+final class ExtensionMetadata {
 
     static final int ID_NOT_FOUND = Integer.MIN_VALUE;
 
-    private static final class MethodId {
+    private static final class MethodId{
         final int id;
         final Class[] pramTypes;
 
@@ -30,23 +30,23 @@ final class Metadata {
     private final Map<String, Id> fieldIds;
     private final Map<String, List<MethodId>> methodId;
 
-    private Metadata(Object sharedObject,
-                     Map<String, Id> fieldIds,
-                     Map<String, List<MethodId>> methodId) {
+    private ExtensionMetadata(Object sharedObject,
+                              Map<String, Id> fieldIds,
+                              Map<String, List<MethodId>> methodId) {
         this.sharedObject = sharedObject;
         this.fieldIds = fieldIds;
         this.methodId = methodId;
     }
 
-    private static OverloadObject newInstance(Class<?> clazz) {
+    private static ExtensionExecutor newInstance(Class<?> clazz) {
         try {
-            return (OverloadObject) clazz.newInstance();
+            return (ExtensionExecutor) clazz.newInstance();
         } catch (IllegalAccessException | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
-    static Metadata loadByType(Class clazz) {
+    static ExtensionMetadata loadByType(Class clazz) {
         Field[] fields = clazz.getDeclaredFields();
         Object shared = fields.length == 0 ? newInstance(clazz) : clazz;
         Map<String, Id> fieldId = new HashMap<>();
@@ -76,7 +76,7 @@ final class Metadata {
                 methods.add(new MethodId(id.value(), pramTypes));
             }
         }
-        return new Metadata(shared, fieldId, methodId);
+        return new ExtensionMetadata(shared, fieldId, methodId);
     }
 
     int hasMethod(String name, Class[] pramTypes) {
@@ -96,9 +96,9 @@ final class Metadata {
         return id != null ? id.value() : ID_NOT_FOUND;
     }
 
-    OverloadObject obtainObject() {
-        return sharedObject instanceof OverloadObject
-                ? (OverloadObject) sharedObject
+    ExtensionExecutor obtainObject() {
+        return sharedObject instanceof ExtensionExecutor
+                ? (ExtensionExecutor) sharedObject
                 : newInstance((Class) sharedObject);
     }
 }
