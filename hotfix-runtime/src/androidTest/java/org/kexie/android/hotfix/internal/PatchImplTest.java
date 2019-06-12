@@ -1,6 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
-public class PatchImplTest extends ExtensionExecutor {
+public class PatchImplTest extends HotCodeExecutor {
 
 
 

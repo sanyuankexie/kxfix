@@ -4,113 +4,23 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.CodeSignature;
 
 import java.util.HashMap;
-import java.util.WeakHashMap;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import androidx.annotation.Keep;
 
 @Keep
 abstract class CodeScope {
 
-    /**
-     * 读取的概率远大于写的概率,并且两者的粒度都非常小
-     * 所以使用读写锁来做并发优化
-     */
-    private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final HashMap<Class, HotCode> includes = new HashMap<>();
 
-    /**
-     * 被修复的字段随{@link CodeScope}生命周期存在
-     */
-    private final WeakHashMap<Object, ExtensionExecutor> extensionExecutors = new WeakHashMap<>();
-
-    private final HashMap<Class, ExtensionMetadata> includes = new HashMap<>();
-
-    private CodeContextScopedWrapper context;
+    private CodeScopeManager context;
 
     abstract Class[] onLoadClasses() throws Throwable;
 
-    private ExtensionExecutor getExtensionExecutor(Class clazz, Object object) {
-        if (object == null) {
-            object = clazz;
-        }
-        //read
-        readWriteLock.readLock().lock();
-        ExtensionExecutor extensionExecutor = extensionExecutors.get(object);
-        readWriteLock.readLock().unlock();
-        //write
-        if (extensionExecutor == null) {
-            extensionExecutor = loadExtensionExecutor(clazz, object);
-        }
-        return extensionExecutor;
-    }
-
-    private ExtensionExecutor loadExtensionExecutor(Class clazz, Object object) {
-        readWriteLock.writeLock().lock();
-        ExtensionExecutor extensionExecutor = extensionExecutors.get(object);
-        if (extensionExecutor == null) {
-            ExtensionMetadata extensionMetadata = includes.get(clazz);
-            if (extensionMetadata != null) {
-                extensionExecutor = extensionMetadata.obtainExtension();
-                extensionExecutor.setBaseContext(context);
-                extensionExecutors.put(object, extensionExecutor);
-            } else {
-                throw new AssertionError();
-            }
-        }
-        readWriteLock.writeLock().unlock();
-        return extensionExecutor;
-    }
-
-    private Object dispatchInvokeById(
-            int id,
-            Class type,
-            Object target,
-            Object[] prams) {
-        return getExtensionExecutor(type, target)
-                .receiveInvokeById(id, target, prams);
-    }
-
-    private Object dispatchAccessById(
-            int id,
-            Class type,
-            Object target) {
-        return getExtensionExecutor(type, target)
-                .receiveAccessById(id, target);
-    }
-
-    private void dispatchModifyById(
-            int id,
-            Class type,
-            Object target,
-            Object newValue) {
-        getExtensionExecutor(type, target)
-                .receiveModifyById(id, target, newValue);
-    }
-
-    private int hasMethod(
-            Class type,
-            String name,
-            Class[] pramsTypes) {
-        ExtensionMetadata extensionMetadata = includes.get(type);
-        if (extensionMetadata == null) {
-            return ExtensionMetadata.ID_NOT_FOUND;
-        }
-        return extensionMetadata.hasMethod(name, pramsTypes);
-    }
-
-    void loadClasses(CodeContextScopedWrapper context) throws Throwable {
+    void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
         for (Class clazz : onLoadClasses()) {
-            includes.put(clazz, ExtensionMetadata.loadByType(clazz));
+            includes.put(clazz, HotCode.create(context, clazz));
         }
-    }
-
-    private int hasField(Class type, String name) {
-        ExtensionMetadata extensionMetadata = includes.get(type);
-        if (extensionMetadata == null) {
-            return ExtensionMetadata.ID_NOT_FOUND;
-        }
-        return extensionMetadata.hasField(name);
     }
 
     final ClassLoader getClassLoader() {
@@ -121,34 +31,50 @@ abstract class CodeScope {
             throws Throwable {
         CodeSignature codeSignature = (CodeSignature) joinPoint.getSignature();
         Class type = codeSignature.getDeclaringType();
-        String name = codeSignature.getName();
-        Class[] pramsTypes = codeSignature.getParameterTypes();
-        int id = hasMethod(type, name, pramsTypes);
-        if (id != ExtensionMetadata.ID_NOT_FOUND) {
-            return dispatchInvokeById(id, type,
-                    joinPoint.getTarget(), joinPoint.getArgs());
-        } else {
+        HotCode hotCode = includes.get(type);
+        if (hotCode != null) {
+            String name = codeSignature.getName();
+            Class[] pramsTypes = codeSignature.getParameterTypes();
+            int id = hotCode.hasMethod(name, pramsTypes);
+            if (id != HotCode.ID_NOT_FOUND) {
+                Object o = joinPoint.getTarget();
+                HotCodeExecutor executor = hotCode.lockExecutor(o);
+                if (executor != null) {
+                    return executor.receiveInvokeById(id, o, joinPoint.getArgs());
+                }
+            }
+        }
+        if (context.isThatScope(this)) {
             return joinPoint.proceed();
+        } else {
+            return context.invoke(codeSignature.getDeclaringType(),
+                    codeSignature.getName(),
+                    codeSignature.getParameterTypes(),
+                    joinPoint.getTarget(),
+                    joinPoint.getArgs());
         }
     }
 
     final Object dispatchInvoke(Class type,
                                 String name,
                                 Class[] pramsTypes,
-                                Object target,
+                                Object o,
                                 Object[] prams)
             throws Throwable {
-        int id = hasMethod(type, name, pramsTypes);
-        if (id != ExtensionMetadata.ID_NOT_FOUND) {
-            return dispatchInvokeById(id, type,
-                    target, prams);
-        } else {
-            if (context.isThatScope(this)) {
-                return context.getBaseContext()
-                        .invoke(type, name, pramsTypes, target, prams);
-            } else {
-                return context.invoke(type, name, pramsTypes, target, prams);
+        HotCode hotCode = includes.get(type);
+        if (hotCode != null) {
+            int id = hotCode.hasMethod(name, pramsTypes);
+            if (id != HotCode.ID_NOT_FOUND) {
+                HotCodeExecutor executor = hotCode.lockExecutor(o);
+                if (executor != null) {
+                    return executor.receiveInvokeById(id, o, prams);
+                }
             }
+        }
+        if (context.isThatScope(this)) {
+            return context.getBaseContext().invoke(type, name, pramsTypes, o, prams);
+        } else {
+            return context.invoke(type, name, pramsTypes, o, prams);
         }
     }
 
@@ -156,16 +82,20 @@ abstract class CodeScope {
                                 String name,
                                 Object o)
             throws Throwable {
-        int id = hasField(type, name);
-        if (id != ExtensionMetadata.ID_NOT_FOUND) {
-            return dispatchAccessById(id, type, o);
-        } else {
-            if (context.isThatScope(this)) {
-                throw new NoSuchFieldException();
-            } else {
-                return context.access(type, name, o);
+        HotCode hotCode = includes.get(type);
+        if (hotCode != null) {
+            int id = hotCode.hasField(name);
+            if (id != HotCode.ID_NOT_FOUND) {
+                HotCodeExecutor executor = hotCode.lockExecutor(o);
+                if (executor != null) {
+                    return executor.receiveAccessById(id, o);
+                }
             }
         }
+        if (!context.isThatScope(this)) {
+            return context.access(type, name, o);
+        }
+        throw new NoSuchFieldException();
     }
 
     final void dispatchModify(Class type,
@@ -173,15 +103,21 @@ abstract class CodeScope {
                               Object o,
                               Object newValue)
             throws Throwable {
-        int id = hasField(type, name);
-        if (id != ExtensionMetadata.ID_NOT_FOUND) {
-            dispatchModifyById(id, type, o, newValue);
-        } else {
-            if (context.isThatScope(this)) {
-                throw new NoSuchFieldException();
-            } else {
-                context.modify(type, name, o, newValue);
+        HotCode hotCode = includes.get(type);
+        if (hotCode != null) {
+            int id = hotCode.hasField(name);
+            if (id != HotCode.ID_NOT_FOUND) {
+                HotCodeExecutor executor = hotCode.lockExecutor(o);
+                if (executor != null) {
+                    executor.receiveModifyById(id, o, newValue);
+                    return;
+                }
             }
         }
+        if (!context.isThatScope(this)) {
+            context.modify(type, name, o, newValue);
+            return;
+        }
+        throw new NoSuchFieldException();
     }
 }

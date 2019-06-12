@@ -11,7 +11,7 @@ import androidx.annotation.Keep;
  */
 @Keep
 final class HotfixEngine
-        extends CodeContextScopedWrapper
+        extends CodeScopeManager
         implements Hooker,
         PatchLoader {
 
@@ -26,7 +26,7 @@ final class HotfixEngine
         String cacheDir = context.getApplicationContext()
                 .getDir("hotfix", Context.MODE_PRIVATE)
                 .getAbsolutePath();
-        loadCode(cacheDir, path);
+        loadCodeScope(cacheDir, path);
     }
 
     @Override

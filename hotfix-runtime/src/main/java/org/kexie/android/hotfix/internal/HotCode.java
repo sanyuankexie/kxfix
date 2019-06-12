@@ -8,15 +8,18 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import androidx.annotation.Keep;
 
 @Keep
-final class ExtensionMetadata {
+final class HotCode {
 
     static final int ID_NOT_FOUND = Integer.MIN_VALUE;
 
-    private static final class MethodId{
+    private static final class MethodId {
         final int id;
         final Class[] pramTypes;
 
@@ -26,29 +29,41 @@ final class ExtensionMetadata {
         }
     }
 
+    /**
+     * 读取的概率远大于写的概率,并且两者的粒度都非常小
+     * 所以使用读写锁来做并发优化
+     */
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final WeakHashMap<Object, HotCodeExecutor> executors = new WeakHashMap<>();
+    private final CodeContext context;
     private final Object sharedObject;
     private final Map<String, Id> fieldIds;
     private final Map<String, List<MethodId>> methodId;
 
-    private ExtensionMetadata(Object sharedObject,
-                              Map<String, Id> fieldIds,
-                              Map<String, List<MethodId>> methodId) {
+
+    private HotCode(CodeContext context,
+                    Object sharedObject,
+                    Map<String, Id> fieldIds,
+                    Map<String, List<MethodId>> methodId) {
+        this.context = context;
         this.sharedObject = sharedObject;
         this.fieldIds = fieldIds;
         this.methodId = methodId;
     }
 
-    private static ExtensionExecutor newInstance(Class<?> clazz) {
+    private static HotCodeExecutor newInstance(CodeContext context, Class<?> clazz) {
         try {
-            return (ExtensionExecutor) clazz.newInstance();
+            HotCodeExecutor executor = (HotCodeExecutor) clazz.newInstance();
+            executor.setBaseContext(context);
+            return executor;
         } catch (IllegalAccessException | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
-    static ExtensionMetadata loadByType(Class clazz) {
+    static HotCode create(CodeContext context, Class clazz) {
         Field[] fields = clazz.getDeclaredFields();
-        Object shared = fields.length == 0 ? newInstance(clazz) : clazz;
+        Object shared = fields.length == 0 ? newInstance(context, clazz) : clazz;
         Map<String, Id> fieldId = new HashMap<>();
         Map<String, List<MethodId>> methodId = new HashMap<>();
         for (Field field : fields) {
@@ -76,7 +91,7 @@ final class ExtensionMetadata {
                 methods.add(new MethodId(id.value(), pramTypes));
             }
         }
-        return new ExtensionMetadata(shared, fieldId, methodId);
+        return new HotCode(context, shared, fieldId, methodId);
     }
 
     int hasMethod(String name, Class[] pramTypes) {
@@ -96,9 +111,23 @@ final class ExtensionMetadata {
         return id != null ? id.value() : ID_NOT_FOUND;
     }
 
-    ExtensionExecutor obtainExtension() {
-        return sharedObject instanceof ExtensionExecutor
-                ? (ExtensionExecutor) sharedObject
-                : newInstance((Class) sharedObject);
+    HotCodeExecutor lockExecutor(Object o) {
+        if (sharedObject instanceof HotCodeExecutor) {
+            return (HotCodeExecutor) sharedObject;
+        } else {
+            readWriteLock.readLock().lock();
+            HotCodeExecutor executor = executors.get(o);
+            readWriteLock.readLock().unlock();
+            if (executor == null) {
+                readWriteLock.writeLock().lock();
+                executor = executors.get(o);
+                if (executor == null) {
+                    executor = newInstance(context, (Class) sharedObject);
+                    executors.put(o, executor);
+                }
+                readWriteLock.writeLock().unlock();
+            }
+            return executor;
+        }
     }
 }

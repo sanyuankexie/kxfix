@@ -4,9 +4,9 @@ import androidx.annotation.RestrictTo;
 
 @SuppressWarnings("WeakerAccess")
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public abstract class ExtensionExecutor extends CodeContextWrapper {
+public abstract class HotCodeExecutor extends CodeContextWrapper {
 
-    public ExtensionExecutor() {
+    public HotCodeExecutor() {
         super(null);
     }
 
