@@ -22,8 +22,9 @@ class CodeScopeManager
     }
 
     void loadCodeScope(String cacheDir, String path) throws Throwable {
-        CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
-        CodeScope codeScope = (CodeScope) classLoader
+        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        contextClassLoader = new CodeScopeClassLoader(path, cacheDir, contextClassLoader);
+        CodeScope codeScope = (CodeScope) contextClassLoader
                 .loadClass(CODE_SCOPE_TYPE_NAME)
                 .newInstance();
         codeScope.loadClasses(this);

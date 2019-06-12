@@ -9,9 +9,8 @@ final class CodeScopeClassLoader extends DexClassLoader {
     /**
      * 保证能够正确加载启动类型
      */
-    CodeScopeClassLoader(String dexPath, String cacheDir) {
-        super(dexPath, cacheDir, null,
-                Thread.currentThread().getContextClassLoader());
+    CodeScopeClassLoader(String dexPath, String cacheDir, ClassLoader parent) {
+        super(dexPath, cacheDir, null, parent);
     }
 
     @Override
@@ -38,4 +37,5 @@ final class CodeScopeClassLoader extends DexClassLoader {
         }
         return result;
     }
+
 }
