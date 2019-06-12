@@ -361,7 +361,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             CtClass clazz = getClasses().makeClass(CODE_SCOPE_CLASS_NAME);
             clazz.defrost();
             clazz.setSuperclass(getClasses().get(CODE_SCOPE_SUPER_CLASS_NAME));
-            StringBuilder builder = new StringBuilder("java.lang.Class[] onLoad()" +
+            StringBuilder builder = new StringBuilder("java.lang.Class[] onLoadClasses()" +
                     "throws java.lang.Throwable {return ");
             if (classes.size() > 0) {
                 builder.append("new Class[]{(java.lang.Class.forName(\"")

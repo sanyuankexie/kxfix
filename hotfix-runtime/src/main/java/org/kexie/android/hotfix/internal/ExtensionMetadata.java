@@ -96,7 +96,7 @@ final class ExtensionMetadata {
         return id != null ? id.value() : ID_NOT_FOUND;
     }
 
-    ExtensionExecutor obtainObject() {
+    ExtensionExecutor obtainExtension() {
         return sharedObject instanceof ExtensionExecutor
                 ? (ExtensionExecutor) sharedObject
                 : newInstance((Class) sharedObject);

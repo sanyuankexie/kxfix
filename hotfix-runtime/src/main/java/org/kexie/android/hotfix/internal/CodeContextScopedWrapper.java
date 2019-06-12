@@ -1,43 +1,38 @@
 package org.kexie.android.hotfix.internal;
 
-import android.content.Context;
-
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import androidx.annotation.Keep;
 
 @Keep
-class CodeScopeContext
+class CodeContextScopedWrapper
         extends CodeContextWrapper
         implements CodeScopeManager {
 
-    private static final AtomicReferenceFieldUpdater<CodeScopeContext, CodeScope>
+    private static final AtomicReferenceFieldUpdater<CodeContextScopedWrapper, CodeScope>
             sCodeScopeUpdater = AtomicReferenceFieldUpdater
-            .newUpdater(CodeScopeContext.class, CodeScope.class, "codeScope");
+            .newUpdater(CodeContextScopedWrapper.class, CodeScope.class, "codeScope");
 
     private static final String CODE_SCOPE_TYPE_NAME
             = "org.kexie.android.hotfix.internal.Overload-CodeScope";
 
     volatile CodeScope codeScope;
 
-    CodeScopeContext(CodeContext base) {
+    CodeContextScopedWrapper(CodeContext base) {
         super(base);
     }
 
-    protected void load(Context context, String path) throws Throwable {
-        String cacheDir = context.getApplicationContext()
-                .getDir("hotfix", Context.MODE_PRIVATE)
-                .getAbsolutePath();
+    void loadCode(String cacheDir, String path) throws Throwable {
         CodeScopeClassLoader classLoader = new CodeScopeClassLoader(path, cacheDir);
         CodeScope codeScope = (CodeScope) classLoader
                 .loadClass(CODE_SCOPE_TYPE_NAME)
                 .newInstance();
-        codeScope.load(this);
+        codeScope.loadClasses(this);
         sCodeScopeUpdater.set(this, codeScope);
     }
 
     @Override
-    public final boolean isThat(CodeScope codeScope) {
+    public final boolean isThatScope(CodeScope codeScope) {
         return codeScope == this.codeScope;
     }
 }

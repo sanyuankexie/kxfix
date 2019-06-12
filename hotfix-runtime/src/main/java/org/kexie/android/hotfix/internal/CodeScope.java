@@ -25,9 +25,9 @@ abstract class CodeScope {
 
     private final HashMap<Class, ExtensionMetadata> includes = new HashMap<>();
 
-    private CodeScopeContext context;
+    private CodeContextScopedWrapper context;
 
-    abstract Class[] onLoad() throws Throwable;
+    abstract Class[] onLoadClasses() throws Throwable;
 
     private ExtensionExecutor getExtensionExecutor(Class clazz, Object object) {
         if (object == null) {
@@ -50,7 +50,7 @@ abstract class CodeScope {
         if (extensionExecutor == null) {
             ExtensionMetadata extensionMetadata = includes.get(clazz);
             if (extensionMetadata != null) {
-                extensionExecutor = extensionMetadata.obtainObject();
+                extensionExecutor = extensionMetadata.obtainExtension();
                 extensionExecutor.setBaseContext(context);
                 extensionExecutors.put(object, extensionExecutor);
             } else {
@@ -98,9 +98,9 @@ abstract class CodeScope {
         return extensionMetadata.hasMethod(name, pramsTypes);
     }
 
-    void load(CodeScopeContext context) throws Throwable {
+    void loadClasses(CodeContextScopedWrapper context) throws Throwable {
         this.context = context;
-        for (Class clazz : onLoad()) {
+        for (Class clazz : onLoadClasses()) {
             includes.put(clazz, ExtensionMetadata.loadByType(clazz));
         }
     }
@@ -143,7 +143,7 @@ abstract class CodeScope {
             return dispatchInvokeById(id, type,
                     target, prams);
         } else {
-            if (context.isThat(this)) {
+            if (context.isThatScope(this)) {
                 return context.getBaseContext()
                         .invoke(type, name, pramsTypes, target, prams);
             } else {
@@ -160,7 +160,7 @@ abstract class CodeScope {
         if (id != ExtensionMetadata.ID_NOT_FOUND) {
             return dispatchAccessById(id, type, o);
         } else {
-            if (context.isThat(this)) {
+            if (context.isThatScope(this)) {
                 throw new NoSuchFieldException();
             } else {
                 return context.access(type, name, o);
@@ -177,7 +177,7 @@ abstract class CodeScope {
         if (id != ExtensionMetadata.ID_NOT_FOUND) {
             dispatchModifyById(id, type, o, newValue);
         } else {
-            if (context.isThat(this)) {
+            if (context.isThatScope(this)) {
                 throw new NoSuchFieldException();
             } else {
                 context.modify(type, name, o, newValue);
