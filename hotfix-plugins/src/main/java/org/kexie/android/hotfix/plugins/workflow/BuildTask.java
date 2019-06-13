@@ -238,12 +238,12 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                 }
                             }
                         }
-                        StringBuilder builder = new StringBuilder();
+                        StringBuilder builder = new StringBuilder("{");
                         CtClass returnType = method.getReturnType();
                         CtClass[] parameterTypes = method.getParameterTypes();
                         StringBuilder typesBuilder;
                         StringBuilder pramsBuilder;
-                        if (parameterTypes.length>0) {
+                        if (parameterTypes.length > 0) {
                             typesBuilder = new StringBuilder("" +
                                     "new java.lang.Class[]{typeOf(\""
                                     + parameterTypes[0].getName()
@@ -258,8 +258,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             }
                             typesBuilder.append("}");
                             pramsBuilder.append("}");
-                        }
-                        else {
+                        } else {
                             typesBuilder = pramsBuilder = new StringBuilder("null");
                         }
 
@@ -284,6 +283,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                             returnType, "result"))
                                     .append(";");
                         }
+                        builder.append("}");
                         String source = builder.toString();
                         getLogger().quiet(source);
                         m.replace(source);
