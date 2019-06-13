@@ -12,7 +12,7 @@ abstract class CodeContext {
     public abstract Class typeOf(String name)
             throws Throwable;
 
-    public abstract Object invoke(boolean isSuper,
+    public abstract Object invoke(boolean nonVirtual,
                                   Class type,
                                   String name,
                                   Class[] pramsTypes,

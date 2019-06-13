@@ -25,14 +25,14 @@ class CodeContextWrapper extends CodeContext {
     }
 
     @Override
-    public Object invoke(boolean isSuper,
+    public Object invoke(boolean nonVirtual,
                          Class type,
                          String name,
                          Class[] pramsTypes,
                          Object target,
                          Object[] prams) throws
             Throwable {
-        return baseContext.invoke(isSuper, type, name, pramsTypes, target, prams);
+        return baseContext.invoke(nonVirtual, type, name, pramsTypes, target, prams);
     }
 
     @Override

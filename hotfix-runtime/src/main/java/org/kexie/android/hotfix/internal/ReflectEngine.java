@@ -50,15 +50,15 @@ final class ReflectEngine extends CodeContext {
     }
 
     @Override
-    public Object invoke(boolean isSuper,
+    public Object invoke(boolean nonVirtual,
                          Class type,
                          String name,
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
         Method method = ReflectFinder.findMethod(type, name, pramTypes);
-        return !isSuper ? method.invoke(target, prams)
-                : invokeNonVirtual(type.getSuperclass(), method, target, prams);
+        return !nonVirtual ? method.invoke(target, prams)
+                : invokeNonVirtual(type, method, target, prams);
     }
 
     /**

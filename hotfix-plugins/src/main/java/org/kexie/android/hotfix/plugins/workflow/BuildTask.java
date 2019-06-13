@@ -24,6 +24,7 @@ import javassist.bytecode.ClassFile;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.IntegerMemberValue;
+import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
 import javassist.expr.MethodCall;
 
@@ -136,6 +137,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                    CtClass clone,
                                    CtClass source)
                 throws NotFoundException, CannotCompileException {
+            clone.setSuperclass(getClasses().get(OBJECT_SUPER_CLASS_NAME));
             CtClass annotationType = getClasses().get(Annotations.ID_ANNOTATION);
             ConstPool constPool = clone.getClassFile().getConstPool();
             for (CtField field : clone.getDeclaredFields()) {
@@ -145,9 +147,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 fixAnnotation(hashIds, annotationType, constPool, method);
                 fixMethod(method, source);
             }
-            CtField target = CtField.make("public " + source.getName() + " target;", clone);
-            clone.addField(target);
-            clone.setSuperclass(getClasses().get(OBJECT_SUPER_CLASS_NAME));
         }
 
         private static AnnotationsAttribute
@@ -221,9 +220,76 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private void fixMethod(CtMethod fix, CtClass source)
                 throws CannotCompileException {
             fix.instrument(new ExprEditor() {
+
+                @Override
+                public void edit(ConstructorCall c) throws CannotCompileException {
+                    c.replace(";");
+                }
+
                 @Override
                 public void edit(MethodCall m) throws CannotCompileException {
+                    try {
+                        CtMethod method = m.getMethod();
+                        if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                            int modifiers = method.getModifiers();
+                            if (!Modifier.isPrivate(modifiers)) {
+                                if (Modifier.isStatic(modifiers)) {
+                                    return;
+                                }
+                            }
+                        }
+                        StringBuilder builder = new StringBuilder();
+                        CtClass returnType = method.getReturnType();
+                        CtClass[] parameterTypes = method.getParameterTypes();
+                        StringBuilder typesBuilder;
+                        StringBuilder pramsBuilder;
+                        if (parameterTypes.length>0) {
+                            typesBuilder = new StringBuilder("" +
+                                    "new java.lang.Class[]{typeOf(\""
+                                    + parameterTypes[0].getName()
+                                    + "\")");
+                            pramsBuilder = new StringBuilder("new java.lang.Object[]{$1");
+                            for (int i = 1; i < parameterTypes.length; ++i) {
+                                typesBuilder.append(",typeOf(\"")
+                                        .append(parameterTypes[i].getName())
+                                        .append("\")");
+                                pramsBuilder.append(",$")
+                                        .append(i + 1);
+                            }
+                            typesBuilder.append("}");
+                            pramsBuilder.append("}");
+                        }
+                        else {
+                            typesBuilder = pramsBuilder = new StringBuilder("null");
+                        }
 
+                        if (!CtClass.voidType.equals(returnType)) {
+                            builder.append("java.lang.Object result=");
+                        }
+                        builder.append("this.invoke(")
+                                .append(m.isSuper())
+                                .append(',')
+                                .append("typeOf(\"")
+                                .append(method.getDeclaringClass().getName())
+                                .append("\"),\"")
+                                .append(method.getName())
+                                .append("\",")
+                                .append(typesBuilder)
+                                .append(",$0,")
+                                .append(pramsBuilder)
+                                .append(");");
+                        if (!CtClass.voidType.equals(returnType)) {
+                            builder.append("$_=")
+                                    .append(buildCast(getClasses().get("java.lang.Object"),
+                                            returnType, "result"))
+                                    .append(";");
+                        }
+                        String source = builder.toString();
+                        getLogger().quiet(source);
+                        m.replace(source);
+                    } catch (NotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             });
         }
@@ -231,7 +297,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private void buildEntryPoint(Map<CtMember, Integer> hashIds,
                                      CtClass clone)
                 throws CannotCompileException, NotFoundException {
-
             CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
             CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
             CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);

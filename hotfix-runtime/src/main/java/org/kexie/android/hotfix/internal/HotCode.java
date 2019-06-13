@@ -36,16 +36,16 @@ final class HotCode {
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final WeakHashMap<Object, HotCodeExecutor> executors = new WeakHashMap<>();
     private final CodeContext context;
-    private final Object sharedObject;
+    private final Class type;
     private final Map<String, Id> fieldIds;
     private final Map<String, List<MethodId>> methodId;
 
     private HotCode(CodeContext context,
-                    Object sharedObject,
+                    Class type,
                     Map<String, Id> fieldIds,
                     Map<String, List<MethodId>> methodId) {
         this.context = context;
-        this.sharedObject = sharedObject;
+        this.type = type;
         this.fieldIds = fieldIds;
         this.methodId = methodId;
     }
@@ -57,25 +57,18 @@ final class HotCode {
         try {
             HotCodeExecutor executor = (HotCodeExecutor) clazz.newInstance();
             executor.setBaseContext(context);
-            if (o != null) {
-                Field field = clazz.getDeclaredField("target");
-                field.setAccessible(true);
-                field.set(executor, o);
-            }
+            executor.setTarget(o);
             return executor;
-        } catch (NoSuchFieldException
-                | IllegalAccessException
+        } catch (IllegalAccessException
                 | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
     static HotCode loadHotCode(CodeContext context, Class clazz) {
-        Field[] fields = clazz.getDeclaredFields();
-        Object shared = fields.length == 0 ? newExecutor(context, null, clazz) : clazz;
         Map<String, Id> fieldId = new HashMap<>();
         Map<String, List<MethodId>> methodId = new HashMap<>();
-        for (Field field : fields) {
+        for (Field field : clazz.getDeclaredFields()) {
             Id id = field.getAnnotation(Id.class);
             if (id != null) {
                 fieldId.put(field.getName(), id);
@@ -100,7 +93,7 @@ final class HotCode {
                 methods.add(new MethodId(id.value(), pramTypes));
             }
         }
-        return new HotCode(context, shared, fieldId, methodId);
+        return new HotCode(context, clazz, fieldId, methodId);
     }
 
     int hasMethod(String name, Class[] pramTypes) {
@@ -121,23 +114,18 @@ final class HotCode {
     }
 
     HotCodeExecutor lockExecutor(Object o) {
-        if (sharedObject instanceof HotCodeExecutor) {
-            return (HotCodeExecutor) sharedObject;
-        } else {
-            readWriteLock.readLock().lock();
-            HotCodeExecutor executor = executors.get(o);
-            readWriteLock.readLock().unlock();
+        readWriteLock.readLock().lock();
+        HotCodeExecutor executor = executors.get(o);
+        readWriteLock.readLock().unlock();
+        if (executor == null) {
+            readWriteLock.writeLock().lock();
+            executor = executors.get(o);
             if (executor == null) {
-                readWriteLock.writeLock().lock();
-                executor = executors.get(o);
-                if (executor == null) {
-                    executor = newExecutor(context, o, (Class) sharedObject);
-                    executors.put(o, executor);
-                }
-                readWriteLock.writeLock().unlock();
+                executor = newExecutor(context, o, type);
+                executors.put(o, executor);
             }
-            return executor;
+            readWriteLock.writeLock().unlock();
         }
+        return executor;
     }
-
 }

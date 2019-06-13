@@ -19,6 +19,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Overload
     private static final String TAG = "MainActivity";
+    @Overload
     private static String fl;
 
     @Overload
@@ -32,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Overload
-    public static int test(int xx, Test activity) {
+    public static Object test(int xx, Test activity) {
         return 0;
     }
 
