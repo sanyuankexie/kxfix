@@ -238,6 +238,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                 }
                             }
                         }
+                        CtClass objectClass = getClasses().get("java.lang.Object");
                         StringBuilder builder = new StringBuilder("{");
                         CtClass returnType = method.getReturnType();
                         CtClass[] parameterTypes = method.getParameterTypes();
@@ -248,13 +249,15 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                     "new java.lang.Class[]{typeOf(\""
                                     + parameterTypes[0].getName()
                                     + "\")");
-                            pramsBuilder = new StringBuilder("new java.lang.Object[]{$1");
+                            pramsBuilder = new StringBuilder("new java.lang.Object[]{")
+                                    .append(buildCast(parameterTypes[0],objectClass,"$1"));
                             for (int i = 1; i < parameterTypes.length; ++i) {
                                 typesBuilder.append(",typeOf(\"")
                                         .append(parameterTypes[i].getName())
                                         .append("\")");
-                                pramsBuilder.append(",$")
-                                        .append(i + 1);
+                                pramsBuilder.append(",")
+                                        .append(buildCast(parameterTypes[i], objectClass,
+                                                "$" + (i + 1)));
                             }
                             typesBuilder.append("}");
                             pramsBuilder.append("}");
