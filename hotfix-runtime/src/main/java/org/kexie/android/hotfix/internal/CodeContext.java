@@ -12,7 +12,8 @@ abstract class CodeContext {
     public abstract Class typeOf(String name)
             throws Throwable;
 
-    public abstract Object invoke(Class type,
+    public abstract Object invoke(boolean isSuper,
+                                  Class type,
                                   String name,
                                   Class[] pramsTypes,
                                   Object target,
@@ -29,14 +30,6 @@ abstract class CodeContext {
                                 Object target,
                                 Object newValue)
             throws Throwable;
-
-    public abstract Object InvokeNonVirtual(
-            Class type,
-            String name,
-            Class[] pramTypes,
-            Object target,
-            Object[] prams
-    ) throws Throwable;
 
     public abstract Object newInstance(
             Class<?> type,

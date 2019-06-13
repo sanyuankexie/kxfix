@@ -40,7 +40,6 @@ final class HotCode {
     private final Map<String, Id> fieldIds;
     private final Map<String, List<MethodId>> methodId;
 
-
     private HotCode(CodeContext context,
                     Object sharedObject,
                     Map<String, Id> fieldIds,
@@ -51,19 +50,29 @@ final class HotCode {
         this.methodId = methodId;
     }
 
-    private static HotCodeExecutor newInstance(CodeContext context, Class<?> clazz) {
+    private static HotCodeExecutor newExecutor(
+            CodeContext context,
+            Object o,
+            Class<?> clazz) {
         try {
             HotCodeExecutor executor = (HotCodeExecutor) clazz.newInstance();
             executor.setBaseContext(context);
+            if (o != null) {
+                Field field = clazz.getDeclaredField("target");
+                field.setAccessible(true);
+                field.set(executor, o);
+            }
             return executor;
-        } catch (IllegalAccessException | InstantiationException e) {
+        } catch (NoSuchFieldException
+                | IllegalAccessException
+                | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
-    static HotCode create(CodeContext context, Class clazz) {
+    static HotCode loadHotCode(CodeContext context, Class clazz) {
         Field[] fields = clazz.getDeclaredFields();
-        Object shared = fields.length == 0 ? newInstance(context, clazz) : clazz;
+        Object shared = fields.length == 0 ? newExecutor(context, null, clazz) : clazz;
         Map<String, Id> fieldId = new HashMap<>();
         Map<String, List<MethodId>> methodId = new HashMap<>();
         for (Field field : fields) {
@@ -122,7 +131,7 @@ final class HotCode {
                 readWriteLock.writeLock().lock();
                 executor = executors.get(o);
                 if (executor == null) {
-                    executor = newInstance(context, (Class) sharedObject);
+                    executor = newExecutor(context, o, (Class) sharedObject);
                     executors.put(o, executor);
                 }
                 readWriteLock.writeLock().unlock();
@@ -130,4 +139,5 @@ final class HotCode {
             return executor;
         }
     }
+
 }

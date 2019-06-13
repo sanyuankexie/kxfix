@@ -10,10 +10,12 @@ public abstract class HotCodeExecutor extends CodeContextWrapper {
         super(null);
     }
 
-    abstract void receiveModifyById(int id, Object o, Object newValue);
+    //protected Target target;
 
-    abstract Object receiveAccessById(int id, Object o);
+    abstract void receiveModifyById(int id, Object newValue);
 
-    abstract Object receiveInvokeById(int id, Object o, Object[] args);
+    abstract Object receiveAccessById(int id);
+
+    abstract Object receiveInvokeById(int id, Object[] args);
 
 }

@@ -48,6 +48,7 @@ final class HotfixEngine
 
     @Override
     public final Object invoke(
+            boolean isSuper,
             Class type,
             String name,
             Class[] pramsTypes,
@@ -55,9 +56,8 @@ final class HotfixEngine
             Object[] prams)
             throws Throwable {
         CodeScope codeScope = this.codeScope;
-        return codeScope == null
-                ? super.invoke(type, name, pramsTypes, target, prams)
-                : codeScope.dispatchInvoke(type, name, pramsTypes, target, prams);
+        return codeScope == null ? super.invoke(isSuper, type, name, pramsTypes, target, prams)
+                : codeScope.dispatchInvoke(isSuper, type, name, pramsTypes, target, prams);
     }
 
     @Override

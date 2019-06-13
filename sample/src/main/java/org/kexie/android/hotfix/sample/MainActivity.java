@@ -28,11 +28,16 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate: " + Environment.getDataDirectory() + savedInstanceState);
         test(0, null);
+        test2();
     }
 
     @Overload
     public static int test(int xx, Test activity) {
         return 0;
+    }
+
+    public void test2() {
+
     }
 }
 

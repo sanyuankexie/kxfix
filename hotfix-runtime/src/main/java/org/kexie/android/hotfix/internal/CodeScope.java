@@ -14,12 +14,12 @@ abstract class CodeScope {
 
     private CodeScopeManager context;
 
-    abstract Class[] onLoadClasses() throws Throwable;
+    abstract Class[] onLoadClasses(CodeContext context) throws Throwable;
 
     void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
-        for (Class clazz : onLoadClasses()) {
-            includes.put(clazz, HotCode.create(context, clazz));
+        for (Class clazz : onLoadClasses(context)) {
+            includes.put(clazz, HotCode.loadHotCode(context, clazz));
         }
     }
 
@@ -40,47 +40,65 @@ abstract class CodeScope {
                 Object o = joinPoint.getTarget();
                 HotCodeExecutor executor = hotCode.lockExecutor(o);
                 if (executor != null) {
-                    return executor.receiveInvokeById(id, o, joinPoint.getArgs());
+                    return executor.receiveInvokeById(id, joinPoint.getArgs());
                 }
             }
         }
         if (context.isThatScope(this)) {
             return joinPoint.proceed();
         } else {
-            return context.invoke(codeSignature.getDeclaringType(),
+            return context.invoke(
+                    false,
+                    codeSignature.getDeclaringType(),
                     codeSignature.getName(),
                     codeSignature.getParameterTypes(),
                     joinPoint.getTarget(),
-                    joinPoint.getArgs());
+                    joinPoint.getArgs()
+            );
         }
     }
 
-    final Object dispatchInvoke(Class type,
-                                String name,
-                                Class[] pramsTypes,
-                                Object o,
-                                Object[] prams)
+    final Object dispatchInvoke(
+            boolean isSuper,
+            Class type,
+            String name,
+            Class[] pramsTypes,
+            Object o,
+            Object[] prams)
             throws Throwable {
-        HotCode hotCode = includes.get(type);
+        HotCode hotCode = includes.get(!isSuper ? type : type.getSuperclass());
         if (hotCode != null) {
             int id = hotCode.hasMethod(name, pramsTypes);
             if (id != HotCode.ID_NOT_FOUND) {
                 HotCodeExecutor executor = hotCode.lockExecutor(o);
                 if (executor != null) {
-                    return executor.receiveInvokeById(id, o, prams);
+                    return executor.receiveInvokeById(id, prams);
                 }
             }
         }
         if (context.isThatScope(this)) {
-            return context.getBaseContext().invoke(type, name, pramsTypes, o, prams);
+            return context.getBaseContext().invoke(
+                    false,
+                    type,
+                    name,
+                    pramsTypes,
+                    o,
+                    prams);
         } else {
-            return context.invoke(type, name, pramsTypes, o, prams);
+            return context.invoke(
+                    false,
+                    type,
+                    name,
+                    pramsTypes,
+                    o,
+                    prams);
         }
     }
 
-    final Object dispatchAccess(Class type,
-                                String name,
-                                Object o)
+    final Object dispatchAccess(
+            Class type,
+            String name,
+            Object o)
             throws Throwable {
         HotCode hotCode = includes.get(type);
         if (hotCode != null) {
@@ -88,7 +106,7 @@ abstract class CodeScope {
             if (id != HotCode.ID_NOT_FOUND) {
                 HotCodeExecutor executor = hotCode.lockExecutor(o);
                 if (executor != null) {
-                    return executor.receiveAccessById(id, o);
+                    return executor.receiveAccessById(id);
                 }
             }
         }
@@ -98,10 +116,11 @@ abstract class CodeScope {
         throw new NoSuchFieldException();
     }
 
-    final void dispatchModify(Class type,
-                              String name,
-                              Object o,
-                              Object newValue)
+    final void dispatchModify(
+            Class type,
+            String name,
+            Object o,
+            Object newValue)
             throws Throwable {
         HotCode hotCode = includes.get(type);
         if (hotCode != null) {
@@ -109,7 +128,7 @@ abstract class CodeScope {
             if (id != HotCode.ID_NOT_FOUND) {
                 HotCodeExecutor executor = hotCode.lockExecutor(o);
                 if (executor != null) {
-                    executor.receiveModifyById(id, o, newValue);
+                    executor.receiveModifyById(id, newValue);
                     return;
                 }
             }

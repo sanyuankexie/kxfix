@@ -1,7 +1,6 @@
 package org.kexie.android.hotfix.internal;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 import androidx.annotation.Keep;
 
@@ -51,27 +50,15 @@ final class ReflectEngine extends CodeContext {
     }
 
     @Override
-    public Object invoke(Class type,
+    public Object invoke(boolean isSuper,
+                         Class type,
                          String name,
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
-        return ReflectFinder.findMethod(type, name, pramTypes)
-                .invoke(target, prams);
-    }
-
-    @Override
-    public final Object InvokeNonVirtual(
-            Class type,
-            String name,
-            Class[] pramTypes,
-            Object target,
-            Object[] prams) throws Throwable {
         Method method = ReflectFinder.findMethod(type, name, pramTypes);
-        if (Modifier.isStatic(method.getModifiers())) {
-            throw new IllegalArgumentException();
-        }
-        return invokeNonVirtual(type, method, target, prams);
+        return !isSuper ? method.invoke(target, prams)
+                : invokeNonVirtual(type.getSuperclass(), method, target, prams);
     }
 
     /**
