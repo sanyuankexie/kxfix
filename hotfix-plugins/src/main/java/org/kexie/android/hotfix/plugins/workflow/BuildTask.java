@@ -388,9 +388,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 }
             }
             builder.append(");");
-            if (CtClass.voidType.equals(resultType)) {
-                builder.append("return null;");
-            } else {
+            if (!CtClass.voidType.equals(resultType)) {
                 builder.append("return ")
                         .append(buildCast(resultType, objectType, "result"))
                         .append(";");
