@@ -26,6 +26,7 @@ import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.IntegerMemberValue;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
+import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
 
 
@@ -67,6 +68,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private static final String OBJECT_SUPER_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.HotCodeExecutor";
 
+        private static final int BASE_STRING_BUILDER_SIZE = 64;
+
         private final Map<CtClass, CtClass> primitiveMapping;
 
         BuildContext(Context context) throws NotFoundException {
@@ -81,7 +84,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             for (CtClass clazz : classes) {
                 hashIds.clear();
                 CtClass clone = cloneSourceClass(clazz);
-                fixCloneClass(hashIds, clone, clazz);
+                fixCloneClass(hashIds, clone);
                 buildEntryPoint(hashIds, clone);
                 result.add(clone);
             }
@@ -120,7 +123,10 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             classMap.fix(source);
             for (CtMethod method : source.getDeclaredMethods()) {
                 if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                    clone.addMethod(new CtMethod(method, clone, classMap));
+                    CtMethod added = new CtMethod(method, clone, classMap);
+                    int mod = Modifier.clear(added.getModifiers(), Modifier.STATIC);
+                    added.setModifiers(Modifier.setPrivate(mod));
+                    clone.addMethod(added);
                 }
             }
             for (CtConstructor constructor : source.getDeclaredConstructors()) {
@@ -134,8 +140,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         }
 
         private void fixCloneClass(Map<CtMember, Integer> hashIds,
-                                   CtClass clone,
-                                   CtClass source)
+                                   CtClass clone)
                 throws NotFoundException, CannotCompileException {
             clone.setSuperclass(getClasses().get(OBJECT_SUPER_CLASS_NAME));
             CtClass annotationType = getClasses().get(Annotations.ID_ANNOTATION);
@@ -145,7 +150,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
             for (CtMethod method : clone.getDeclaredMethods()) {
                 fixAnnotation(hashIds, annotationType, constPool, method);
-                fixMethod(method, source);
+                fixMethod(method);
             }
         }
 
@@ -217,17 +222,15 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
         }
 
-        private void fixMethod(CtMethod fix, CtClass source)
+        private void fixMethod(CtMethod fix)
                 throws CannotCompileException {
-            fix.instrument(new ExprConverter(source, fix.getDeclaringClass()));
+            fix.instrument(new ExprConverter(fix.getDeclaringClass()));
         }
 
         private final class ExprConverter extends ExprEditor {
-            private final CtClass source;
             private final CtClass clone;
 
-            ExprConverter(CtClass source, CtClass clone) {
-                this.source = source;
+            ExprConverter(CtClass clone) {
                 this.clone = clone;
             }
 
@@ -256,7 +259,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     }
                     if (needReflect) {
                         //reflect invoke method
-                        StringBuilder builder = new StringBuilder("{");
+                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
                         CtClass returnType = method.getReturnType();
                         CtClass[] parameterTypes = method.getParameterTypes();
                         StringBuilder typesBuilder;
@@ -303,13 +306,12 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                             returnType, "result"))
                                     .append(";");
                         }
-                        builder.append("}");
                         String source = builder.toString();
                         getLogger().quiet(source);
                         m.replace(source);
                     } else {
                         //direct invoke method
-                        StringBuilder builder = new StringBuilder(32);
+                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
                         CtClass returnType = method.getReturnType();
                         if (!CtClass.voidType.equals(returnType)) {
                             builder.append("$_=");
@@ -342,6 +344,66 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             @Override
             public void edit(ConstructorCall c) throws CannotCompileException {
                 c.replace(";");
+            }
+
+            @Override
+            public void edit(FieldAccess f) throws CannotCompileException {
+                try {
+                    CtClass objectClass = getClasses().get("java.lang.Object");
+                    CtField field = f.getField();
+                    int modifiers = field.getModifiers();
+                    CtClass declaringClass = field.getDeclaringClass();
+                    boolean needReflect;
+                    if (!field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                        String packageName = declaringClass.getPackageName();
+                        if (packageName.equals(clone.getPackageName())
+                                || !Modifier.isPrivate(modifiers)) {
+                            if (Modifier.isStatic(modifiers)) {
+                                return;
+                            } else {
+                                needReflect = false;
+                            }
+                        } else {
+                            needReflect = true;
+                        }
+                    } else {
+                        needReflect = false;
+                    }
+                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                    if (needReflect) {
+                        if (f.isReader()) {
+                            builder.append(buildCast(objectClass, field.getType(),
+                                    "(this.access(this.typeOf(\"" +
+                                            field.getDeclaringClass().getName() +
+                                            "\",\"" + field.getName() + "\",$0))"))
+                                    .append(";");
+                        } else {
+                            builder.append("this.modify(this.typeOf(\"")
+                                    .append(field.getDeclaringClass().getName())
+                                    .append("\",\"")
+                                    .append(field.getName())
+                                    .append(",\",$0,")
+                                    .append(buildCast(field.getType(), objectClass, "$1"))
+                                    .append(");");
+                        }
+                    } else {
+                        if (f.isReader()) {
+                            builder.append("$_=")
+                                    .append(buildCast(objectClass, field.getType(),
+                                            "(($0==this)?(this.target):($0))"))
+                                    .append(".")
+                                    .append(field.getName())
+                                    .append(";");
+                        } else {
+                            
+                        }
+                    }
+                    String source = builder.toString();
+                    getLogger().quiet(source);
+                    f.replace(source);
+                } catch (NotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
@@ -524,7 +586,4 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             return primitiveMapping;
         }
     }
-
-
-
 }
