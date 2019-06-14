@@ -264,7 +264,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
                         if (isAccessible(method)) {
                             if (Modifier.isStatic(modifiers)) {
-                                return;
+                                needReflect = false;
                             } else {
                                 needReflect = m.isSuper();
                             }
@@ -334,9 +334,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             builder.append("$_=");
                         }
                         if (!Modifier.isStatic(modifiers)) {
-                            builder.append("(($0==this)?((")
-                                    .append(declaringClass.getName())
-                                    .append(")this.target):($0)).");
+                            builder.append(buildCast(objectClass, declaringClass,
+                                    "(($0==this)?(this.target):((java.lang.Object)$0))"))
+                                    .append(".");
                         }
                         builder.append(method.getName())
                                 .append("(");
@@ -407,19 +407,21 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                         if (f.isReader()) {
                             builder.append("$_=")
                                     .append(f.isStatic()
-                                            ? (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION) ? clone.getName()
+                                            ? (field.hasAnnotation(Annotations
+                                            .OVERLOAD_ANNOTATION)
+                                            ? clone.getName()
                                             : declaringClass.getName())
                                             : buildCast(objectClass, field.getType(),
-                                            "(($0==this)?((" + declaringClass.getName()
-                                                    + ")this.target):($0))."))
+                                            "(($0==this)?(this.target)" +
+                                                    ":((java.lang.Object)$0))."))
                                     .append(field.getName())
                                     .append(";");
                         } else {
                             builder.append(f.isStatic()
                                     ? declaringClass.getName()
                                     : buildCast(objectClass, field.getType(),
-                                    "(($0==this)?((" + declaringClass.getName()
-                                            + ")this.target):($0))."))
+                                    "(($0==this)?(this.target)" +
+                                            ":((java.lang.Object)$0))."))
                                     .append(field.getName())
                                     .append("=$1;");
                         }
