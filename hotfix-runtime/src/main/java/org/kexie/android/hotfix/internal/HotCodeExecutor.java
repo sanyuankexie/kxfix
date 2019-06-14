@@ -10,7 +10,7 @@ public abstract class HotCodeExecutor extends CodeContextWrapper {
         super(null);
     }
 
-    protected Object target;
+    private Object target;
 
     abstract void receiveModifyById(int id, Object newValue) throws Throwable;
 
@@ -64,6 +64,10 @@ public abstract class HotCodeExecutor extends CodeContextWrapper {
                                String name,
                                Object target) throws Throwable {
         return super.access(type, name, target);
+    }
+
+    protected final Object getTarget() {
+        return target;
     }
 
     final void setTarget(Object target) {

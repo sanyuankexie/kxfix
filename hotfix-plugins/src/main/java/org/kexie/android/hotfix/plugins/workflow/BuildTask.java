@@ -228,212 +228,51 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
         }
 
-        private void fixMethod(CtMethod fix)
+        private void fixMethod(CtMethod fixMethod)
                 throws CannotCompileException {
-            fix.instrument(new ExprConverter(fix.getDeclaringClass()));
+            fixMethod.instrument(new ExprEditor() {
+
+                private CtClass clone;
+
+                private boolean isAccessible(CtMember member) {
+                    CtClass declaringClass = member.getDeclaringClass();
+                    if (Modifier.isPublic(declaringClass.getModifiers())) {
+                        if (Modifier.isPublic(member.getModifiers())) {
+                            return true;
+                        }
+                    }
+                    if (declaringClass.getPackageName().equals(clone.getPackageName())) {
+                        return !Modifier.isPrivate(member.getModifiers());
+                    }
+                    return false;
+                }
+
+                private String checkThis(String name, CtClass type) {
+                    if (type.isPrimitive()) {
+                        return name;
+                    } else {
+                        return "((this==" + name + ")?(this.getTarget()):((java.lang.Object)this))";
+                    }
+                }
+
+                @Override
+                public void edit(MethodCall m) throws CannotCompileException {
+
+                }
+
+                @Override
+                public void edit(ConstructorCall c) throws CannotCompileException {
+                    c.replace(";");
+                }
+
+                @Override
+                public void edit(FieldAccess f) throws CannotCompileException {
+
+                }
+
+            });
         }
 
-        private final class ExprConverter extends ExprEditor {
-            private final CtClass clone;
-
-            private boolean isAccessible(CtMember member) {
-                CtClass declaringClass = member.getDeclaringClass();
-                if (Modifier.isPublic(declaringClass.getModifiers())) {
-                    if (Modifier.isPublic(member.getModifiers())) {
-                        return true;
-                    }
-                }
-                if (declaringClass.getPackageName().equals(clone.getPackageName())) {
-                    return !Modifier.isPrivate(member.getModifiers());
-                }
-                return false;
-            }
-
-            ExprConverter(CtClass clone) {
-                this.clone = clone;
-            }
-
-            @Override
-            public void edit(MethodCall m) throws CannotCompileException {
-                try {
-                    CtClass objectClass = getClasses().get("java.lang.Object");
-                    CtMethod method = m.getMethod();
-                    int modifiers = method.getModifiers();
-                    CtClass declaringClass = method.getDeclaringClass();
-                    boolean needReflect;
-                    if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        if (isAccessible(method)) {
-                            if (Modifier.isStatic(modifiers)) {
-                                needReflect = false;
-                            } else {
-                                needReflect = m.isSuper();
-                            }
-                        } else {
-                            needReflect = true;
-                        }
-                    } else {
-                        needReflect = false;
-                    }
-                    if (needReflect) {
-                        //reflect invoke method
-                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-                        CtClass returnType = method.getReturnType();
-                        CtClass[] parameterTypes = method.getParameterTypes();
-                        StringBuilder typesBuilder;
-                        StringBuilder pramsBuilder;
-                        if (parameterTypes.length > 0) {
-                            typesBuilder = new StringBuilder("" +
-                                    "new java.lang.Class[]{typeOf(\""
-                                    + parameterTypes[0].getName()
-                                    + "\")");
-                            pramsBuilder = new StringBuilder("new java.lang.Object[]{")
-                                    .append(buildCast(parameterTypes[0], objectClass, "$1"));
-                            for (int i = 1; i < parameterTypes.length; ++i) {
-                                typesBuilder.append(",typeOf(\"")
-                                        .append(parameterTypes[i].getName())
-                                        .append("\")");
-                                pramsBuilder.append(",")
-                                        .append(buildCast(parameterTypes[i], objectClass,
-                                                "$" + (i + 1)));
-                            }
-                            typesBuilder.append("}");
-                            pramsBuilder.append("}");
-                        } else {
-                            typesBuilder = pramsBuilder = new StringBuilder("null");
-                        }
-
-                        if (!CtClass.voidType.equals(returnType)) {
-                            builder.append("java.lang.Object result=");
-                        }
-                        builder.append("this.invoke(")
-                                .append(m.isSuper())
-                                .append(',')
-                                .append("typeOf(\"")
-                                .append(declaringClass.getName())
-                                .append("\"),\"")
-                                .append(method.getName())
-                                .append("\",")
-                                .append(typesBuilder)
-                                .append(",($0==this)?(this.target):($0),")
-                                .append(pramsBuilder)
-                                .append(");");
-                        if (!CtClass.voidType.equals(returnType)) {
-                            builder.append("$_=")
-                                    .append(buildCast(getClasses().get("java.lang.Object"),
-                                            returnType, "result"))
-                                    .append(";");
-                        }
-                        String source = builder.toString();
-                        getLogger().quiet(source);
-                        m.replace(source);
-                    } else {
-                        //direct invoke method
-                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-                        CtClass returnType = method.getReturnType();
-                        if (!CtClass.voidType.equals(returnType)) {
-                            builder.append("$_=");
-                        }
-                        if (!Modifier.isStatic(modifiers)) {
-                            builder.append(buildCast(objectClass, declaringClass,
-                                    "(($0==this)?(this.target):((java.lang.Object)$0))"))
-                                    .append(".");
-                        }
-                        builder.append(method.getName())
-                                .append("(");
-                        CtClass[] parameterTypes = method.getParameterTypes();
-                        if (parameterTypes.length > 0) {
-                            builder.append("$1");
-                            for (int i = 1; i < parameterTypes.length; ++i) {
-                                builder.append(",$")
-                                        .append(i + 1);
-                            }
-                        }
-                        builder.append(");");
-                        String source = builder.toString();
-                        getLogger().quiet(source);
-                        m.replace(source);
-                    }
-                } catch (NotFoundException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public void edit(ConstructorCall c) throws CannotCompileException {
-                c.replace(";");
-            }
-
-            @Override
-            public void edit(FieldAccess f) throws CannotCompileException {
-                try {
-                    CtClass objectClass = getClasses().get("java.lang.Object");
-                    CtField field = f.getField();
-                    int modifiers = field.getModifiers();
-                    CtClass declaringClass = field.getDeclaringClass();
-                    boolean needReflect;
-                    if (!field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        if (isAccessible(field)) {
-                            if (Modifier.isStatic(modifiers)) {
-                                return;
-                            } else {
-                                needReflect = false;
-                            }
-                        } else {
-                            needReflect = true;
-                        }
-                    } else {
-                        needReflect = false;
-                    }
-                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-                    if (needReflect) {
-                        if (f.isReader()) {
-                            builder.append("$_=")
-                                    .append(buildCast(objectClass, field.getType(),
-                                    "(this.access(this.typeOf(\"" +
-                                            field.getDeclaringClass().getName() +
-                                            "\"),\"" + field.getName() +
-                                            "\",($0==this)?(this.target):($0) ))"))
-                                    .append(";");
-                        } else {
-                            builder.append("this.modify(this.typeOf(\"")
-                                    .append(field.getDeclaringClass().getName())
-                                    .append("\",\"")
-                                    .append(field.getName())
-                                    .append(",\",($0==this):(this.target):($0),")
-                                    .append(buildCast(field.getType(), objectClass, "$1"))
-                                    .append(");");
-                        }
-                    } else {
-                        if (f.isReader()) {
-                            builder.append("$_=")
-                                    .append(f.isStatic()
-                                            ? (field.hasAnnotation(Annotations
-                                            .OVERLOAD_ANNOTATION)
-                                            ? clone.getName()
-                                            : declaringClass.getName())
-                                            : buildCast(objectClass, field.getType(),
-                                            "(($0==this)?(this.target)" +
-                                                    ":((java.lang.Object)$0))."))
-                                    .append(field.getName())
-                                    .append(";");
-                        } else {
-                            builder.append(f.isStatic()
-                                    ? declaringClass.getName()
-                                    : buildCast(objectClass, field.getType(),
-                                    "(($0==this)?(this.target)" +
-                                            ":((java.lang.Object)$0))."))
-                                    .append(field.getName())
-                                    .append("=$1;");
-                        }
-                    }
-                    String source = builder.toString();
-                    getLogger().quiet(source);
-                    f.replace(source);
-                } catch (NotFoundException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
 
         private void buildEntryPoint(Map<CtMember, Integer> hashIds,
                                      CtClass clone)
@@ -467,17 +306,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     .append("==")
                     .append("$1")
                     .append("){return ");
-            CtClass box;
-            if ((box = primitiveMapping.get(field.getType())) != null) {
-                builder.append(box.getName())
-                        .append(".valueOf(this.")
-                        .append(field.getName())
-                        .append(");}");
-            } else {
-                builder.append("this.")
-                        .append(field.getName())
-                        .append(";}");
-            }
+
             return builder.toString();
         }
 
@@ -490,18 +319,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     .append("this.")
                     .append(field.getName())
                     .append("=");
-            CtClass box;
-            if ((box = primitiveMapping.get(field.getType())) != null) {
-                builder.append("((")
-                        .append(box.getName())
-                        .append(")$2).")
-                        .append(field.getType().getName())
-                        .append("Value();");
-            } else {
-                builder.append("(")
-                        .append(field.getType().getName())
-                        .append(")$2;");
-            }
+
             return builder.append("return;}")
                     .toString();
         }
@@ -521,9 +339,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             CtClass objectType = getClasses().get("java.lang.Object");
             CtClass[] parameterTypes = member.getParameterTypes();
             if (parameterTypes.length > 0) {
-                builder.append(buildCast(objectType, parameterTypes[0], "$2[0]"));
+                builder.append(checkBox(objectType, parameterTypes[0], "$2[0]"));
                 for (int i = 1; i < parameterTypes.length; ++i) {
-                    builder.append(",").append(buildCast(objectType,
+                    builder.append(",").append(checkBox(objectType,
                             parameterTypes[i],
                             "$2[" + i + ']'));
                 }
@@ -531,7 +349,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             builder.append(");");
             if (!CtClass.voidType.equals(resultType)) {
                 builder.append("return ")
-                        .append(buildCast(resultType, objectType, "result"))
+                        .append(checkBox(resultType, objectType, "result"))
                         .append(";");
             } else {
                 builder.append("return null;");
@@ -542,7 +360,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             return source;
         }
 
-        private String buildCast(CtClass form, CtClass to, String name) {
+        private String checkBox(CtClass form, CtClass to, String name) {
             if (form.isPrimitive()) {
                 return "(" + primitiveMapping.get(form).getName() + ".valueOf(" + name + "))";
             } else {
@@ -581,7 +399,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
             builder.append("}");
             getLogger().quiet(builder.toString());
-            clazz.addConstructor(CtNewConstructor.make(EMPTY_SCOPE_INIT,clazz));
+            clazz.addConstructor(CtNewConstructor.make(EMPTY_SCOPE_INIT, clazz));
             clazz.addMethod(CtNewMethod.make(builder.toString(), clazz));
             return clazz;
         }
