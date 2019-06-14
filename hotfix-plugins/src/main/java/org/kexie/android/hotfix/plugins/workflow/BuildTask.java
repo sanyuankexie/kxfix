@@ -156,6 +156,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 fixAnnotation(hashIds, annotationType, constPool, method);
                 fixMethod(method);
             }
+            clone.addConstructor(CtNewConstructor.make("public "
+                    + clone.getSimpleName() + "(){super();}", clone));
         }
 
         private static AnnotationsAttribute
@@ -437,8 +439,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
             CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
             CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);
-            CtConstructor constructor = CtNewConstructor.make("public"
-                    + clone.getSimpleName() + "(){super();}", clone);
             for (Map.Entry<CtMember, Integer> entry : hashIds.entrySet()) {
                 CtMember member = entry.getKey();
                 if (member instanceof CtMethod) {
@@ -454,7 +454,6 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     access.insertBefore(buildFieldAccess(field, entry.getValue()));
                 }
             }
-            clone.addConstructor(constructor);
             clone.addMethod(invoke);
             clone.addMethod(modify);
             clone.addMethod(access);

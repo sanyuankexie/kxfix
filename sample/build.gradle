@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
-apply plugin: 'org.kexie.patch'
+//apply plugin: 'org.kexie.patch'
+apply plugin: 'org.kexie.hotfix'
+
 
 
 android {
