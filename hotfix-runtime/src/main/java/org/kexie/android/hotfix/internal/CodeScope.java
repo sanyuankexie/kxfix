@@ -59,14 +59,14 @@ abstract class CodeScope {
     }
 
     final Object dispatchInvoke(
-            boolean isSuper,
+            boolean nonVirtual,
             Class type,
             String name,
             Class[] pramsTypes,
             Object o,
             Object[] prams)
             throws Throwable {
-        HotCode hotCode = includes.get(!isSuper ? type : type.getSuperclass());
+        HotCode hotCode = includes.get(!nonVirtual ? type : type.getSuperclass());
         if (hotCode != null) {
             int id = hotCode.hasMethod(name, pramsTypes);
             if (id != HotCode.ID_NOT_FOUND) {
@@ -77,16 +77,16 @@ abstract class CodeScope {
             }
         }
         if (context.isThatScope(this)) {
-            return context.getBaseContext().invoke(
-                    false,
-                    type,
-                    name,
-                    pramsTypes,
-                    o,
-                    prams);
+            return context.getBaseContext()
+                    .invoke(nonVirtual,
+                            type,
+                            name,
+                            pramsTypes,
+                            o,
+                            prams);
         } else {
             return context.invoke(
-                    false,
+                    nonVirtual,
                     type,
                     name,
                     pramsTypes,
