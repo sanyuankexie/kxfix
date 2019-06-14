@@ -15,6 +15,7 @@ import javassist.CtConstructor;
 import javassist.CtField;
 import javassist.CtMember;
 import javassist.CtMethod;
+import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.Modifier;
 import javassist.NotFoundException;
@@ -65,6 +66,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 = "java.lang.Object receiveInvokeById(int id,java.lang.Object[] args)" +
                 "throws java.lang.Throwable " +
                 "{ throw new NoSuchMethodException();}";
+        private static final String EMPTY_SCOPE_INIT = "public Overload$CodeScope(){super();}";
+
         private static final String OBJECT_SUPER_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.HotCodeExecutor";
 
@@ -88,7 +91,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 buildEntryPoint(hashIds, clone);
                 result.add(clone);
             }
-            CtClass clazz = buildCodeScope(result);
+            CtClass clazz = buildCodeScope(classes);
             result.add(clazz);
             return result;
         }
@@ -142,6 +145,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private void fixCloneClass(Map<CtMember, Integer> hashIds,
                                    CtClass clone)
                 throws NotFoundException, CannotCompileException {
+
             clone.setSuperclass(getClasses().get(OBJECT_SUPER_CLASS_NAME));
             CtClass annotationType = getClasses().get(Annotations.ID_ANNOTATION);
             ConstPool constPool = clone.getClassFile().getConstPool();
@@ -308,7 +312,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                 .append(method.getName())
                                 .append("\",")
                                 .append(typesBuilder)
-                                .append(",$0,")
+                                .append(",($0==this)?(this.target):($0),")
                                 .append(pramsBuilder)
                                 .append(");");
                         if (!CtClass.voidType.equals(returnType)) {
@@ -328,9 +332,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             builder.append("$_=");
                         }
                         if (!Modifier.isStatic(modifiers)) {
-                            builder.append(buildCast(objectClass, declaringClass,
-                                    "(($0==this)?(this.target):($0))"))
-                                    .append(".");
+                            builder.append("(($0==this)?((")
+                                    .append(declaringClass.getName())
+                                    .append(")this.target):($0)).");
                         }
                         builder.append(method.getName())
                                 .append("(");
@@ -381,17 +385,19 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
                     if (needReflect) {
                         if (f.isReader()) {
-                            builder.append(buildCast(objectClass, field.getType(),
+                            builder.append("$_=")
+                                    .append(buildCast(objectClass, field.getType(),
                                     "(this.access(this.typeOf(\"" +
                                             field.getDeclaringClass().getName() +
-                                            "\",\"" + field.getName() + "\",$0))"))
+                                            "\"),\"" + field.getName() +
+                                            "\",($0==this)?(this.target):($0) ))"))
                                     .append(";");
                         } else {
                             builder.append("this.modify(this.typeOf(\"")
                                     .append(field.getDeclaringClass().getName())
                                     .append("\",\"")
                                     .append(field.getName())
-                                    .append(",\",$0,")
+                                    .append(",\",($0==this):(this.target):($0),")
                                     .append(buildCast(field.getType(), objectClass, "$1"))
                                     .append(");");
                         }
@@ -402,16 +408,16 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                             ? (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION) ? clone.getName()
                                             : declaringClass.getName())
                                             : buildCast(objectClass, field.getType(),
-                                            "(($0==this)?(this.target):($0))"))
-                                    .append(".")
+                                            "(($0==this)?((" + declaringClass.getName()
+                                                    + ")this.target):($0))."))
                                     .append(field.getName())
                                     .append(";");
                         } else {
                             builder.append(f.isStatic()
                                     ? declaringClass.getName()
                                     : buildCast(objectClass, field.getType(),
-                                    "(($0==this)?(this.target):($0))"))
-                                    .append(".")
+                                    "(($0==this)?((" + declaringClass.getName()
+                                            + ")this.target):($0))."))
                                     .append(field.getName())
                                     .append("=$1;");
                         }
@@ -431,6 +437,8 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
             CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
             CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);
+            CtConstructor constructor = CtNewConstructor.make("public"
+                    + clone.getSimpleName() + "(){super();}", clone);
             for (Map.Entry<CtMember, Integer> entry : hashIds.entrySet()) {
                 CtMember member = entry.getKey();
                 if (member instanceof CtMethod) {
@@ -446,6 +454,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     access.insertBefore(buildFieldAccess(field, entry.getValue()));
                 }
             }
+            clone.addConstructor(constructor);
             clone.addMethod(invoke);
             clone.addMethod(modify);
             clone.addMethod(access);
@@ -554,7 +563,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             clazz.defrost();
             clazz.setSuperclass(getClasses().get(CODE_SCOPE_SUPER_CLASS_NAME));
             StringBuilder builder = new StringBuilder("java.lang.Class[] " +
-                    "onLoadClasses(org.kexie.android.hotfix.internal.CodeContext context)" +
+                    "loadIncludes(org.kexie.android.hotfix.internal.CodeContext context)" +
                     "throws java.lang.Throwable {return ");
             if (classes.size() > 0) {
                 builder.append("new Class[]{(context.typeOf(\"")
@@ -571,6 +580,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             }
             builder.append("}");
             getLogger().quiet(builder.toString());
+            clazz.addConstructor(CtNewConstructor.make(EMPTY_SCOPE_INIT,clazz));
             clazz.addMethod(CtNewMethod.make(builder.toString(), clazz));
             return clazz;
         }

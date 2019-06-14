@@ -19,7 +19,7 @@ dependencies {
     //gradle apis
     implementation 'com.android.tools.build:gradle:3.3.1'
     //基于aspectjx插粧
-    implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.4'
+    implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.5'
     //dx
     implementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
     //smali

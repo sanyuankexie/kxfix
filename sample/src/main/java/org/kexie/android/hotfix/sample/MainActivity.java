@@ -1,52 +1,55 @@
 package org.kexie.android.hotfix.sample;
 
 import android.os.Bundle;
-import android.os.Environment;
-import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.blankj.utilcode.util.ResourceUtils;
+import com.blankj.utilcode.util.TimeUtils;
 
 import org.kexie.android.hotfix.Hotfix;
+import org.kexie.android.hotfix.HotfixManager;
 import org.kexie.android.hotfix.Overload;
+import org.kexie.android.hotfix.Patch;
+
+import java.io.File;
+import java.util.UUID;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 @Hotfix
-public class MainActivity extends AppCompatActivity {
+public class MainActivity
+        extends AppCompatActivity
+        implements View.OnClickListener {
 
-    @Overload
-    MainActivity() {
+    private TextView textView;
 
-    }
-
-    @Overload
-    private static final String TAG = "MainActivity";
-    @Overload
-    private static String fl = "asdasd";
-
-    @Overload
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.d(TAG, "onCreate: " + Environment.getDataDirectory() + savedInstanceState + fl);
-        test(0, null);
-        test2();
+        textView = findViewById(R.id.text);
+        findViewById(R.id.testButton).setOnClickListener(this);
+        findViewById(R.id.load).setOnClickListener(this);
     }
 
     @Overload
-    public static Object test(int xx, Test activity) {
-        return 0;
+    @Override
+    public void onClick(View v) {
+        if (R.id.testButton == v.getId()) {
+            textView.setText("补丁修复完成，当前时间" + TimeUtils.getNowString());
+            //textView.setText("时间错误");
+        } else if (R.id.load == v.getId()) {
+            File file = getDir("cache", MODE_PRIVATE);
+            file = new File(file, "classes-dex.jar");
+            if (ResourceUtils.copyFileFromAssets("classes-dex.jar",
+                    file.getAbsolutePath())) {
+                HotfixManager manager = new HotfixManager(this.getApplicationContext());
+                manager.apply(new Patch(file.getAbsolutePath(), UUID.randomUUID().toString()));
+            } else {
+                Toast.makeText(this, "拷贝失败", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
-
-    public void test2() {
-
-    }
-
-    @Overload
-    public static void test3(MainActivity activity) {
-
-    }
-}
-
-final class Test {
-
 }

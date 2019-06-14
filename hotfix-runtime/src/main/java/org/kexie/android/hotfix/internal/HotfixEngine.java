@@ -4,6 +4,8 @@ import android.content.Context;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 
+import java.lang.reflect.Constructor;
+
 import androidx.annotation.Keep;
 
 /**
@@ -30,11 +32,12 @@ final class HotfixEngine
         String cacheDir = context.getApplicationContext()
                 .getDir("hotfix", Context.MODE_PRIVATE)
                 .getAbsolutePath();
-        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-        contextClassLoader = new CodeScopeClassLoader(path, cacheDir, contextClassLoader);
-        CodeScope codeScope = (CodeScope) contextClassLoader
-                .loadClass(CODE_SCOPE_TYPE_NAME)
-                .newInstance();
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        classLoader = new CodeScopeClassLoader(path, cacheDir, classLoader);
+        Class<?> clazz = classLoader.loadClass(CODE_SCOPE_TYPE_NAME);
+        Constructor<?> constructor = clazz.getConstructor();
+        constructor.setAccessible(true);
+        CodeScope codeScope = (CodeScope) constructor.newInstance();
         codeScope.loadClasses(this);
         apply(codeScope);
     }

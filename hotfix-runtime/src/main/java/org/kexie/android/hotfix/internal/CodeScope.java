@@ -10,16 +10,23 @@ import androidx.annotation.Keep;
 @Keep
 abstract class CodeScope {
 
+    CodeScope() { }
+
     private final HashMap<Class, HotCode> includes = new HashMap<>();
 
     private CodeScopeManager context;
 
-    abstract Class[] onLoadClasses(CodeContext context) throws Throwable;
+    abstract Class[] loadIncludes(CodeContext context) throws Throwable;
 
     void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
-        for (Class clazz : onLoadClasses(context)) {
-            includes.put(clazz, HotCode.load(context, clazz));
+        ClassLoader classLoader = getClassLoader();
+        for (Class clazz : loadIncludes(context)) {
+            Package pack = clazz.getPackage();
+            Class hotClass = classLoader.loadClass(
+                    (pack == null ? "" : pack.getName() + ".")
+                            + "Overload$" + clazz.getSimpleName());
+            includes.put(clazz, HotCode.load(context, hotClass));
         }
     }
 
