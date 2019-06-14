@@ -116,6 +116,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 }
             }
             ClassMap classMap = new ClassMap();
+            classMap.fix(source);
             for (CtMethod method : source.getDeclaredMethods()) {
                 if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
                     clone.addMethod(new CtMethod(method, clone, classMap));

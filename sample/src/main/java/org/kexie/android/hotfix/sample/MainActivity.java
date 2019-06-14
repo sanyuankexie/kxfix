@@ -40,6 +40,11 @@ public class MainActivity extends AppCompatActivity {
     public void test2() {
 
     }
+
+    @Overload
+    public static void test3(MainActivity activity) {
+
+    }
 }
 
 final class Test {
