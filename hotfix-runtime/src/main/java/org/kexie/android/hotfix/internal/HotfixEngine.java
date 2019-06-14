@@ -17,6 +17,10 @@ final class HotfixEngine
 
     static final HotfixEngine INSTANCE = new HotfixEngine();
 
+    private static final String CODE_SCOPE_TYPE_NAME
+            = "org.kexie.android.hotfix.internal.Overload-CodeScope";
+
+
     private HotfixEngine() {
         super(new ReflectEngine());
     }
@@ -26,7 +30,13 @@ final class HotfixEngine
         String cacheDir = context.getApplicationContext()
                 .getDir("hotfix", Context.MODE_PRIVATE)
                 .getAbsolutePath();
-        loadCodeScope(cacheDir, path);
+        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        contextClassLoader = new CodeScopeClassLoader(path, cacheDir, contextClassLoader);
+        CodeScope codeScope = (CodeScope) contextClassLoader
+                .loadClass(CODE_SCOPE_TYPE_NAME)
+                .newInstance();
+        codeScope.loadClasses(this);
+        apply(codeScope);
     }
 
     @Override

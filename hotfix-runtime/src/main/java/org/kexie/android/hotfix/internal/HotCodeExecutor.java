@@ -29,7 +29,8 @@ public abstract class HotCodeExecutor extends CodeContextWrapper {
                          String name,
                          Class[] pramsTypes,
                          Object target,
-                         Object[] prams) throws Throwable {
+                         Object[] prams)
+            throws Throwable {
         return super.invoke(nonVirtual, type, name, pramsTypes, target, prams);
     }
 

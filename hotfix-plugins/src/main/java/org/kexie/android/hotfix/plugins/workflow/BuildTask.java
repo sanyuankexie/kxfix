@@ -116,6 +116,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 }
             }
             ClassMap classMap = new ClassMap();
+            classMap.put(clone, source);
             classMap.fix(source);
             for (CtMethod method : source.getDeclaredMethods()) {
                 if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
@@ -230,43 +231,16 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 this.clone = clone;
             }
 
-            private CtMethod findMethodBySource(String name, String sig)
-                    throws NotFoundException {
-                CtClass objectClass = getClasses().get("java.lang.Object");
-                CtClass type = source;
-                while (!type.equals(objectClass)) {
-                    for (CtMethod method : type.getDeclaredMethods()) {
-                        if (method.getName().equals(name)
-                                && method.getSignature().equals(sig)) {
-                            return method;
-                        }
-                    }
-                    type = type.getSuperclass();
-                }
-                throw new NotFoundException(
-                        "method name=" + name + " sig="
-                                + sig + " no found");
-            }
-
             @Override
             public void edit(MethodCall m) throws CannotCompileException {
                 try {
-                    String className = m.getClassName();
-                    boolean isThis;
-                    CtMethod method;
-                    if (clone.getName().equals(className)) {
-                        String sig = m.getSignature();
-                        String methodName = m.getMethodName();
-                        method = findMethodBySource(methodName, sig);
-                        isThis = true;
-                    } else {
-                        method = m.getMethod();
-                        isThis = false;
-                    }
+                    CtClass objectClass = getClasses().get("java.lang.Object");
+                    CtMethod method = m.getMethod();
                     int modifiers = method.getModifiers();
+                    CtClass declaringClass = method.getDeclaringClass();
                     boolean needReflect;
                     if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        String packageName = method.getDeclaringClass().getPackageName();
+                        String packageName = declaringClass.getPackageName();
                         if (packageName.equals(clone.getPackageName())
                                 || !Modifier.isPrivate(modifiers)) {
                             if (Modifier.isStatic(modifiers)) {
@@ -278,11 +252,10 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             needReflect = true;
                         }
                     } else {
-                        needReflect = !isThis;
+                        needReflect = false;
                     }
                     if (needReflect) {
                         //reflect invoke method
-                        CtClass objectClass = getClasses().get("java.lang.Object");
                         StringBuilder builder = new StringBuilder("{");
                         CtClass returnType = method.getReturnType();
                         CtClass[] parameterTypes = method.getParameterTypes();
@@ -316,7 +289,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                                 .append(m.isSuper())
                                 .append(',')
                                 .append("typeOf(\"")
-                                .append(method.getDeclaringClass().getName())
+                                .append(declaringClass.getName())
                                 .append("\"),\"")
                                 .append(method.getName())
                                 .append("\",")
@@ -342,13 +315,9 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                             builder.append("$_=");
                         }
                         if (!Modifier.isStatic(modifiers)) {
-                            if (isThis) {
-                                builder.append("((")
-                                        .append(source.getName())
-                                        .append(")this.target).");
-                            } else {
-                                builder.append("$0.");
-                            }
+                            builder.append(buildCast(objectClass, declaringClass,
+                                    "(($0==this)?(this.target):($0))"))
+                                    .append(".");
                         }
                         builder.append(method.getName())
                                 .append("(");
@@ -490,7 +459,10 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             } else {
                 CtClass box = primitiveMapping.get(to);
                 if (box == null) {
-                    return "((" + to.getName() + ")" + name + ")";
+                    return "(" +
+                            (!form.equals(to) ? ("(" + to.getName() + ")") : "")
+                            + name +
+                            ")";
                 } else {
                     return "(((" + box.getName() + ")" + name + ")." + to.getName() + "Value())";
                 }

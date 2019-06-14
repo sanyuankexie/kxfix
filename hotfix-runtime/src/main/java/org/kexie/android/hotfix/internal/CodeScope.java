@@ -19,7 +19,7 @@ abstract class CodeScope {
     void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
         for (Class clazz : onLoadClasses(context)) {
-            includes.put(clazz, HotCode.loadHotCode(context, clazz));
+            includes.put(clazz, HotCode.load(context, clazz));
         }
     }
 

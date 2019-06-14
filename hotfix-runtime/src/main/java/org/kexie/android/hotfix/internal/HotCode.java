@@ -2,7 +2,6 @@ package org.kexie.android.hotfix.internal;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -65,7 +64,7 @@ final class HotCode {
         }
     }
 
-    static HotCode loadHotCode(CodeContext context, Class clazz) {
+    static HotCode load(CodeContext context, Class clazz) {
         Map<String, Id> fieldId = new HashMap<>();
         Map<String, List<MethodId>> methodId = new HashMap<>();
         for (Field field : clazz.getDeclaredFields()) {
@@ -78,12 +77,6 @@ final class HotCode {
             Id id = method.getAnnotation(Id.class);
             if (id != null) {
                 Class[] pramTypes = method.getParameterTypes();
-                if (!Modifier.isStatic(method.getModifiers()) && pramTypes.length > 1) {
-                    Class[] classes = new Class[pramTypes.length];
-                    System.arraycopy(pramTypes, 1, classes,
-                            0, pramTypes.length - 1);
-                    pramTypes = classes;
-                }
                 String name = method.getName();
                 List<MethodId> methods = methodId.get(name);
                 if (methods == null) {
