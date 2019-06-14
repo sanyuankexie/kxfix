@@ -18,7 +18,7 @@ final class HotfixEngine
     static final HotfixEngine INSTANCE = new HotfixEngine();
 
     private static final String CODE_SCOPE_TYPE_NAME
-            = "org.kexie.android.hotfix.internal.Overload-CodeScope";
+            = "org.kexie.android.hotfix.internal.Overload$CodeScope";
 
 
     private HotfixEngine() {

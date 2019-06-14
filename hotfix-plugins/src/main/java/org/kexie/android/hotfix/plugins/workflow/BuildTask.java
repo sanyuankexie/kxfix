@@ -48,7 +48,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
     private final static class BuildContext extends ContextWrapper {
 
         private static final String CODE_SCOPE_CLASS_NAME
-                = "org.kexie.android.hotfix.internal.Overload-CodeScope";
+                = "org.kexie.android.hotfix.internal.Overload$CodeScope";
 
         private static final String CODE_SCOPE_SUPER_CLASS_NAME
                 = "org.kexie.android.hotfix.internal.CodeScope";
@@ -107,7 +107,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
             String cloneName
                     = packageName
                     + (isEmptyText(packageName) ? "" : ".")
-                    + "Overload-"
+                    + "Overload$"
                     + source.getSimpleName();
             CtClass clone = getClasses().makeClass(cloneName);
             clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
@@ -230,6 +230,19 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
         private final class ExprConverter extends ExprEditor {
             private final CtClass clone;
 
+            private boolean isAccessible(CtMember member) {
+                CtClass declaringClass = member.getDeclaringClass();
+                if (Modifier.isPublic(declaringClass.getModifiers())) {
+                    if (Modifier.isPublic(member.getModifiers())) {
+                        return true;
+                    }
+                }
+                if (declaringClass.getPackageName().equals(clone.getPackageName())) {
+                    return !Modifier.isPrivate(member.getModifiers());
+                }
+                return false;
+            }
+
             ExprConverter(CtClass clone) {
                 this.clone = clone;
             }
@@ -243,9 +256,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     CtClass declaringClass = method.getDeclaringClass();
                     boolean needReflect;
                     if (!method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        String packageName = declaringClass.getPackageName();
-                        if (packageName.equals(clone.getPackageName())
-                                || !Modifier.isPrivate(modifiers)) {
+                        if (isAccessible(method)) {
                             if (Modifier.isStatic(modifiers)) {
                                 return;
                             } else {
@@ -355,9 +366,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     CtClass declaringClass = field.getDeclaringClass();
                     boolean needReflect;
                     if (!field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        String packageName = declaringClass.getPackageName();
-                        if (packageName.equals(clone.getPackageName())
-                                || !Modifier.isPrivate(modifiers)) {
+                        if (isAccessible(field)) {
                             if (Modifier.isStatic(modifiers)) {
                                 return;
                             } else {
@@ -389,13 +398,22 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                     } else {
                         if (f.isReader()) {
                             builder.append("$_=")
-                                    .append(buildCast(objectClass, field.getType(),
+                                    .append(f.isStatic()
+                                            ? (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION) ? clone.getName()
+                                            : declaringClass.getName())
+                                            : buildCast(objectClass, field.getType(),
                                             "(($0==this)?(this.target):($0))"))
                                     .append(".")
                                     .append(field.getName())
                                     .append(";");
                         } else {
-                            
+                            builder.append(f.isStatic()
+                                    ? declaringClass.getName()
+                                    : buildCast(objectClass, field.getType(),
+                                    "(($0==this)?(this.target):($0))"))
+                                    .append(".")
+                                    .append(field.getName())
+                                    .append("=$1;");
                         }
                     }
                     String source = builder.toString();
@@ -505,8 +523,7 @@ final class BuildTask extends Work<List<CtClass>, List<CtClass>> {
                 builder.append("return ")
                         .append(buildCast(resultType, objectType, "result"))
                         .append(";");
-            }
-            else {
+            } else {
                 builder.append("return null;");
             }
             builder.append('}');
