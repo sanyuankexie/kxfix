@@ -90,7 +90,6 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                 clone.getSimpleName() + "(){super();}", clone));
     }
 
-
     private void makeEntries(Context context,
                              Map<CtMember, Integer> hashIds,
                              CtClass clone)
@@ -438,7 +437,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
             }
         });
     }
-    
+
     private void
     fixAnnotation(Map<CtMember, Integer> hashIds,
                   CtClass annotationType,
