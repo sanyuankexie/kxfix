@@ -34,6 +34,11 @@ public class MainActivity
     }
 
     @Overload
+    private int test() {
+        return 1000;
+    }
+
+    @Overload
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {

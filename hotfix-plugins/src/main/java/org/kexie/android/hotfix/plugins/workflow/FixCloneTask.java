@@ -61,7 +61,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                 hashIds.clear();
                 CtClass source = entry.getFirst();
                 CtClass clone = entry.getSecond();
-                fixClass(context, hashIds, clone);
+                fixClass(context, hashIds, source, clone);
                 makeEntries(context, hashIds, clone);
                 classes.add(clone);
             }
@@ -73,6 +73,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
 
     private void fixClass(Context context,
                           Map<CtMember, Integer> hashIds,
+                          CtClass source,
                           CtClass clone)
             throws NotFoundException, CannotCompileException {
         clone.setSuperclass(context.getClasses().get(OBJECT_SUPER_CLASS_NAME));
@@ -83,7 +84,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         }
         for (CtMethod method : clone.getDeclaredMethods()) {
             fixAnnotation(hashIds, annotationType, constPool, method);
-            fixMethod(context, method);
+            fixMethod(context, source, clone, method);
         }
         clone.addConstructor(CtNewConstructor.make("public " +
                 clone.getSimpleName() + "(){super();}", clone));
@@ -137,7 +138,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                 .append('(');
         CtClass[] parameterTypes = member.getParameterTypes();
         if (parameterTypes.length > 0) {
-            String checked = checkCast(javaLangObject, parameterTypes[0], "($2[0]))");
+            String checked = checkCast(javaLangObject, parameterTypes[0], "($2[0])");
             builder.append(checked);
             for (int i = 1; i < parameterTypes.length; ++i) {
                 checked = checkCast(javaLangObject, parameterTypes[0], "($2[" + i + "])");
@@ -157,23 +158,171 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         return source;
     }
 
-    private void fixMethod(Context context, CtMethod current)
-            throws CannotCompileException, NotFoundException {
-        CtClass currentClass = current.getDeclaringClass();
+    private void fixMethod(Context context,
+                           CtClass source,
+                           CtClass clone,
+                           CtMethod cloneMethod)
+            throws CannotCompileException {
         boolean isInStatic;
-        int currentModifiers = current.getModifiers();
+        int currentModifiers = cloneMethod.getModifiers();
         if (Modifier.isStatic(currentModifiers)) {
             isInStatic = true;
             currentModifiers = Modifier.clear(currentModifiers, Modifier.STATIC);
-            current.setModifiers(currentModifiers);
+            cloneMethod.setModifiers(currentModifiers);
         } else {
             isInStatic = false;
         }
-        current.instrument(new ExprEditor() {
+        cloneMethod.instrument(new ExprEditor() {
 
             @Override
             public void edit(MethodCall m) throws CannotCompileException {
+                try {
+                    CtMethod method = m.getMethod();
+                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                    CtClass declaringClass = method.getDeclaringClass();
+                    boolean isAccessible = isAccessible(clone, method);
+                    boolean isOverload = method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
+                    boolean isSource = declaringClass.equals(source);
+                    boolean isSuper = m.isSuper();
+                    boolean isDirect;
+                    if (isOverload) {
+                        if (isSource) {
+                            isDirect = !isSuper;
+                        } else {
+                            isDirect = false;
+                        }
+                    } else {
+                        if (isAccessible) {
+                            isDirect = !isSuper;
+                        } else {
+                            isDirect = false;
+                        }
+                    }
+                    if (isDirect) {
+                        String pramThis;
+                        if (Modifier.isStatic(method.getModifiers())) {
+                            if (isOverload) {
+                                pramThis = clone.getName();
+                            } else {
+                                pramThis = declaringClass.getName();
+                            }
+                        } else {
+                            if (isInStatic) {
+                                pramThis = "$0";
+                            } else {
+                                pramThis = checkThis(declaringClass, "$0");
+                            }
+                        }
+                        if (!CtClass.voidType.equals(method.getReturnType())) {
+                            builder.append("$_=");
+                        }
+                        builder.append(pramThis)
+                                .append(".")
+                                .append(method.getName())
+                                .append("(");
+                        CtClass[] parameterTypes = method.getParameterTypes();
+                        if (parameterTypes.length > 0) {
+                            String checked;
+                            if (isInStatic) {
+                                checked = "$1";
+                            } else {
+                                checked = checkThis(parameterTypes[0], "$1");
+                            }
+                            builder.append(checked);
+                            for (int i = 1; i < parameterTypes.length; ++i) {
+                                if (isInStatic) {
+                                    checked = "$" + (i + 1);
+                                } else {
+                                    checked = checkThis(parameterTypes[i], "$" + (i + 1));
+                                }
+                                builder.append(",")
+                                        .append(checked);
+                            }
+                        }
+                        builder.append(");");
+                    } else {
+                        String pramThis;
+                        if (Modifier.isStatic(method.getModifiers())) {
+                            pramThis = "null";
+                        } else {
+                            if (isInStatic) {
+                                pramThis = "$0";
+                            } else {
+                                pramThis = checkThis(declaringClass, "$0");
+                            }
+                        }
+                        CtClass returnType = method.getReturnType();
+                        CtClass[] parameterTypes = method.getParameterTypes();
+                        StringBuilder invokeBuilder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                        StringBuilder pramsBuilder;
+                        StringBuilder pramTypesBuilder;
+                        if (parameterTypes.length > 0) {
+                            pramsBuilder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                            pramTypesBuilder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                            pramsBuilder.append("new java.lang.Object[]{");
+                            pramTypesBuilder.append("new java.lang.Class[]{");
+                            String checked;
+                            if (isInStatic) {
+                                checked = "$1";
+                            } else {
+                                checked = checkThis(parameterTypes[0], "$1");
+                            }
+                            pramsBuilder.append(checked);
 
+                            pramTypesBuilder.append("this.typeOf(\"")
+                                    .append(parameterTypes[0].getName())
+                                    .append("\")");
+
+                            for (int i = 1; i < parameterTypes.length; ++i) {
+                                pramTypesBuilder.append(",this.typeOf(\"")
+                                        .append(parameterTypes[i].getName())
+                                        .append("\")");
+
+                                if (isInStatic) {
+                                    checked = "$" + (i + 1);
+                                } else {
+                                    checked = checkThis(parameterTypes[i], "$" + (i + 1));
+                                }
+                                pramsBuilder.append(",")
+                                        .append(checked);
+                            }
+                            pramsBuilder.append("}");
+                            pramTypesBuilder.append("}");
+                        } else {
+                            pramsBuilder = pramTypesBuilder = new StringBuilder("null");
+                        }
+                        if (!CtClass.voidType.equals(returnType)) {
+                            builder.append("$_=");
+                        }
+                        invokeBuilder.append("this.invoke(")
+                                .append(isSuper)
+                                .append(",this.typeOf(\"")
+                                .append(declaringClass.getName())
+                                .append("\"),\"")
+                                .append(method.getName())
+                                .append("\",")
+                                .append(pramTypesBuilder)
+                                .append(",")
+                                .append(pramThis)
+                                .append(",")
+                                .append(pramsBuilder)
+                                .append(")");
+                        if (!CtClass.voidType.equals(returnType)) {
+                            String invokeChecked = checkCast(javaLangObject,
+                                    method.getReturnType(),
+                                    invokeBuilder.toString());
+                            builder.append(invokeChecked);
+                        } else {
+                            builder.append(invokeBuilder);
+                        }
+                        builder.append(";");
+                    }
+                    String source = builder.toString();
+                    context.getLogger().quiet(source);
+                    m.replace(source);
+                } catch (NotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             @Override
@@ -186,38 +335,99 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                 try {
                     StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
                     CtField field = f.getField();
-                    boolean accessible = isAccessible(currentClass, field);
+                    CtClass declaringClass = field.getDeclaringClass();
+                    boolean isAccessible = isAccessible(clone, field);
+                    boolean isOverload = field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
+                    boolean isSource = declaringClass.equals(source);
+                    boolean isDirect;
+                    //1 被重载的
+                    //1.1 来自原始类，已经复制到补丁类上，可直接调用
+                    //1.2 否则来自其他补丁类，不可直接调用
+                    //2 未被重载的，来自基准包
+                    //2.1 补丁类可以直接访问的
+                    //2.2 否则需要反射
+                    if (isOverload) {
+                        isDirect = isSource;
+                    } else {
+                        isDirect = isAccessible;
+                    }
                     if (f.isReader()) {
                         builder.append("$_=");
                     }
-                    if (accessible) {
-                        CtClass declaringClass = field.getDeclaringClass();
+                    if (isDirect) {
+                        String pramThis;
                         if (f.isStatic()) {
-                            builder.append(declaringClass.getName());
+                            if (isOverload) {
+                                pramThis = clone.getName();
+                            } else {
+                                pramThis = declaringClass.getName();
+                            }
                         } else {
                             if (isInStatic) {
-                                builder.append("$0");
+                                pramThis = "$0";
                             } else {
-                                builder.append(checkThis(declaringClass, "$0"));
+                                pramThis = checkThis(declaringClass, "$0");
                             }
                         }
-                        builder.append(".")
+                        builder.append(pramThis)
+                                .append(".")
                                 .append(field.getName());
                         if (f.isWriter()) {
-                            builder.append("=$1");
+                            String pramNewValue;
+                            if (f.isStatic()) {
+                                pramNewValue = "$1";
+                            } else {
+                                if (isInStatic) {
+                                    pramNewValue = "$1";
+                                } else {
+                                    pramNewValue = checkThis(field.getType(), "$1");
+                                }
+                            }
+                            builder.append("=")
+                                    .append(pramNewValue);
                         }
                         builder.append(";");
                     } else {
-                        if (f.isReader()) {
-                            builder.append("this.access(this.typeOf\"")
-                                    .append(field.getName())
-                                    .append("\",\"")
-                                    .append(field.getName())
-                                    .append("\",");
-
+                        String pramThis;
+                        if (f.isStatic()) {
+                            pramThis = "null";
                         } else {
-                            
+                            if (isInStatic) {
+                                pramThis = "$0";
+                            } else {
+                                pramThis = checkThis(declaringClass, "$0");
+                            }
                         }
+                        if (f.isReader()) {
+                            builder.append("this.access(this.typeOf(\"")
+                                    .append(declaringClass.getName())
+                                    .append("\"),\"")
+                                    .append(field.getName())
+                                    .append("\",")
+                                    .append(pramThis)
+                                    .append(")");
+                        } else {
+                            String pramNewValue;
+                            if (f.isStatic()) {
+                                pramNewValue = "$1";
+                            } else {
+                                if (isInStatic) {
+                                    pramNewValue = "$1";
+                                } else {
+                                    pramNewValue = checkThis(field.getType(), "$1");
+                                }
+                            }
+                            builder.append("this.modify(this.typeOf(\"")
+                                    .append(declaringClass.getName())
+                                    .append("\"),\"")
+                                    .append(field.getName())
+                                    .append("\",")
+                                    .append(pramThis)
+                                    .append(",")
+                                    .append(pramNewValue)
+                                    .append(")");
+                        }
+                        builder.append(";");
                     }
                     String source = builder.toString();
                     context.getLogger().quiet(source);
@@ -228,8 +438,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
             }
         });
     }
-
-
+    
     private void
     fixAnnotation(Map<CtMember, Integer> hashIds,
                   CtClass annotationType,
@@ -316,7 +525,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
             return name;
         } else {
             return "((" + type.getName() + ")((this==" + name + ")?(this.getTarget())" +
-                    ":((java.lang.Object)this)))";
+                    ":((java.lang.Object)" + name + ")))";
         }
     }
 
