@@ -19,7 +19,7 @@ import javassist.bytecode.ClassFile;
 final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
 
     @Override
-    ContextWith<List<Pair<CtClass,CtClass>>> doWork(ContextWith<List<CtClass>> context)
+    ContextWith<List<Pair<CtClass, CtClass>>> doWork(ContextWith<List<CtClass>> context)
             throws TransformException {
         List<Pair<CtClass, CtClass>> result = new LinkedList<>();
         try {
@@ -41,14 +41,12 @@ final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
                 classMap.fix(source);
                 for (CtMethod method : source.getDeclaredMethods()) {
                     if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        CtMethod added = new CtMethod(method, clone, classMap);
-                        clone.addMethod(added);
+                        clone.addMethod(new CtMethod(method, clone, classMap));
                     }
                 }
                 for (CtConstructor constructor : source.getDeclaredConstructors()) {
                     if (constructor.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
-                        CtMethod method = constructor.toMethod("$init$", clone);
-                        clone.addMethod(method);
+                        clone.addMethod(constructor.toMethod("$init$", clone));
                     }
                 }
                 int mod = clone.getModifiers();
@@ -56,10 +54,10 @@ final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
                 clone.setModifiers(mod);
                 result.add(Pair.of(source, clone));
             }
+            return context.with(result);
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
         }
-        return context.with(result);
     }
 
     private static boolean isEmptyText(String s) {

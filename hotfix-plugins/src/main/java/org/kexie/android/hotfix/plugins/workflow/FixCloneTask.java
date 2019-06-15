@@ -4,6 +4,7 @@ import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,8 +30,6 @@ import javassist.expr.MethodCall;
 
 final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>> {
 
-    private static final String JAVA_LANG_OBJECT = "java.lang.Object";
-
     private static final String EMPTY_MODIFY
             = "void receiveModifyById(int id,java.lang.Object newValue)" +
             "throws java.lang.Throwable " +
@@ -43,17 +42,20 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
             = "java.lang.Object receiveInvokeById(int id,java.lang.Object[] args)" +
             "throws java.lang.Throwable " +
             "{ throw new NoSuchMethodException();}";
-
+    private static final int BASE_STRING_BUILDER_SIZE = 64;
     private static final String OBJECT_SUPER_CLASS_NAME
             = "org.kexie.android.hotfix.internal.HotCodeExecutor";
 
+    private CtClass javaLangObject;
     private Map<CtClass, CtClass> boxMapping;
 
     @Override
     ContextWith<List<CtClass>> doWork(ContextWith<List<Pair<CtClass, CtClass>>> context)
             throws TransformException {
         try {
-            boxMapping = loadBoxMapping(context.getClasses());
+            javaLangObject = context.getClasses().get("java.lang.Object");
+            boxMapping = loadBoxMapping(context);
+            List<CtClass> classes = new LinkedList<>();
             Map<CtMember, Integer> hashIds = new HashMap<>();
             for (Pair<CtClass, CtClass> entry : context.getData()) {
                 hashIds.clear();
@@ -61,14 +63,17 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                 CtClass clone = entry.getSecond();
                 fixClass(context, hashIds, clone);
                 makeEntries(context, hashIds, clone);
+                classes.add(clone);
             }
+            return context.with(classes);
         } catch (NotFoundException | CannotCompileException e) {
             throw new TransformException(e);
         }
-        return null;
     }
 
-    private void fixClass(Context context, Map<CtMember, Integer> hashIds, CtClass clone)
+    private void fixClass(Context context,
+                          Map<CtMember, Integer> hashIds,
+                          CtClass clone)
             throws NotFoundException, CannotCompileException {
         clone.setSuperclass(context.getClasses().get(OBJECT_SUPER_CLASS_NAME));
         CtClass annotationType = context.getClasses().get(Annotations.ID_ANNOTATION);
@@ -78,10 +83,10 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         }
         for (CtMethod method : clone.getDeclaredMethods()) {
             fixAnnotation(hashIds, annotationType, constPool, method);
-            fixMethod(method);
+            fixMethod(context, method);
         }
-        clone.addConstructor(CtNewConstructor.make("public "
-                + clone.getSimpleName() + "(){super();}", clone));
+        clone.addConstructor(CtNewConstructor.make("public " +
+                clone.getSimpleName() + "(){super();}", clone));
     }
 
 
@@ -130,21 +135,19 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         }
         builder.append(member.getName())
                 .append('(');
-        CtClass objectType = context.getClasses().get(JAVA_LANG_OBJECT);
         CtClass[] parameterTypes = member.getParameterTypes();
         if (parameterTypes.length > 0) {
-            builder.append(checkCast(objectType, parameterTypes[0], "$2[0]"));
+            String checked = checkCast(javaLangObject, parameterTypes[0], "($2[0]))");
+            builder.append(checked);
             for (int i = 1; i < parameterTypes.length; ++i) {
-                builder.append(",").append(checkCast(objectType,
-                        parameterTypes[i],
-                        "$2[" + i + ']'));
+                checked = checkCast(javaLangObject, parameterTypes[0], "($2[" + i + "])");
+                builder.append(",")
+                        .append(checked);
             }
         }
         builder.append(");");
         if (!CtClass.voidType.equals(resultType)) {
-            builder.append("return ")
-                    .append(checkCast(resultType, objectType, "result"))
-                    .append(";");
+            builder.append("return result;");
         } else {
             builder.append("return null;");
         }
@@ -154,9 +157,19 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         return source;
     }
 
-    private void fixMethod(CtMethod thatMethod)
-            throws CannotCompileException {
-        thatMethod.instrument(new ExprEditor() {
+    private void fixMethod(Context context, CtMethod current)
+            throws CannotCompileException, NotFoundException {
+        CtClass currentClass = current.getDeclaringClass();
+        boolean isInStatic;
+        int currentModifiers = current.getModifiers();
+        if (Modifier.isStatic(currentModifiers)) {
+            isInStatic = true;
+            currentModifiers = Modifier.clear(currentModifiers, Modifier.STATIC);
+            current.setModifiers(currentModifiers);
+        } else {
+            isInStatic = false;
+        }
+        current.instrument(new ExprEditor() {
 
             @Override
             public void edit(MethodCall m) throws CannotCompileException {
@@ -170,9 +183,49 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
 
             @Override
             public void edit(FieldAccess f) throws CannotCompileException {
+                try {
+                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                    CtField field = f.getField();
+                    boolean accessible = isAccessible(currentClass, field);
+                    if (f.isReader()) {
+                        builder.append("$_=");
+                    }
+                    if (accessible) {
+                        CtClass declaringClass = field.getDeclaringClass();
+                        if (f.isStatic()) {
+                            builder.append(declaringClass.getName());
+                        } else {
+                            if (isInStatic) {
+                                builder.append("$0");
+                            } else {
+                                builder.append(checkThis(declaringClass, "$0"));
+                            }
+                        }
+                        builder.append(".")
+                                .append(field.getName());
+                        if (f.isWriter()) {
+                            builder.append("=$1");
+                        }
+                        builder.append(";");
+                    } else {
+                        if (f.isReader()) {
+                            builder.append("this.access(this.typeOf\"")
+                                    .append(field.getName())
+                                    .append("\",\"")
+                                    .append(field.getName())
+                                    .append("\",");
 
+                        } else {
+                            
+                        }
+                    }
+                    String source = builder.toString();
+                    context.getLogger().quiet(source);
+                    f.replace(source);
+                } catch (NotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
-
         });
     }
 
@@ -262,7 +315,49 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         if (type.isPrimitive()) {
             return name;
         } else {
-            return "((this==" + name + ")?(this.getTarget()):((java.lang.Object)this))";
+            return "((" + type.getName() + ")((this==" + name + ")?(this.getTarget())" +
+                    ":((java.lang.Object)this)))";
+        }
+    }
+
+    private String checkCast(CtClass from, CtClass to, String name) {
+        if (from.equals(to)) {
+            return name;
+        }
+        if (!from.isPrimitive() && to.isPrimitive()) {
+            CtClass box = boxMapping.get(to);
+            if (!box.equals(from)) {
+                return "((" + box.getName() + ")" + name + ")." + to.getName() + "Value()";
+            } else {
+                return name + "." + to.getName() + "Value()";
+            }
+        }
+        if (from.isPrimitive() && !to.isPrimitive()) {
+            return boxMapping.get(from).getName() + ".valueOf(" + name + ")";
+        }
+        return "((" + to.getName() + ")" + name + ")";
+    }
+
+    private static Map<CtClass, CtClass> loadBoxMapping(Context context) {
+        try {
+            ClassPool classPool = context.getClasses();
+            Map<CtClass, CtClass> result = new HashMap<>();
+            for (Class clazz : new Class[]{
+                    Byte.class,
+                    Short.class,
+                    Integer.class,
+                    Long.class,
+                    Float.class,
+                    Double.class,
+                    Character.class,
+                    Boolean.class
+            }) {
+                Class c = (Class) clazz.getDeclaredField("TYPE").get(null);
+                result.put(classPool.get(c.getName()), classPool.get(clazz.getName()));
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AssertionError(e);
         }
     }
 
@@ -279,35 +374,5 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
             }
             id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
         }
-    }
-
-    private String checkCast(CtClass form, CtClass to, String name) {
-        if (form.isPrimitive()) {
-            return "(" + boxMapping.get(form).getName() + ".valueOf(" + name + "))";
-        } else {
-            CtClass box = boxMapping.get(to);
-            if (box == null) {
-                if (form.equals(to)) {
-                    return name;
-                } else {
-                    return "((" + to.getName() + ")" + name + ")";
-                }
-            } else {
-                return "(((" + box.getName() + ")" + name + ")." + to.getName() + "Value())";
-            }
-        }
-    }
-
-    private static Map<CtClass, CtClass>
-    loadBoxMapping(ClassPool classPool) throws NotFoundException {
-        Map<CtClass, CtClass> mapping = new HashMap<>();
-        mapping.put(CtClass.booleanType, classPool.get(Boolean.class.getName()));
-        mapping.put(CtClass.charType, classPool.get(Character.class.getName()));
-        mapping.put(CtClass.doubleType, classPool.get(Double.class.getName()));
-        mapping.put(CtClass.floatType, classPool.get(Float.class.getName()));
-        mapping.put(CtClass.intType, classPool.get(Integer.class.getName()));
-        mapping.put(CtClass.shortType, classPool.get(Short.class.getName()));
-        mapping.put(CtClass.longType, classPool.get(Long.class.getName()));
-        return mapping;
     }
 }

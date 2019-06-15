@@ -37,11 +37,11 @@ public final class Workflow {
         Single<ContextWith<List<CtClass>>> copyClasses = scanResult
                 .map(it -> it.with(it.getData().getFirst()));
         Single<ContextWith<List<CtClass>>> needFixClasses = scanResult
-                .map(it -> it.with(it.getData().getFirst()));
+                .map(it -> it.with(it.getData().getSecond()));
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
                 .map(new CloneTask())
                 .map(new FixCloneTask());
-        Single<ContextWith<CtClass>> codeScope = copyClasses.map(new BuildScopeTask());
+        Single<ContextWith<CtClass>> codeScope = needFixClasses.map(new BuildScopeTask());
         Single<ContextWith<List<CtClass>>> buildClass = fixedClasses
                 .zipWith(codeScope, (cs, c) -> {
                     List<CtClass> classes = cs.getData();
