@@ -6,6 +6,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.blankj.utilcode.util.ResourceUtils;
+import com.blankj.utilcode.util.TimeUtils;
 
 import org.kexie.android.hotfix.Hotfix;
 import org.kexie.android.hotfix.HotfixManager;
@@ -24,6 +25,7 @@ public class MainActivity
 
     private TextView textView;
 
+    @Overload
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,17 +35,17 @@ public class MainActivity
         findViewById(R.id.load).setOnClickListener(this);
     }
 
-    @Overload
-    private int test() {
-        return 1000;
+    private int test(int s) {
+        return s;
     }
 
     @Overload
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {
-            //textView.setText("补丁修复完成，当前时间" + TimeUtils.getNowString());
-            textView.setText("时间错误");
+            test(1000);
+            textView.setText("补丁修复完成，当前时间" + TimeUtils.getNowString());
+            //textView.setText("时间错误");
         } else if (R.id.load == v.getId()) {
             File file = getDir("cache", MODE_PRIVATE);
             file = new File(file, "classes-dex.jar");

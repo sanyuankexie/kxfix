@@ -206,10 +206,11 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 pramThis = declaringClass.getName();
                             }
                         } else {
+                            //$0 is a ref
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = checkThis(declaringClass, "$0");
+                                pramThis = checkTarget(declaringClass, "$0");
                             }
                         }
                         if (!CtClass.voidType.equals(method.getReturnType())) {
@@ -219,20 +220,30 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 .append(".")
                                 .append(method.getName())
                                 .append("(");
+                        //no box
                         CtClass[] parameterTypes = method.getParameterTypes();
                         if (parameterTypes.length > 0) {
                             String checked;
                             if (isInStatic) {
                                 checked = "$1";
                             } else {
-                                checked = checkThis(parameterTypes[0], "$1");
+                                if (parameterTypes[0].isPrimitive()) {
+                                    checked = "$1";
+                                } else {
+                                    checked = checkTarget(parameterTypes[0], "$1");
+                                }
                             }
                             builder.append(checked);
                             for (int i = 1; i < parameterTypes.length; ++i) {
+                                int index = i + 1;
                                 if (isInStatic) {
-                                    checked = "$" + (i + 1);
+                                    checked = "$" + index;
                                 } else {
-                                    checked = checkThis(parameterTypes[i], "$" + (i + 1));
+                                    if (parameterTypes[i].isPrimitive()) {
+                                        checked = "$" + index;
+                                    } else {
+                                        checked = checkTarget(parameterTypes[i], "$" + index);
+                                    }
                                 }
                                 builder.append(",")
                                         .append(checked);
@@ -244,10 +255,11 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                         if (Modifier.isStatic(method.getModifiers())) {
                             pramThis = "null";
                         } else {
+                            //$0 is no ref
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = checkThis(declaringClass, "$0");
+                                pramThis = "(($0==this)?(this.getTarget()):($0))";
                             }
                         }
                         CtClass returnType = method.getReturnType();
@@ -264,23 +276,45 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                             if (isInStatic) {
                                 checked = "$1";
                             } else {
-                                checked = checkThis(parameterTypes[0], "$1");
+                                if (parameterTypes[0].isPrimitive()) {
+                                    checked = "(($w)$1)";
+                                } else {
+                                    checked = "(($1==this)?(this.getTarget()):($1))";
+                                }
                             }
                             pramsBuilder.append(checked);
 
-                            pramTypesBuilder.append("this.typeOf(\"")
-                                    .append(parameterTypes[0].getName())
-                                    .append("\")");
+                            if (parameterTypes[0].isPrimitive()) {
+                                pramTypesBuilder.append(parameterTypes[0].getName())
+                                        .append(".class");
+                            }
+                            else {
+                                pramTypesBuilder.append("this.typeOf(\"")
+                                        .append(parameterTypes[0].getName())
+                                        .append("\")");
+                            }
 
                             for (int i = 1; i < parameterTypes.length; ++i) {
-                                pramTypesBuilder.append(",this.typeOf(\"")
-                                        .append(parameterTypes[i].getName())
-                                        .append("\")");
-
+                                pramTypesBuilder.append(",");
+                                if (parameterTypes[i].isPrimitive()) {
+                                    pramTypesBuilder.append(parameterTypes[i].getName())
+                                            .append(".class");
+                                }else {
+                                    pramTypesBuilder.append("this.typeOf(\"")
+                                            .append(parameterTypes[i].getName())
+                                            .append("\")");
+                                }
+                                ////////////////////////////////////////
+                                int index = i + 1;
                                 if (isInStatic) {
-                                    checked = "$" + (i + 1);
+                                    checked = "$" + index;
                                 } else {
-                                    checked = checkThis(parameterTypes[i], "$" + (i + 1));
+                                    if (parameterTypes[i].isPrimitive()) {
+                                        checked = "(($w)$" + index+")";
+                                    } else {
+                                        checked = "(($" + index + "==this)?(this.getTarget())"
+                                                + ":($" + index + "))";
+                                    }
                                 }
                                 pramsBuilder.append(",")
                                         .append(checked);
@@ -362,10 +396,11 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 pramThis = declaringClass.getName();
                             }
                         } else {
+                            //$0 is no a ref
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = checkThis(declaringClass, "$0");
+                                pramThis = checkTarget(declaringClass, "$0");
                             }
                         }
                         builder.append(pramThis)
@@ -373,14 +408,10 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 .append(field.getName());
                         if (f.isWriter()) {
                             String pramNewValue;
-                            if (f.isStatic()) {
+                            if (isInStatic || field.getType().isPrimitive()) {
                                 pramNewValue = "$1";
                             } else {
-                                if (isInStatic) {
-                                    pramNewValue = "$1";
-                                } else {
-                                    pramNewValue = checkThis(field.getType(), "$1");
-                                }
+                                pramNewValue = checkTarget(field.getType(), "$1");
                             }
                             builder.append("=")
                                     .append(pramNewValue);
@@ -394,13 +425,21 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = checkThis(declaringClass, "$0");
+                                pramThis = "(($0==this)?(this.getTarget()):($0))";
                             }
                         }
                         if (f.isReader()) {
-                            builder.append("this.access(this.typeOf(\"")
-                                    .append(declaringClass.getName())
-                                    .append("\"),\"")
+                            builder.append("this.access(");
+                            if (field.getType().isPrimitive()) {
+                                builder.append(field.getType().getName())
+                                        .append(".class");
+                            }
+                            else {
+                                builder.append("this.typeOf(\"")
+                                        .append(declaringClass.getName())
+                                        .append("\")");
+                            }
+                            builder.append(",\"")
                                     .append(field.getName())
                                     .append("\",")
                                     .append(pramThis)
@@ -413,12 +452,24 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 if (isInStatic) {
                                     pramNewValue = "$1";
                                 } else {
-                                    pramNewValue = checkThis(field.getType(), "$1");
+                                    if (field.getType().isPrimitive()) {
+                                        pramNewValue = "(($w)$1)";
+                                    } else {
+                                        pramNewValue = "(($1==this)?(this.getTarget()):($1))";
+                                    }
                                 }
                             }
-                            builder.append("this.modify(this.typeOf(\"")
-                                    .append(declaringClass.getName())
-                                    .append("\"),\"")
+                            builder.append("this.modify(");
+                            if (field.getType().isPrimitive()) {
+                                builder.append(field.getType().getName())
+                                        .append(".class");
+                            }
+                            else {
+                                builder.append("this.typeOf(\"")
+                                        .append(declaringClass.getName())
+                                        .append("\")");
+                            }
+                            builder.append(",\"")
                                     .append(field.getName())
                                     .append("\",")
                                     .append(pramThis)
@@ -519,13 +570,9 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         return false;
     }
 
-    private String checkThis(CtClass type, String name) {
-        if (type.isPrimitive()) {
-            return name;
-        } else {
-            return "((" + type.getName() + ")((this==" + name + ")?(this.getTarget())" +
-                    ":((java.lang.Object)" + name + ")))";
-        }
+    private String checkTarget(CtClass type, String name) {
+        return "((" + type.getName() + ")((" + name + "==this)?(this.getTarget())" +
+                ":((java.lang.Object)" + name + ")))";
     }
 
     private String checkCast(CtClass from, CtClass to, String name) {
