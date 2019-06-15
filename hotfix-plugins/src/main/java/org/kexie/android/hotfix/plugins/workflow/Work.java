@@ -24,6 +24,6 @@ abstract class Work<I,O> implements Function<ContextWith<I>,ContextWith<O>> {
     /**
      * 重写该方法添加工作流程
      */
-    abstract ContextWith<O> doWork(ContextWith<I> data) throws TransformException, IOException;
+    abstract ContextWith<O> doWork(ContextWith<I> context) throws TransformException, IOException;
 
 }

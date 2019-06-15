@@ -1,0 +1,72 @@
+package org.kexie.android.hotfix.plugins.workflow;
+
+import com.android.build.api.transform.TransformException;
+import com.android.utils.Pair;
+
+import java.util.LinkedList;
+import java.util.List;
+
+import javassist.CannotCompileException;
+import javassist.ClassMap;
+import javassist.CtClass;
+import javassist.CtConstructor;
+import javassist.CtField;
+import javassist.CtMethod;
+import javassist.NotFoundException;
+import javassist.bytecode.AccessFlag;
+import javassist.bytecode.ClassFile;
+
+final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
+
+    @Override
+    ContextWith<List<Pair<CtClass,CtClass>>> doWork(ContextWith<List<CtClass>> context)
+            throws TransformException {
+        List<Pair<CtClass, CtClass>> result = new LinkedList<>();
+        try {
+            for (CtClass source : context.getData()) {
+                String packageName = source.getPackageName();
+                String cloneName = packageName + (isEmptyText(packageName) ? "" : ".")
+                        + "Overload$" + source.getSimpleName();
+                CtClass clone = context.getClasses().makeClass(cloneName);
+                clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
+                clone.defrost();
+                clone.setSuperclass(source.getSuperclass());
+                for (CtField field : source.getDeclaredFields()) {
+                    if (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                        clone.addField(new CtField(field, clone));
+                    }
+                }
+                ClassMap classMap = new ClassMap();
+                classMap.put(clone, source);
+                classMap.fix(source);
+                for (CtMethod method : source.getDeclaredMethods()) {
+                    if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                        CtMethod added = new CtMethod(method, clone, classMap);
+                        clone.addMethod(added);
+                    }
+                }
+                for (CtConstructor constructor : source.getDeclaredConstructors()) {
+                    if (constructor.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                        CtMethod method = constructor.toMethod("$init$", clone);
+                        clone.addMethod(method);
+                    }
+                }
+                int mod = clone.getModifiers();
+                mod = AccessFlag.clear(mod, AccessFlag.ABSTRACT);
+                clone.setModifiers(mod);
+                result.add(Pair.of(source, clone));
+            }
+        } catch (NotFoundException | CannotCompileException e) {
+            throw new TransformException(e);
+        }
+        return context.with(result);
+    }
+
+    private static boolean isEmptyText(String s) {
+        if (s == null) {
+            return true;
+        } else {
+            return s.length() == 0;
+        }
+    }
+}
