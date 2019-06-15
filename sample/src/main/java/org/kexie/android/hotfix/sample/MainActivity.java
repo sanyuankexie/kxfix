@@ -6,11 +6,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.blankj.utilcode.util.ResourceUtils;
-import com.blankj.utilcode.util.TimeUtils;
 
-import org.kexie.android.hotfix.Hotfix;
 import org.kexie.android.hotfix.HotfixManager;
-import org.kexie.android.hotfix.Overload;
 import org.kexie.android.hotfix.Patch;
 
 import java.io.File;
@@ -18,14 +15,13 @@ import java.util.UUID;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-@Hotfix
+
 public class MainActivity
         extends AppCompatActivity
         implements View.OnClickListener {
 
     private TextView textView;
 
-    @Overload
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -39,13 +35,10 @@ public class MainActivity
         return s;
     }
 
-    @Overload
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {
-            test(1000);
-            textView.setText("补丁修复完成，当前时间" + TimeUtils.getNowString());
-            //textView.setText("时间错误");
+            new TestChild().test();
         } else if (R.id.load == v.getId()) {
             File file = getDir("cache", MODE_PRIVATE);
             file = new File(file, "classes-dex.jar");

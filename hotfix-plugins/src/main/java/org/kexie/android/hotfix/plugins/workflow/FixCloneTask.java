@@ -182,7 +182,8 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                     boolean isAccessible = isAccessible(clone, method);
                     boolean isOverload = method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
                     boolean isSource = declaringClass.equals(source);
-                    boolean isSuper = m.isSuper();
+                    boolean isSuper = m.isSuper() && method.getDeclaringClass()
+                            .equals(source.getSuperclass());
                     boolean isDirect;
                     if (isOverload) {
                         if (isSource) {
@@ -287,8 +288,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                             if (parameterTypes[0].isPrimitive()) {
                                 pramTypesBuilder.append(parameterTypes[0].getName())
                                         .append(".class");
-                            }
-                            else {
+                            } else {
                                 pramTypesBuilder.append("this.typeOf(\"")
                                         .append(parameterTypes[0].getName())
                                         .append("\")");
@@ -299,7 +299,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 if (parameterTypes[i].isPrimitive()) {
                                     pramTypesBuilder.append(parameterTypes[i].getName())
                                             .append(".class");
-                                }else {
+                                } else {
                                     pramTypesBuilder.append("this.typeOf(\"")
                                             .append(parameterTypes[i].getName())
                                             .append("\")");
@@ -310,7 +310,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                     checked = "$" + index;
                                 } else {
                                     if (parameterTypes[i].isPrimitive()) {
-                                        checked = "(($w)$" + index+")";
+                                        checked = "(($w)$" + index + ")";
                                     } else {
                                         checked = "(($" + index + "==this)?(this.getTarget())"
                                                 + ":($" + index + "))";

@@ -3,6 +3,8 @@ package org.kexie.android.hotfix.plugins;
 import org.junit.Test;
 
 import io.reactivex.functions.Function;
+import javassist.ClassPool;
+import javassist.CtMethod;
 
 public class JavaTest implements Function<Object,Object> {
 
@@ -10,8 +12,7 @@ public class JavaTest implements Function<Object,Object> {
         test2(xczxc, xczxc);
     }
 
-    static void test2(int x,int x2)
-    {
+    static void test2(int x, int x2) {
 
     }
 
@@ -23,8 +24,8 @@ public class JavaTest implements Function<Object,Object> {
 
     @Test
     public void test() throws Throwable {
-        Class.forName("int");
-
+        for (CtMethod method : ClassPool.getDefault().get(JavaTest.class.getName()).getDeclaredMethods()) {
+            System.out.println(method.getSignature());
+        }
     }
-
 }

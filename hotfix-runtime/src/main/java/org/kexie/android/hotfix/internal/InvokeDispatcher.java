@@ -16,8 +16,6 @@ import androidx.annotation.RestrictTo;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public final class InvokeDispatcher {
 
-    private static final String TAG = "InvokeDispatcher";
-
     /**
      * 匹配使用了{@link org.kexie.android.hotfix.Hotfix}注解的类型
      * 不能使用within拦截所有调用,这样插入的代码太多了

@@ -28,3 +28,22 @@ Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(
     }
     return result;
 }
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(
+        JNIEnv *env,
+        jclass _,
+        jclass type,
+        jstring name_,
+        jstring sig_,
+        jobject object,
+        jobjectArray prams) {
+    const char *name = env->GetStringUTFChars(name_, nullptr);
+    const char *sig = env->GetStringUTFChars(sig_, nullptr);
+
+    // TODO
+
+    env->ReleaseStringUTFChars(name_, name);
+    env->ReleaseStringUTFChars(sig_, sig);
+}

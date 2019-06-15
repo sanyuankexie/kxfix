@@ -1,7 +1,5 @@
 package org.kexie.android.hotfix.internal;
 
-import java.lang.reflect.Method;
-
 import androidx.annotation.Keep;
 
 /***
@@ -12,7 +10,6 @@ final class ReflectEngine extends CodeContext {
 
     ReflectEngine() {
     }
-
 
     static {
         System.loadLibrary("jni-reflect");
@@ -57,9 +54,21 @@ final class ReflectEngine extends CodeContext {
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
-        Method method = ReflectFinder.findMethod(type, name, pramTypes);
-        return !nonVirtual ? method.invoke(target, prams)
-                : invokeNonVirtual(type, method, target, prams);
+        if (nonVirtual) {
+            String sig = makeSignature(pramTypes);
+            return invokeNonVirtual(type, name, sig, target, prams);
+        } else {
+            return ReflectFinder.findMethod(type, name, pramTypes)
+                    .invoke(target, prams);
+        }
+    }
+
+    private static String makeSignature(Class[] pramTypes) {
+        if (pramTypes != null && pramTypes.length > 0) {
+            StringBuilder builder = new StringBuilder();
+
+        }
+        return null;
     }
 
     /**
@@ -70,7 +79,8 @@ final class ReflectEngine extends CodeContext {
     private static native Object
     invokeNonVirtual(
             Class type,
-            Method target,
+            String name,
+            String sig,
             Object object,
             Object[] prams
     ) throws Throwable;
