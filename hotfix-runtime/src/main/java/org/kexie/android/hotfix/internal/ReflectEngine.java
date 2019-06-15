@@ -1,5 +1,8 @@
 package org.kexie.android.hotfix.internal;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+
 import androidx.annotation.Keep;
 
 /***
@@ -54,34 +57,32 @@ final class ReflectEngine extends CodeContext {
                          Class[] pramTypes,
                          Object target,
                          Object[] prams) throws Throwable {
-        if (nonVirtual) {
-            String sig = makeSignature(pramTypes);
-            return invokeNonVirtual(type, name, sig, target, prams);
+        Method method = ReflectFinder.findMethod(type, name, pramTypes);
+        int modifiers = method.getModifiers();
+        if (nonVirtual && !Modifier.isFinal(modifiers)
+                && !Modifier.isStatic(modifiers)
+                && !Modifier.isAbstract(modifiers)
+                && !Modifier.isPrivate(modifiers)) {
+            Class returnType = method.getReturnType();
+            return invokeNonVirtual(type, method, pramTypes, returnType, target, prams);
         } else {
-            return ReflectFinder.findMethod(type, name, pramTypes)
-                    .invoke(target, prams);
+            return method.invoke(target, prams);
         }
-    }
-
-    private static String makeSignature(Class[] pramTypes) {
-        if (pramTypes != null && pramTypes.length > 0) {
-            StringBuilder builder = new StringBuilder();
-
-        }
-        return null;
     }
 
     /**
-     * JNI->CallNonvirtualVoidMethod
+     * JNI->CallNonvirtual[TYPE]Method
      * 主要是为了实现invoke-super指令
      * 会抛出异常,在native捕获之后抛出到java层
      */
+
     private static native Object
-    invokeNonVirtual(
-            Class type,
-            String name,
-            String sig,
-            Object object,
-            Object[] prams
+    invokeNonVirtual(Class type,
+                     Method method,
+                     Class[] pramTypes,
+                     Class returnType,
+                     Object object,
+                     Object[] prams
     ) throws Throwable;
+
 }

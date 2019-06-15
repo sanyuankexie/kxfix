@@ -119,8 +119,9 @@ abstract class CodeScope {
         }
         if (!context.isThatScope(this)) {
             return context.access(type, name, o);
+        } else {
+            return context.getBaseContext().access(type, name, o);
         }
-        throw new NoSuchFieldException();
     }
 
     final void dispatchModify(
@@ -142,8 +143,8 @@ abstract class CodeScope {
         }
         if (!context.isThatScope(this)) {
             context.modify(type, name, o, newValue);
-            return;
+        } else {
+            context.getBaseContext().modify(type, name, o, newValue);
         }
-        throw new NoSuchFieldException();
     }
 }
