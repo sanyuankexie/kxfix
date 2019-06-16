@@ -26,16 +26,8 @@ dependencies {
     implementation 'org.smali:smali:2.2.7'
     //修改字节码
     implementation 'org.javassist:javassist:3.25.0-GA'
-
+    //rxjava工作流
     implementation 'io.reactivex.rxjava2:rxjava:2.2.9'
-
-    //implementation 'org.ow2.asm:asm:7.1'
-
-//    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-
-//    def version = 'v0.8.1'
-//    implementation "org.ice1000.jimgui:core:$version"
-//    implementation "org.ice1000.jimgui:kotlin-dsl:$version"
 
     testImplementation 'junit:junit:4.12'
 }
@@ -45,7 +37,7 @@ dependencies {
 uploadArchives {
     repositories {
         mavenDeployer {
-            //本地的Maven地址
+            //本地调试使用的的Maven地址
             repository(url: uri(new File(project.rootProject.projectDir,"local/repo").absolutePath))
         }
     }

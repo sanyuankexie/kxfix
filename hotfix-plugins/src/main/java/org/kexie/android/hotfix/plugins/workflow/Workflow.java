@@ -20,19 +20,18 @@ public final class Workflow {
         throw new AssertionError();
     }
 
-    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor();
-
     @SuppressWarnings({"ResultOfMethodCallIgnored", "CheckResult"})
     public static void doWorks(
             Context context,
             Collection<TransformInput> inputs
     ) {
+        Executor executor = Executors.newSingleThreadExecutor();
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
                 scanResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
                 .observeOn(Schedulers.io())
                 .map(new LoadTask())
-                .observeOn(Schedulers.from(EXECUTOR))
+                .observeOn(Schedulers.from(executor))
                 .map(new ScanTask());
         Single<ContextWith<List<CtClass>>> copyClasses = scanResult
                 .map(it -> it.with(it.getData().getFirst()));
@@ -59,6 +58,17 @@ public final class Workflow {
                 .map(new ZipTask())
                 .observeOn(Schedulers.computation())
                 .map(new Jar2DexTask())
-                .blockingGet();
+                .map(ContextWith::getData)
+                .subscribe(file -> {
+                    String os = System.getProperty("os.name");
+                    Process process;
+                    if (os.toLowerCase().startsWith("win")) {
+                        process = Runtime.getRuntime().exec("explorer " + file.getAbsolutePath());
+                    } else {
+                        process = Runtime.getRuntime().exec("nautilus " + file.getAbsolutePath());
+                    }
+                    process.waitFor();
+                    System.exit(0);
+                });
     }
 }
