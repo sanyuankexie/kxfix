@@ -1,11 +1,12 @@
 package org.kexie.android.hotfix.sample;
 
-import android.util.Log;
+import android.content.Context;
+import android.widget.Toast;
 
 
 public class TestSuper {
     private static final String TAG = "TestSuper";
-    void test() {
-        Log.d(TAG, "test: super");
+    void test(Context context) {
+        Toast.makeText(context,"in super",Toast.LENGTH_LONG).show();
     }
 }

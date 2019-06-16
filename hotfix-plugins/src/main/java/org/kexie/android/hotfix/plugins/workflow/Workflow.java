@@ -3,13 +3,11 @@ package org.kexie.android.hotfix.plugins.workflow;
 import com.android.build.api.transform.TransformInput;
 import com.android.utils.Pair;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import io.reactivex.Single;
-import io.reactivex.schedulers.Schedulers;
 import javassist.CtClass;
 
 /**
@@ -25,13 +23,10 @@ public final class Workflow {
             Context context,
             Collection<TransformInput> inputs
     ) {
-        Executor executor = Executors.newSingleThreadExecutor();
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
                 scanResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
-                .observeOn(Schedulers.io())
                 .map(new LoadTask())
-                .observeOn(Schedulers.from(executor))
                 .map(new ScanTask());
         Single<ContextWith<List<CtClass>>> copyClasses = scanResult
                 .map(it -> it.with(it.getData().getFirst()));
@@ -40,7 +35,8 @@ public final class Workflow {
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
                 .map(new CloneTask())
                 .map(new FixCloneTask());
-        Single<ContextWith<CtClass>> codeScope = needFixClasses.map(new BuildScopeTask());
+        Single<ContextWith<CtClass>> codeScope = needFixClasses
+                .map(new BuildScopeTask());
         Single<ContextWith<List<CtClass>>> buildClass = fixedClasses
                 .zipWith(codeScope, (cs, c) -> {
                     List<CtClass> classes = cs.getData();
@@ -53,12 +49,11 @@ public final class Workflow {
                     classes.addAll(build.getData());
                     return copy.with(classes);
                 });
-        allClasses.observeOn(Schedulers.io())
-                .map(new CopyTask())
+        allClasses.map(new CopyTask())
                 .map(new ZipTask())
-                .observeOn(Schedulers.computation())
                 .map(new Jar2DexTask())
                 .map(ContextWith::getData)
+                .map(File::getParentFile)
                 .subscribe(file -> {
                     String os = System.getProperty("os.name");
                     Process process;

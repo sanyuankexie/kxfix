@@ -38,7 +38,7 @@ public class MainActivity
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {
-            new TestChild().test();
+            new TestChild().test(this);
         } else if (R.id.load == v.getId()) {
             File file = getDir("cache", MODE_PRIVATE);
             file = new File(file, "classes-dex.jar");

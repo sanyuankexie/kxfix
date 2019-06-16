@@ -1,6 +1,7 @@
 package org.kexie.android.hotfix.sample;
 
-import android.util.Log;
+import android.content.Context;
+import android.widget.Toast;
 
 import org.kexie.android.hotfix.Hotfix;
 import org.kexie.android.hotfix.Overload;
@@ -11,8 +12,8 @@ public class TestChild extends TestSuper {
 
     @Overload
     @Override
-    void test() {
-        super.test();
-        Log.d(TAG, "test: sadasdasdasdasdas");
+    void test(Context context) {
+        super.test(context);
+        Toast.makeText(context,"has error",Toast.LENGTH_SHORT).show();
     }
 }
