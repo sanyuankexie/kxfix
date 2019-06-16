@@ -1,8 +1,5 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
-
-import java.io.IOException;
 import java.util.Collection;
 
 import io.reactivex.functions.Function;
@@ -23,6 +20,6 @@ abstract class Work<I,O> implements Function<ContextWith<I>,ContextWith<O>> {
     /**
      * 重写该方法添加工作流程
      */
-    abstract ContextWith<O> doWork(ContextWith<I> context) throws TransformException, IOException;
+    abstract ContextWith<O> doWork(ContextWith<I> context) throws Exception;
 
 }

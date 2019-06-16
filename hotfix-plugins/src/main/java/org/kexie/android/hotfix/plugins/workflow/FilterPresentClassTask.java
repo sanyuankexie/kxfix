@@ -1,6 +1,5 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.util.Arrays;
@@ -13,20 +12,19 @@ import javassist.CtClass;
 /**
  * 扫描输入中的所有符合条件的类
  */
-final class FilterAnnotationPresentClassTask
+final class FilterPresentClassTask
         extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
-
 
     @Override
     ContextWith<Pair<List<CtClass>, List<CtClass>>>
-    doWork(ContextWith<List<CtClass>> context) throws TransformException {
+    doWork(ContextWith<List<CtClass>> context) {
         List<CtClass> added = new LinkedList<>();
         List<CtClass> fixed = new LinkedList<>();
         for (CtClass clazz : context.getData()) {
             boolean patched = clazz.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
             boolean hotfix = clazz.hasAnnotation(Annotations.HOTFIX_ANNOTATION);
             if (patched && hotfix) {
-                throw new TransformException("注解 " + Annotations.HOTFIX_ANNOTATION
+                throw new RuntimeException("注解 " + Annotations.HOTFIX_ANNOTATION
                         + " 和注解 " + Annotations.OVERLOAD_ANNOTATION
                         + " 不能同时在class上出现");
             }

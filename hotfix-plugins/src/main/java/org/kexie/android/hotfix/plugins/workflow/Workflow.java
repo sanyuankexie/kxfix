@@ -24,31 +24,36 @@ public final class Workflow {
             Collection<TransformInput> inputs
     ) {
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
-                scanResult = Single.just(context)
+                filterPresentResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
                 .map(new LoadClassesTask())
-                .map(new FilterAnnotationPresentClassTask());
-        Single<ContextWith<List<CtClass>>> copyClasses = scanResult
+                .map(new FilterPresentClassTask());
+        Single<ContextWith<List<CtClass>>> addedClasses = filterPresentResult
                 .map(it -> it.with(it.getData().getFirst()));
-        Single<ContextWith<List<CtClass>>> needFixClasses = scanResult
+        Single<ContextWith<List<CtClass>>> needFixClasses = filterPresentResult
                 .map(it -> it.with(it.getData().getSecond()));
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
                 .map(new CloneHotfixClassTask())
                 .map(new FixCloneClassTask());
         Single<ContextWith<CtClass>> codeScope = needFixClasses
                 .map(new BuildCodeScopeTask());
-        Single<ContextWith<List<CtClass>>> buildClass = fixedClasses
-                .zipWith(codeScope, (cs, c) -> {
-                    List<CtClass> classes = cs.getData();
-                    classes.add(c.getData());
-                    return cs.with(classes);
-                });
-        Single<ContextWith<List<CtClass>>> allClasses = copyClasses
-                .zipWith(buildClass, (copy, build) -> {
-                    List<CtClass> classes = copy.getData();
-                    classes.addAll(build.getData());
-                    return copy.with(classes);
-                });
+        Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>> filterAddedResult
+                = addedClasses.map(new FilterAddedClassTask());
+        Single<ContextWith<List<CtClass>>> directCopyClasses = filterAddedResult
+                .map(it -> it.with(it.getData().getFirst()));
+        Single<ContextWith<List<CtClass>>> addedInnerClasses = filterAddedResult
+                .map(it -> it.with(it.getData().getSecond()));
+        Single<ContextWith<List<CtClass>>> fixedAddedInnerClasses = addedInnerClasses
+                .map(new FixAddedInnerClassTask());
+        Single<ContextWith<List<CtClass>>> allClasses = Single
+                .zip(fixedClasses, codeScope, fixedAddedInnerClasses, directCopyClasses,
+                        (context1, contextWith, context2, context3) -> {
+                            List<CtClass> result = context1.getData();
+                            result.addAll(context2.getData());
+                            result.addAll(context3.getData());
+                            result.add(contextWith.getData());
+                            return context1.with(result);
+                        });
         allClasses.map(new CopyClassFileTask())
                 .map(new PreDxJarTask())
                 .map(new Jar2DexTask())

@@ -1,11 +1,11 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.util.LinkedList;
 import java.util.List;
 
+import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.ClassMap;
 import javassist.CtClass;
@@ -24,8 +24,7 @@ import javassist.bytecode.ClassFile;
 final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
 
     @Override
-    ContextWith<List<Pair<CtClass, CtClass>>> doWork(ContextWith<List<CtClass>> context)
-            throws TransformException {
+    ContextWith<List<Pair<CtClass, CtClass>>> doWork(ContextWith<List<CtClass>> context) {
         List<Pair<CtClass, CtClass>> result = new LinkedList<>();
         try {
             for (CtClass source : context.getData()) {
@@ -62,7 +61,7 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
             }
             return context.with(result);
         } catch (NotFoundException | CannotCompileException e) {
-            throw new TransformException(e);
+            throw Exceptions.propagate(e);
         }
     }
 

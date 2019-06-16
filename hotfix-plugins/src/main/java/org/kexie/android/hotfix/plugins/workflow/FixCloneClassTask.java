@@ -1,6 +1,5 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
 import com.android.utils.Pair;
 
 import java.util.HashMap;
@@ -8,6 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.ClassPool;
 import javassist.CtClass;
@@ -52,8 +52,8 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
     private Map<CtClass, CtClass> boxMapping;
 
     @Override
-    ContextWith<List<CtClass>> doWork(ContextWith<List<Pair<CtClass, CtClass>>> context)
-            throws TransformException {
+    ContextWith<List<CtClass>>
+    doWork(ContextWith<List<Pair<CtClass, CtClass>>> context) {
         try {
             javaLangObject = context.getClasses().get("java.lang.Object");
             boxMapping = loadBoxMapping(context);
@@ -69,7 +69,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
             }
             return context.with(classes);
         } catch (NotFoundException | CannotCompileException e) {
-            throw new TransformException(e);
+            throw Exceptions.propagate(e);
         }
     }
 
@@ -185,33 +185,43 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                 try {
                     CtConstructor constructor = e.getConstructor();
                     CtClass declaringClass = constructor.getDeclaringClass();
-                    boolean isAccessible = clone.getPackageName()
-                            .equals(declaringClass.getPackageName());
-                    boolean isOverload = declaringClass
+                    boolean isAccessible = Modifier.isPublic(declaringClass.getModifiers());
+                    boolean isAdded = declaringClass
                             .hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
                     boolean isEnclose = declaringClass.getEnclosingBehavior() != null
                             || declaringClass.getDeclaringClass() != null;
                     boolean isDirect;
-
                     if (isAccessible) {
                         isDirect = true;
                     }else {
-                        if (isOverload) {
+                        //否则至少是跟它同在一个包下的类
+                        if (isAdded) {
+                            //新添加的类型无论如何都是可以被访问的
+                            //包括新添加的内部类
                             isDirect = true;
                         } else {
+                            //如果不是新添加的类
+                            //那么他们至少在一个包下
+                            //如果是内部类就要反射
+                            //如果是顶层类就可以直接访问
+                            isDirect = !isEnclose;
+                        }
+                    }
+                    //TODO
+                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                    if (isDirect) {
+
+                    }else {
+                        if (!isPrimitiveOrPrimitiveArray(declaringClass)) {
+                            builder.append("this.newInstance(this.typeOf(\"")
+                                    .append(declaringClass.getName())
+                                    .append("\",");
+
 
                         }
                     }
-
-                    if (!isPrimitiveOrPrimitiveArray(declaringClass)) {
-                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-                        builder.append("this.newInstance(this.typeOf(\"")
-                                .append(declaringClass.getName())
-                                .append("\",");
-
-                        String source = builder.toString();
-                        e.replace(source);
-                    }
+                    String source = builder.toString();
+                    e.replace(source);
                 } catch (NotFoundException ex) {
                     throw new RuntimeException(ex);
                 }
@@ -404,6 +414,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
 
             @Override
             public void edit(ConstructorCall c) throws CannotCompileException {
+                //超类调用处是无法直接修复的
                 c.replace(";");
             }
 

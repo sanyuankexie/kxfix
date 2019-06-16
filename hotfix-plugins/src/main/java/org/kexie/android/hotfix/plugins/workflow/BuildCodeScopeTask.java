@@ -1,9 +1,9 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.build.api.transform.TransformException;
 
 import java.util.List;
 
+import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.CtClass;
 import javassist.CtNewConstructor;
@@ -21,8 +21,7 @@ final class BuildCodeScopeTask extends Work<List<CtClass>,CtClass> {
     private static final String EMPTY_INIT = "public Overload$CodeScope(){super();}";
 
     @Override
-    ContextWith<CtClass> doWork(ContextWith<List<CtClass>> context)
-            throws TransformException {
+    ContextWith<CtClass> doWork(ContextWith<List<CtClass>> context) {
         try {
             List<CtClass> classes = context.getData();
             CtClass clazz = context.getClasses().makeClass(CODE_SCOPE_CLASS_NAME);
@@ -50,7 +49,7 @@ final class BuildCodeScopeTask extends Work<List<CtClass>,CtClass> {
             clazz.addMethod(CtNewMethod.make(builder.toString(), clazz));
             return context.with(clazz);
         } catch (CannotCompileException | NotFoundException e) {
-            throw new TransformException(e);
+            throw Exceptions.propagate(e);
         }
     }
 }

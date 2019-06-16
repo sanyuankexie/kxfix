@@ -1,5 +1,4 @@
 apply plugin: 'java-gradle-plugin'
-//apply plugin: 'kotlin'
 apply plugin: 'maven'
 version = '1.0.0'
 group = 'org.keixe.android.hotfix'
@@ -7,21 +6,15 @@ group = 'org.keixe.android.hotfix'
 targetCompatibility = JavaVersion.VERSION_1_8
 sourceCompatibility = JavaVersion.VERSION_1_8
 
-
-//compileKotlin {
-//    kotlinOptions.jvmTarget = "1.8"
-//}
-//compileTestKotlin {
-//    kotlinOptions.jvmTarget = "1.8"
-//}
-
 dependencies {
     //gradle apis
-    implementation 'com.android.tools.build:gradle:3.3.1'
+    implementation gradleApi()
     //基于aspectjx插粧
     implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.5'
     //dx
     implementation 'com.jakewharton.android.repackaged:dalvik-dx:9.0.0_r3'
+    //baksmali
+    implementation 'org.smali:baksmali:2.2.7'
     //smali
     implementation 'org.smali:smali:2.2.7'
     //修改字节码
@@ -32,12 +25,10 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
-
-
 uploadArchives {
     repositories {
         mavenDeployer {
-            //本地调试使用的的Maven地址
+            //本地调试使用的Maven地址
             repository(url: uri(new File(project.rootProject.projectDir,"local/repo").absolutePath))
         }
     }
