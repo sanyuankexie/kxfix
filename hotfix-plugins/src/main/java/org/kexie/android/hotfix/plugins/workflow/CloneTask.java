@@ -16,6 +16,11 @@ import javassist.NotFoundException;
 import javassist.bytecode.AccessFlag;
 import javassist.bytecode.ClassFile;
 
+/**
+ * 克隆原始类
+ * 但只保留被修复的方法和字段
+ * 类的法访问权限被修改为public并且移除abstract
+ */
 final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
 
     @Override
@@ -51,6 +56,7 @@ final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
                 }
                 int mod = clone.getModifiers();
                 mod = AccessFlag.clear(mod, AccessFlag.ABSTRACT);
+                mod = AccessFlag.setPublic(mod);
                 clone.setModifiers(mod);
                 result.add(Pair.of(source, clone));
             }

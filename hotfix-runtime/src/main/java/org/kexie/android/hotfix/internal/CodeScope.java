@@ -16,12 +16,12 @@ abstract class CodeScope {
 
     private CodeScopeManager context;
 
-    abstract Class[] loadIncludes(CodeContext context) throws Throwable;
+    abstract Class[] loadEntryClasses(CodeContext context) throws Throwable;
 
     void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
         ClassLoader classLoader = getClassLoader();
-        for (Class clazz : loadIncludes(context)) {
+        for (Class clazz : loadEntryClasses(context)) {
             Package pack = clazz.getPackage();
             Class hotClass = classLoader.loadClass(
                     (pack == null ? "" : pack.getName() + ".")

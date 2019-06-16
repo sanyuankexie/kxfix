@@ -17,7 +17,6 @@ abstract class Work<I,O> implements Function<ContextWith<I>,ContextWith<O>> {
 
     @Override
     public final ContextWith<O> apply(ContextWith<I> in) throws Exception {
-        in.pushNewTask(getClass());
         return doWork(in);
     }
 

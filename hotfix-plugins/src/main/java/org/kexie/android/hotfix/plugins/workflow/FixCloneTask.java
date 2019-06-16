@@ -23,10 +23,12 @@ import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.bytecode.annotation.Annotation;
 import javassist.bytecode.annotation.IntegerMemberValue;
+import javassist.expr.Cast;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
 import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
+import javassist.expr.NewExpr;
 
 final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>> {
 
@@ -174,6 +176,47 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         cloneMethod.instrument(new ExprEditor() {
 
             @Override
+            public void edit(Cast c) throws CannotCompileException {
+                super.edit(c);
+            }
+
+            @Override
+            public void edit(NewExpr e) throws CannotCompileException {
+                try {
+                    CtConstructor constructor = e.getConstructor();
+                    CtClass declaringClass = constructor.getDeclaringClass();
+                    boolean isAccessible = clone.getPackageName()
+                            .equals(declaringClass.getPackageName());
+                    boolean isOverload = declaringClass
+                            .hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
+                    boolean isEnclose = declaringClass.getEnclosingBehavior() != null
+                            || declaringClass.getDeclaringClass() != null;
+                    boolean isDirect;
+                    if (isAccessible) {
+                        isDirect = true;
+                    }else {
+                        if (isOverload) {
+                            isDirect = true;
+                        } else {
+                            
+                        }
+                    }
+
+                    if (!isPrimitiveOrPrimitiveArray(declaringClass)) {
+                        StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+                        builder.append("this.newInstance(this.typeOf(\"")
+                                .append(declaringClass.getName())
+                                .append("\",");
+
+                        String source = builder.toString();
+                        e.replace(source);
+                    }
+                } catch (NotFoundException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+
+            @Override
             public void edit(MethodCall m) throws CannotCompileException {
                 try {
                     CtMethod method = m.getMethod();
@@ -285,7 +328,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                             }
                             pramsBuilder.append(checked);
 
-                            if (parameterTypes[0].isPrimitive()) {
+                            if (isPrimitiveOrPrimitiveArray(parameterTypes[0])) {
                                 pramTypesBuilder.append(parameterTypes[0].getName())
                                         .append(".class");
                             } else {
@@ -296,7 +339,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
 
                             for (int i = 1; i < parameterTypes.length; ++i) {
                                 pramTypesBuilder.append(",");
-                                if (parameterTypes[i].isPrimitive()) {
+                                if (isPrimitiveOrPrimitiveArray(parameterTypes[i])) {
                                     pramTypesBuilder.append(parameterTypes[i].getName())
                                             .append(".class");
                                 } else {
@@ -430,7 +473,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                         }
                         if (f.isReader()) {
                             builder.append("this.access(");
-                            if (field.getType().isPrimitive()) {
+                            if (isPrimitiveOrPrimitiveArray(field.getType())) {
                                 builder.append(field.getType().getName())
                                         .append(".class");
                             }
@@ -460,7 +503,7 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                                 }
                             }
                             builder.append("this.modify(");
-                            if (field.getType().isPrimitive()) {
+                            if (isPrimitiveOrPrimitiveArray(field.getType())) {
                                 builder.append(field.getType().getName())
                                         .append(".class");
                             }
@@ -511,7 +554,6 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         attribute.removeAnnotation(Annotations.OVERLOAD_ANNOTATION);
         setAnnotations(member, attribute);
     }
-
 
     private static AnnotationsAttribute
     getAnnotations(CtMember member,
@@ -566,6 +608,24 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
         }
         if (declaringClass.getPackageName().equals(clone.getPackageName())) {
             return !Modifier.isPrivate(member.getModifiers());
+        }
+        return false;
+    }
+
+    /**
+     * 使用typeOf时一定要先用此函数检查是否为基本类型或者其数组
+     */
+    private static boolean isPrimitiveOrPrimitiveArray(CtClass clazz) throws NotFoundException {
+        if (clazz.isPrimitive()) {
+            return true;
+        }
+        while (clazz.isArray()) {
+            CtClass next = clazz.getComponentType();
+            if (next.isPrimitive()) {
+                return true;
+            } else {
+                clazz = next;
+            }
         }
         return false;
     }

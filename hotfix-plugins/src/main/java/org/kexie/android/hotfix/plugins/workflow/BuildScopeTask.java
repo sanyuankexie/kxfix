@@ -29,7 +29,7 @@ final class BuildScopeTask extends Work<List<CtClass>,CtClass> {
             clazz.defrost();
             clazz.setSuperclass(context.getClasses().get(CODE_SCOPE_SUPER_CLASS_NAME));
             StringBuilder builder = new StringBuilder("java.lang.Class[] " +
-                    "loadIncludes(org.kexie.android.hotfix.internal.CodeContext context)" +
+                    "loadEntryClasses(org.kexie.android.hotfix.internal.CodeContext context)" +
                     "throws java.lang.Throwable {return ");
             if (classes.size() > 0) {
                 builder.append("new Class[]{(context.typeOf(\"")
