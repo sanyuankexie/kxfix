@@ -3,93 +3,243 @@
 //
 
 #include <jni.h>
-#include <cstdlib>
-#include <list>
-
+#include <map>
+#include <functional>
 
 using namespace std;
 
-static class {
+static JavaVM* javaVM = nullptr;
 
-public:
-    void LoadMapping(JNIEnv*env) {
-        auto Zclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Boolean"));
-        auto Iclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Integer"));
-        auto Jclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Long"));
-        auto Dclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Double"));
-        auto Fclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Float"));
-        auto Cclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Character"));
-        auto Sclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Short"));
-        auto Bclass = (jclass)env->NewGlobalRef(env->FindClass("java/lang/Byte"));
+using UnBoxer = function<void(JNIEnv*, jobject, jvalue*)>;
+using Invoker = function<jobject(JNIEnv*, jclass, jmethodID, jobject, jvalue*)>;
 
-        jmethodID Zmethod = env->GetStaticMethodID(Zclass, "valueOf", "(Z)Ljava/lang/Boolean;");
-        jmethodID Imethod = env->GetStaticMethodID(Iclass, "valueOf", "(I)Ljava/lang/Integer;");
-        jmethodID Jmethod = env->GetStaticMethodID(Jclass, "valueOf", "(J)Ljava/lang/Long;");
-        jmethodID Dmethod = env->GetStaticMethodID(Dclass, "valueOf", "(D)Ljava/lang/Double;");
-        jmethodID Fmethod = env->GetStaticMethodID(Fclass, "valueOf", "(F)Ljava/lang/Float;");
-        jmethodID Cmethod = env->GetStaticMethodID(Cclass, "valueOf", "(C)Ljava/lang/Character;");
-        jmethodID Smethod = env->GetStaticMethodID(Sclass, "valueOf", "(S)Ljava/lang/Short;");
-        jmethodID Bmethod = env->GetStaticMethodID(Bclass, "valueOf", "(B)Ljava/lang/Byte;");
+struct Equals
+{
+	bool operator()(const jclass&k1, const jclass&k2)
+	{
+		JNIEnv *env = nullptr;
+		javaVM->GetEnv((void **)(&env), JNI_VERSION_1_6);
+		return env->IsSameObject(k1, k2);
+	}
+};
 
-        jmethodID Zmethod2 = env->GetMethodID(Zclass, "booleanValue", "()Z");
-        jmethodID Imethod2 = env->GetMethodID(Iclass, "intValue", "()I");
-        jmethodID Jmethod2 = env->GetMethodID(Jclass, "longValue", "()J");
-        jmethodID Dmethod2 = env->GetMethodID(Dclass, "doubleValue", "()D");
-        jmethodID Fmethod2 = env->GetMethodID(Fclass, "floatValue", "()F");
-        jmethodID Cmethod2 = env->GetMethodID(Cclass, "charValue", "()C");
-        jmethodID Smethod2 = env->GetMethodID(Sclass, "shortValue", "()S");
-        jmethodID Bmethod2 = env->GetMethodID(Bclass, "byteValue", "()B");
-    }
-}boxMapping;
+static map<jclass, Invoker, Equals> invokeMapping;
+static map<jclass, UnBoxer, Equals> unBoxMapping;
+
+static jclass javaLangObjectClass = nullptr;
+
+static void LoadMapping(JNIEnv*env) {
+
+	function<jclass(char*)> findClass = [env](const char*name) {
+		return (jclass)env->NewGlobalRef(env->FindClass(name));
+	};
+
+	javaLangObjectClass = findClass("java/lang/Object");
+
+	jclass zWrapper = findClass("java/lang/Boolean");
+	jclass iWrapper = findClass("java/lang/Integer");
+	jclass jWrapper = findClass("java/lang/Long");
+	jclass dWrapper = findClass("java/lang/Double");
+	jclass fWrapper = findClass("java/lang/Float");
+	jclass cWrapper = findClass("java/lang/Character");
+	jclass sWrapper = findClass("java/lang/Short");
+	jclass bWrapper = findClass("java/lang/Byte");
+
+	jmethodID zBox = env->GetStaticMethodID(zWrapper, "valueOf", "(Z)Ljava/lang/Boolean;");
+	jmethodID iBox = env->GetStaticMethodID(iWrapper, "valueOf", "(I)Ljava/lang/Integer;");
+	jmethodID jBox = env->GetStaticMethodID(jWrapper, "valueOf", "(J)Ljava/lang/Long;");
+	jmethodID dBox = env->GetStaticMethodID(dWrapper, "valueOf", "(D)Ljava/lang/Double;");
+	jmethodID fBox = env->GetStaticMethodID(fWrapper, "valueOf", "(F)Ljava/lang/Float;");
+	jmethodID cBox = env->GetStaticMethodID(cWrapper, "valueOf", "(C)Ljava/lang/Character;");
+	jmethodID sBox = env->GetStaticMethodID(sWrapper, "valueOf", "(S)Ljava/lang/Short;");
+	jmethodID bBox = env->GetStaticMethodID(bWrapper, "valueOf", "(B)Ljava/lang/Byte;");
+
+	jmethodID zUnBox = env->GetMethodID(zWrapper, "booleanValue", "()Z");
+	jmethodID iUnBox = env->GetMethodID(iWrapper, "intValue", "()I");
+	jmethodID jUnBox = env->GetMethodID(jWrapper, "longValue", "()J");
+	jmethodID dUnBox = env->GetMethodID(dWrapper, "doubleValue", "()D");
+	jmethodID fUnBox = env->GetMethodID(fWrapper, "floatValue", "()F");
+	jmethodID cUnBox = env->GetMethodID(cWrapper, "charValue", "()C");
+	jmethodID sUnBox = env->GetMethodID(sWrapper, "shortValue", "()S");
+	jmethodID bUnBox = env->GetMethodID(bWrapper, "byteValue", "()B");
+
+	jmethodID returnType = env->GetMethodID(env->FindClass("java/lang/reflect/Method"),
+		"getReturnType", "()Ljava/lang/Class;");
+
+	function<jclass(jclass, jmethodID)> getRealType =
+		[env, returnType](jclass clazz, jmethodID methodId) {
+		jobject method = env->ToReflectedMethod(clazz, methodId, JNI_FALSE);
+		jobject type = env->CallObjectMethod(method, returnType);
+		return (jclass)env->NewGlobalRef(type);
+	};
+	jclass zClass = getRealType(zWrapper, zUnBox);
+	jclass iClass = getRealType(iWrapper, iUnBox);
+	jclass jClass = getRealType(jWrapper, jUnBox);
+	jclass dClass = getRealType(dWrapper, dUnBox);
+	jclass fClass = getRealType(fWrapper, fUnBox);
+	jclass cClass = getRealType(cWrapper, cUnBox);
+	jclass sClass = getRealType(sWrapper, sUnBox);
+	jclass bClass = getRealType(bWrapper, bUnBox);
+
+	unBoxMapping[zClass] = [zUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->z = env->CallBooleanMethod(obj, zUnBox);
+	};
+	invokeMapping[zClass] = [zWrapper, zBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jboolean r = env->CallNonvirtualBooleanMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(zWrapper, zBox, r);
+	};
+
+	unBoxMapping[iClass] = [iUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->i = env->CallIntMethod(obj, iUnBox);
+	};
+	invokeMapping[iClass] = [iWrapper, iBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jint r = env->CallNonvirtualIntMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(iWrapper, iBox, r);
+	};
+
+	unBoxMapping[jClass] = [jUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->j = env->CallLongMethod(obj, jUnBox);
+	};
+	invokeMapping[jClass] = [jWrapper, jBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jlong r = env->CallNonvirtualLongMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(jWrapper, jBox, r);
+	};
+
+	unBoxMapping[dClass] = [dUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->d = env->CallDoubleMethod(obj, dUnBox);
+	};
+	invokeMapping[dClass] = [dWrapper, dBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jdouble r = env->CallNonvirtualDoubleMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(dWrapper, dBox, r);
+	};
+
+	unBoxMapping[fClass] = [fUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->f = env->CallFloatMethod(obj, fUnBox);
+	};
+	invokeMapping[fClass] = [fWrapper, fBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jfloat r = env->CallNonvirtualFloatMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(fWrapper, fBox, r);
+	};
+
+	unBoxMapping[cClass] = [cUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->c = env->CallCharMethod(obj, cUnBox);
+	};
+	invokeMapping[cClass] = [cWrapper, cBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jchar r = env->CallNonvirtualCharMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(cWrapper, cBox, r);
+	};
+
+	unBoxMapping[sClass] = [sUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->s = env->CallShortMethod(obj, sUnBox);
+	};
+	invokeMapping[sClass] = [sWrapper, sBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jshort r = env->CallNonvirtualShortMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(sWrapper, sBox, r);
+	};
+
+	unBoxMapping[bClass] = [bUnBox](JNIEnv*env, jobject obj, jvalue*value) {
+		value->b = env->CallByteMethod(obj, bUnBox);
+	};
+	invokeMapping[bClass] = [bWrapper, bBox](JNIEnv*env, jclass type, jmethodID id, jobject obj, jvalue* values)
+	{
+		jboolean r = env->CallNonvirtualByteMethodA(obj, type, id, values);
+		return env->CallStaticObjectMethod(bWrapper, bBox, r);
+	};
+}
+
+static jobject invokeNonVirtual(
+	JNIEnv*env,
+	jclass type,
+	jclass returnType,
+	jmethodID methodId,
+	jobject object,
+	jvalue* values)
+{
+	auto it = invokeMapping.find(returnType);
+	if (it != invokeMapping.end())
+	{
+		return it->second(env, type, methodId, object, values);
+	}
+	else if (env->IsAssignableFrom(javaLangObjectClass, returnType))
+	{
+		return env->CallNonvirtualObjectMethodA(object, type, methodId, values);
+	}
+	else
+	{
+		env->CallNonvirtualVoidMethodA(object, type, methodId, values);
+		return nullptr;
+	}
+}
+
+static void CheckUnBox(JNIEnv*env, jclass clazz, jobject obj, jvalue*out)
+{
+	auto it = unBoxMapping.find(clazz);
+	if (it != unBoxMapping.end())
+	{
+		it->second(env, obj, out);
+	}
+	else
+	{
+		out->l = obj;
+	}
+}
+
+static jvalue* GetNativeParameter(
+	JNIEnv *env,
+	jobjectArray pramTypes,
+	jobjectArray prams) {
+	jvalue *values = nullptr;
+	if (pramTypes != nullptr) {
+		auto length = env->GetArrayLength(pramTypes);
+		if (length > 0) {
+			values = new jvalue[length];
+			for (int i = 0; i < length; ++i) {
+				jclass clazz = (jclass)env->GetObjectArrayElement(pramTypes, i);
+				jobject obj = env->GetObjectArrayElement(prams, i);
+				CheckUnBox(env, clazz, obj, &values[i]);
+			}
+		}
+	}
+	return values;
+}
 
 extern "C"
 JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void *reserved) {
-    JNIEnv *env = nullptr;
-    vm->GetEnv((void **) (&env), JNI_VERSION_1_6);
-    boxMapping.LoadMapping(env);
-    return JNI_VERSION_1_6;
+	javaVM = vm;
+	JNIEnv *env = nullptr;
+	javaVM->GetEnv((void **)(&env), JNI_VERSION_1_6);
+	LoadMapping(env);
+	return JNI_VERSION_1_6;
 }
 
-
-
-static jvalue* GetNativeParameter(JNIEnv *env,jobjectArray prams) {
-    jvalue *values = nullptr;
-    if (prams != nullptr) {
-        auto length = env->GetArrayLength(prams);
-        if (length > 0) {
-            values = new jvalue[length];
-            for (int i = 0; i < length; ++i) {
-                values[i].l = env->GetObjectArrayElement(prams, i);
-            }
-        }
-    }
-    return values;
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeVoidNonVirtual(JNIEnv *env, jclass _,
-                                                                       jclass type, jobject method,
-                                                                       jobject object,
-                                                                       jobjectArray prams) {
-    jmethodID methodId = env->FromReflectedMethod(method);
-    jvalue *values = GetNativeParameter(env, prams);
-    env->CallNonvirtualVoidMethodA(object, type, methodId, values);
-    delete values;
-    jthrowable ex = env->ExceptionOccurred();
-    if (ex != nullptr) {
-        env->ExceptionClear();
-        env->Throw(ex);
-    }
-}
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(JNIEnv *env, jclass type_,
-                                                                      jclass type, jobject method,
-                                                                      jobjectArray pramTypes,
-                                                                      jclass returnType,
-                                                                      jobject object,
-                                                                      jobjectArray prams) {
-
+Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(
+	JNIEnv *env,
+	jclass _,
+	jclass type,
+	jobject method,
+	jobjectArray pramTypes,
+	jclass returnType,
+	jobject object,
+	jobjectArray prams) {
+	jmethodID methodId = env->FromReflectedMethod(method);
+	jvalue*values = GetNativeParameter(env, pramTypes, prams);
+	jobject reulst = invokeNonVirtual(env, type, returnType, methodId, object, values);
+	delete values;
+	jthrowable ex = env->ExceptionOccurred();
+	if (ex != nullptr)
+	{
+		env->Throw(ex);
+		env->ExceptionClear();
+	}
+	return reulst;
 }
