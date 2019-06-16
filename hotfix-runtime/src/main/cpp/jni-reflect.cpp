@@ -237,6 +237,7 @@ Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(
     if (ex != nullptr) {
         env->Throw(ex);
         env->ExceptionClear();
+        return nullptr;
     }
     return result;
 }

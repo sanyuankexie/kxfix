@@ -13,24 +13,24 @@ import androidx.annotation.MainThread;
 @Keep
 public final class HotfixManager {
 
-    private final Context mContext;
-    private final HandlerThread mWorkThread;
-    private final Handler mHandler;
+    private final Context context;
+    private final HandlerThread workThread;
+    private final Handler handler;
 
     public HotfixManager(Context context) {
-        this.mContext = context;
-        mWorkThread = new HandlerThread("Patch Loader Thread");
-        mWorkThread.start();
-        mHandler = new Handler(mWorkThread.getLooper());
+        this.context = context;
+        workThread = new HandlerThread("Patch Loader Thread");
+        workThread.start();
+        handler = new Handler(workThread.getLooper());
     }
 
     @MainThread
     public void apply(final Patch patch) {
-        mHandler.post(new Runnable() {
+        handler.post(new Runnable() {
             @Override
             public void run() {
                 try {
-                    PatchLoader.INSTANCE.load(mContext, patch.getDexPath());
+                    PatchLoader.INSTANCE.load(context, patch.getDexPath());
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

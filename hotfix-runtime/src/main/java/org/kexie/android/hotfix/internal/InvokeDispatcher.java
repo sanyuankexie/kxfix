@@ -6,11 +6,12 @@ import org.aspectj.lang.annotation.Aspect;
 
 import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
+
 /**
  * @author Luke
  * 用于转发调用的切面
+ * 使用AspectJ简化插粧流程
  */
-
 @Keep
 @Aspect
 @RestrictTo(RestrictTo.Scope.LIBRARY)

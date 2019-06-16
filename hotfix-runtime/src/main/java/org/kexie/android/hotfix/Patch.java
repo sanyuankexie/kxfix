@@ -5,19 +5,19 @@ import androidx.annotation.Keep;
 @Keep
 @SuppressWarnings("WeakerAccess")
 public final class Patch {
-    private final String mDexPath;
-    private final String mUUID;
+    private final String dexPath;
+    private final String uuid;
 
     public Patch(String dexPath, String uuid) {
-        this.mDexPath = dexPath;
-        this.mUUID = uuid;
+        this.dexPath = dexPath;
+        this.uuid = uuid;
     }
 
     public String getUUID() {
-        return mUUID;
+        return uuid;
     }
 
     public String getDexPath() {
-        return mDexPath;
+        return dexPath;
     }
 }

@@ -3,11 +3,13 @@ package org.kexie.android.hotfix.internal;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Objects;
 
 import androidx.annotation.Keep;
 
 /**
  * @author Luke
+ * 反射的工具类,主要用于查找方法和字段
  */
 @Keep
 final class ReflectFinder {
@@ -16,6 +18,10 @@ final class ReflectFinder {
         throw new AssertionError();
     }
 
+    /**
+     * 只应该查找公开的构造函数
+     * 或者是那个类声明的构造函数
+     */
     static Constructor<?> findConstructor(
             Class<?> type,
             Class[] pramTypes
@@ -30,12 +36,18 @@ final class ReflectFinder {
         return constructor;
     }
 
+
+    /**
+     * 一直向下查找,找到的最近的那个字段
+     * 就是字节码里需要但是只能反射的字段
+     */
     static Field findField(
             Class type,
             String name
     ) throws NoSuchFieldException {
         Field field = null;
-        while (type != null) {
+        while (type != null && !Objects.equals(type.getClassLoader(),
+                Object.class.getClassLoader())) {
             try {
                 field = type.getDeclaredField(name);
                 field.setAccessible(true);
@@ -50,6 +62,10 @@ final class ReflectFinder {
         return field;
     }
 
+    /**
+     * 一直向下查找,找到的最近的那个方法
+     * 就是字节码里需要但是只能反射的方法
+     */
     static Method findMethod(
             Class<?> type,
             String name,
