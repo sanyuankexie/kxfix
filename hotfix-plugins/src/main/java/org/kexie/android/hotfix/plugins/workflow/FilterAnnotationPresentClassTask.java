@@ -13,7 +13,8 @@ import javassist.CtClass;
 /**
  * 扫描输入中的所有符合条件的类
  */
-final class ScanTask extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
+final class FilterAnnotationPresentClassTask
+        extends Work<List<CtClass>, Pair<List<CtClass>,List<CtClass>>> {
 
 
     @Override

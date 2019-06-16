@@ -16,7 +16,7 @@ import javassist.CtClass;
 /**
  * 拷贝所有类型到指定目录
  */
-final class CopyTask extends TempWork<List<CtClass>,  List<Pair<CtClass, File>>> {
+final class CopyClassFileTask extends TempWork<List<CtClass>,  List<Pair<CtClass, File>>> {
     @Override
     ContextWith<List<Pair<CtClass, File>>> doWork(ContextWith<List<CtClass>> context) {
         String classOutputDir = getOutput(context);

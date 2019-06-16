@@ -21,7 +21,7 @@ import javassist.bytecode.ClassFile;
  * 但只保留被修复的方法和字段
  * 类的法访问权限被修改为public并且移除abstract
  */
-final class CloneTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
+final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
 
     @Override
     ContextWith<List<Pair<CtClass, CtClass>>> doWork(ContextWith<List<CtClass>> context)

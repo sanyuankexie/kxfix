@@ -26,17 +26,17 @@ public final class Workflow {
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
                 scanResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
-                .map(new LoadTask())
-                .map(new ScanTask());
+                .map(new LoadClassesTask())
+                .map(new FilterAnnotationPresentClassTask());
         Single<ContextWith<List<CtClass>>> copyClasses = scanResult
                 .map(it -> it.with(it.getData().getFirst()));
         Single<ContextWith<List<CtClass>>> needFixClasses = scanResult
                 .map(it -> it.with(it.getData().getSecond()));
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
-                .map(new CloneTask())
-                .map(new FixCloneTask());
+                .map(new CloneHotfixClassTask())
+                .map(new FixCloneClassTask());
         Single<ContextWith<CtClass>> codeScope = needFixClasses
-                .map(new BuildScopeTask());
+                .map(new BuildCodeScopeTask());
         Single<ContextWith<List<CtClass>>> buildClass = fixedClasses
                 .zipWith(codeScope, (cs, c) -> {
                     List<CtClass> classes = cs.getData();
@@ -49,8 +49,8 @@ public final class Workflow {
                     classes.addAll(build.getData());
                     return copy.with(classes);
                 });
-        allClasses.map(new CopyTask())
-                .map(new ZipTask())
+        allClasses.map(new CopyClassFileTask())
+                .map(new PreDxJarTask())
                 .map(new Jar2DexTask())
                 .map(ContextWith::getData)
                 .map(File::getParentFile)

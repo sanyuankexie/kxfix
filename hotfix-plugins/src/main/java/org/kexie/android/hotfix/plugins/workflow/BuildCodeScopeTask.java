@@ -10,7 +10,7 @@ import javassist.CtNewConstructor;
 import javassist.CtNewMethod;
 import javassist.NotFoundException;
 
-final class BuildScopeTask extends Work<List<CtClass>,CtClass> {
+final class BuildCodeScopeTask extends Work<List<CtClass>,CtClass> {
 
     private static final String CODE_SCOPE_CLASS_NAME
             = "org.kexie.android.hotfix.internal.Overload$CodeScope";

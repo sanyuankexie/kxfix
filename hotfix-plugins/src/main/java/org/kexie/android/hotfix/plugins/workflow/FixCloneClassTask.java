@@ -30,7 +30,7 @@ import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
 import javassist.expr.NewExpr;
 
-final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>> {
+final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>> {
 
     private static final String EMPTY_MODIFY
             = "void receiveModifyById(int id,java.lang.Object newValue)" +
@@ -192,13 +192,14 @@ final class FixCloneTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>>
                     boolean isEnclose = declaringClass.getEnclosingBehavior() != null
                             || declaringClass.getDeclaringClass() != null;
                     boolean isDirect;
+
                     if (isAccessible) {
                         isDirect = true;
                     }else {
                         if (isOverload) {
                             isDirect = true;
                         } else {
-                            
+
                         }
                     }
 

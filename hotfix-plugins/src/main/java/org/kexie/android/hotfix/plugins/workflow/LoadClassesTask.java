@@ -27,7 +27,7 @@ import javassist.NotFoundException;
 /**
  * 将所有类加载到{@link javassist.ClassPool}中
  */
-final class LoadTask extends Work<Collection<TransformInput>, List<CtClass>> {
+final class LoadClassesTask extends Work<Collection<TransformInput>, List<CtClass>> {
     @Override
     ContextWith<List<CtClass>> doWork(ContextWith<Collection<TransformInput>> context) {
         Collection<TransformInput> inputs = context.getData();
