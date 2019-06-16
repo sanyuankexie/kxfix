@@ -13,7 +13,6 @@ cmake_minimum_required(VERSION 3.4.1)
 
 # 设置用debug还是release模式。debug允许断点，而release更快
 #set( CMAKE_BUILD_TYPE Debug )
-set( CMAKE_BUILD_TYPE Release )
 
 # 设置编译选项
 # 允许c++11标准、O3优化、多线程。match选项可避免一些cpu上的问题
@@ -23,7 +22,6 @@ add_library( # Sets the name of the library.
         jni-reflect
         # Sets the library as a shared library.
         SHARED
-
         # Provides a relative path to your source file(s).
         jni-reflect.cpp)
 

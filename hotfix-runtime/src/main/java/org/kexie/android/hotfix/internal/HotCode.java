@@ -1,11 +1,10 @@
 package org.kexie.android.hotfix.internal;
 
+import org.kexie.android.hotfix.util.MultiKeyHashMap;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -17,16 +16,7 @@ import androidx.annotation.Keep;
 final class HotCode {
 
     static final int ID_NOT_FOUND = Integer.MIN_VALUE;
-
-    private static final class MethodId {
-        final int id;
-        final Class[] pramTypes;
-
-        MethodId(int id, Class[] pramTypes) {
-            this.pramTypes = pramTypes;
-            this.id = id;
-        }
-    }
+    private static final String OBJECT_INIT = "<init>";
 
     /**
      * 读取的概率远大于写的概率,并且两者的粒度都非常小
@@ -37,12 +27,12 @@ final class HotCode {
     private final CodeContext context;
     private final Class type;
     private final Map<String, Id> fieldIds;
-    private final Map<String, List<MethodId>> methodId;
+    private final Map<String, MultiKeyHashMap<Class, Id>> methodId;
 
     private HotCode(CodeContext context,
                     Class type,
                     Map<String, Id> fieldIds,
-                    Map<String, List<MethodId>> methodId) {
+                    Map<String, MultiKeyHashMap<Class, Id>> methodId) {
         this.context = context;
         this.type = type;
         this.fieldIds = fieldIds;
@@ -66,7 +56,7 @@ final class HotCode {
 
     static HotCode load(CodeContext context, Class clazz) {
         Map<String, Id> fieldId = new HashMap<>();
-        Map<String, List<MethodId>> methodId = new HashMap<>();
+        Map<String, MultiKeyHashMap<Class, Id>> methodId = new HashMap<>();
         for (Field field : clazz.getDeclaredFields()) {
             Id id = field.getAnnotation(Id.class);
             if (id != null) {
@@ -78,24 +68,26 @@ final class HotCode {
             if (id != null) {
                 Class[] pramTypes = method.getParameterTypes();
                 String name = method.getName();
-                List<MethodId> methods = methodId.get(name);
+                MultiKeyHashMap<Class, Id> methods = methodId.get(name);
                 if (methods == null) {
-                    methods = new LinkedList<>();
+                    methods = new MultiKeyHashMap<>();
                     methodId.put(name, methods);
                 }
-                methods.add(new MethodId(id.value(), pramTypes));
+                methods.put(pramTypes, id);
             }
         }
         return new HotCode(context, clazz, fieldId, methodId);
     }
 
     int hasMethod(String name, Class[] pramTypes) {
-        List<MethodId> methods = methodId.get(name);
+        if (OBJECT_INIT.equals(name)) {
+            name = "$init$";
+        }
+        MultiKeyHashMap<Class, Id> methods = methodId.get(name);
         if (methods != null) {
-            for (MethodId method : methods) {
-                if (Arrays.equals(method.pramTypes, pramTypes)) {
-                    return method.id;
-                }
+            Id id = methods.get(pramTypes);
+            if (id != null) {
+                return id.value();
             }
         }
         return ID_NOT_FOUND;

@@ -24,8 +24,7 @@ public final class InvokeDispatcher {
      * 所以可以直接记录id即可
      */
     @Around("execution(* (@org.kexie.android.hotfix.Hotfix *).*(..))" +
-            "||execution((@org.kexie.android.hotfix.Hotfix *).new(..))" +
-            "||staticinitialization((@org.kexie.android.hotfix.Hotfix *))")
+            "||execution((@org.kexie.android.hotfix.Hotfix *).new(..))")
     public final Object dispatchInvoke(ProceedingJoinPoint joinPoint) throws Throwable {
         return Hooker.INSTANCE.hook(joinPoint);
     }

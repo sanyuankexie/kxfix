@@ -5,8 +5,6 @@ import org.junit.Test;
 import java.lang.reflect.Method;
 
 import io.reactivex.functions.Function;
-import javassist.ClassPool;
-import javassist.CtMethod;
 
 public class JavaTest implements Function<Object,Object> {
 
@@ -24,13 +22,7 @@ public class JavaTest implements Function<Object,Object> {
 
     @Test
     public void test() throws Throwable {
-        for (CtMethod method : ClassPool.getDefault().get(JavaTest.class.getName()).getDeclaredMethods()) {
-            System.out.println(method.getName() + " " + method.getSignature());
-        }
-        System.out.println();
-        for (Method method : JavaTest.class.getDeclaredMethods()) {
-            System.out.println(method.getName() + " "+makeMethodSignature(method));
-        }
+
     }
 
     private static String makeMethodSignature(Method method) {
