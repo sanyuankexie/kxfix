@@ -59,12 +59,15 @@ final class ReflectEngine extends CodeContext {
                          Object[] prams) throws Throwable {
         Method method = ReflectFinder.findMethod(type, name, pramTypes);
         int modifiers = method.getModifiers();
-        if (nonVirtual && !Modifier.isFinal(modifiers)
-                && !Modifier.isStatic(modifiers)
-                && !Modifier.isAbstract(modifiers)
-                && !Modifier.isPrivate(modifiers)) {
-            Class returnType = method.getReturnType();
-            return invokeNonVirtual(type, method, pramTypes, returnType, target, prams);
+        if (nonVirtual) {
+            if (!Modifier.isFinal(modifiers) && !Modifier.isStatic(modifiers)
+                    && !Modifier.isAbstract(modifiers)
+                    && !Modifier.isPrivate(modifiers)) {
+                Class returnType = method.getReturnType();
+                return invokeNonVirtual(type, method, pramTypes, returnType, target, prams);
+            } else {
+                throw new AssertionError("Patch Plugin has bugs!!!");
+            }
         } else {
             return method.invoke(target, prams);
         }
