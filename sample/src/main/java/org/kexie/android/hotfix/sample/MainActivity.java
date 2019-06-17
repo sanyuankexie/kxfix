@@ -8,6 +8,7 @@ import android.widget.Toast;
 
 import com.blankj.utilcode.util.ResourceUtils;
 
+import org.kexie.android.hotfix.Hotfix;
 import org.kexie.android.hotfix.HotfixManager;
 import org.kexie.android.hotfix.Overload;
 import org.kexie.android.hotfix.Patch;
@@ -18,6 +19,7 @@ import java.util.UUID;
 import androidx.appcompat.app.AppCompatActivity;
 
 
+@Hotfix
 public class MainActivity
         extends AppCompatActivity
         implements View.OnClickListener {
@@ -39,10 +41,15 @@ public class MainActivity
         return s;
     }
 
+    private int[][][] test(int[][][][] arr,int sds,Object c) {
+        return null;
+    }
+
     @Overload
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {
+            test(null,1,this);
             Log.d(TAG, "onClick: aadsas");
         } else if (R.id.load == v.getId()) {
             File file = getDir("cache", MODE_PRIVATE);

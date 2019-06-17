@@ -8,7 +8,7 @@ final class TypeNames {
                     = "org.kexie.android.hotfix.internal.CodeScope";
 
     static final String OBJECT_SUPER_CLASS_NAME
-            = "org.kexie.android.hotfix.internal.OverloadObject";
+            = "org.kexie.android.hotfix.internal.RedirectTarget";
 
     static final String UTIL_CLASS_NAME
             = "org.kexie.android.hotfix.internal.Intrinsics";

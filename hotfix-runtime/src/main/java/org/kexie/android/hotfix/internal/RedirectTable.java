@@ -4,12 +4,12 @@ import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-final class OverloadObjectTable {
+final class RedirectTable {
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-    private final WeakHashMap<Object, OverloadObject> overloadObjects = new WeakHashMap<>();
+    private final WeakHashMap<Object, RedirectTarget> overloadObjects = new WeakHashMap<>();
     private final Class overloadType;
 
-    OverloadObjectTable(Class overloadType) {
+    RedirectTable(Class overloadType) {
         this.overloadType = overloadType;
     }
 
@@ -17,30 +17,30 @@ final class OverloadObjectTable {
         return overloadType;
     }
 
-    private OverloadObject newOverloadObject(Object o) {
+    private RedirectTarget newInstance(Object o) {
         try {
-            OverloadObject overloadObject = (OverloadObject) overloadType.newInstance();
-            overloadObject.target = o;
-            return overloadObject;
+            RedirectTarget redirectTarget = (RedirectTarget) overloadType.newInstance();
+            redirectTarget.target = o;
+            return redirectTarget;
         } catch (IllegalAccessException
                 | InstantiationException e) {
             throw new AssertionError(e);
         }
     }
 
-    OverloadObject lockOverloadObject(Object o) {
+    RedirectTarget get(Object o) {
         readWriteLock.readLock().lock();
-        OverloadObject overloadObject = overloadObjects.get(o);
+        RedirectTarget redirectTarget = overloadObjects.get(o);
         readWriteLock.readLock().unlock();
-        if (overloadObject == null) {
+        if (redirectTarget == null) {
             readWriteLock.writeLock().lock();
-            overloadObject = overloadObjects.get(o);
-            if (overloadObject == null) {
-                overloadObject = newOverloadObject(o);
-                overloadObjects.put(o, overloadObject);
+            redirectTarget = overloadObjects.get(o);
+            if (redirectTarget == null) {
+                redirectTarget = newInstance(o);
+                overloadObjects.put(o, redirectTarget);
             }
             readWriteLock.writeLock().unlock();
         }
-        return overloadObject;
+        return redirectTarget;
     }
 }

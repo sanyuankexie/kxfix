@@ -11,7 +11,7 @@ public final class Intrinsics {
         throw new AssertionError();
     }
 
-    public static Object checkArgument(OverloadObject $this, Object arg) {
+    public static Object checkArgument(RedirectTarget $this, Object arg) {
         return $this == arg ? $this.target : arg;
     }
 

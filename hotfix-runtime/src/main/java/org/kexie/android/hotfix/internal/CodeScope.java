@@ -15,7 +15,7 @@ abstract class CodeScope {
     CodeScope() {
     }
 
-    private final HashMap<Class, OverloadObjectTable> includes = new HashMap<>();
+    private final HashMap<Class, RedirectTable> includes = new HashMap<>();
 
     private CodeScopeManager context;
 
@@ -29,7 +29,7 @@ abstract class CodeScope {
             Class hotClass = classLoader.loadClass(
                     (pack == null ? "" : pack.getName() + ".")
                             + "Overload$" + clazz.getSimpleName());
-            includes.put(clazz, new OverloadObjectTable(hotClass));
+            includes.put(clazz, new RedirectTable(hotClass));
         }
     }
 
@@ -41,7 +41,7 @@ abstract class CodeScope {
             throws Throwable {
         CodeSignature codeSignature = (CodeSignature) joinPoint.getSignature();
         Class type = codeSignature.getDeclaringType();
-        OverloadObjectTable hotCode = includes.get(type);
+        RedirectTable hotCode = includes.get(type);
         if (hotCode != null) {
             String name = codeSignature.getName();
             Class[] pramsTypes = codeSignature.getParameterTypes();
@@ -52,7 +52,7 @@ abstract class CodeScope {
             );
             if (method != null) {
                 Object o = joinPoint.getTarget();
-                OverloadObject executor = hotCode.lockOverloadObject(o);
+                RedirectTarget executor = hotCode.get(o);
                 if (executor != null) {
                     return method.invoke(executor, joinPoint.getArgs());
                 }
@@ -80,7 +80,7 @@ abstract class CodeScope {
             Object o,
             Object[] prams)
             throws Throwable {
-        OverloadObjectTable hotCode = includes.get(!nonVirtual ? type : type.getSuperclass());
+        RedirectTable hotCode = includes.get(!nonVirtual ? type : type.getSuperclass());
         if (hotCode != null) {
             Method method = ReflectFinder.findMethodNoThrow(
                     hotCode.getOverloadType(),
@@ -88,7 +88,7 @@ abstract class CodeScope {
                     pramsTypes
             );
             if (method != null) {
-                OverloadObject executor = hotCode.lockOverloadObject(o);
+                RedirectTarget executor = hotCode.get(o);
                 if (executor != null) {
                     return method.invoke(executor, prams);
                 }
@@ -118,14 +118,14 @@ abstract class CodeScope {
             String name,
             Object o)
             throws Throwable {
-        OverloadObjectTable hotCode = includes.get(type);
+        RedirectTable hotCode = includes.get(type);
         if (hotCode != null) {
             Field field = ReflectFinder.findFieldNoThrow(
                     hotCode.getOverloadType(),
                     name
             );
             if (field != null) {
-                OverloadObject executor = hotCode.lockOverloadObject(o);
+                RedirectTarget executor = hotCode.get(o);
                 if (executor != null) {
                     return field.get(executor);
                 }
@@ -144,14 +144,14 @@ abstract class CodeScope {
             Object o,
             Object newValue)
             throws Throwable {
-        OverloadObjectTable hotCode = includes.get(type);
+        RedirectTable hotCode = includes.get(type);
         if (hotCode != null) {
             Field field = ReflectFinder.findFieldNoThrow(
                     hotCode.getOverloadType(),
                     name
             );
             if (field != null) {
-                OverloadObject executor = hotCode.lockOverloadObject(o);
+                RedirectTarget executor = hotCode.get(o);
                 if (executor != null) {
                     field.set(o, newValue);
                     return;

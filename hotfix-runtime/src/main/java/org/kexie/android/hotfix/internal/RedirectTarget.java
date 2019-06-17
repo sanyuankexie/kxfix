@@ -5,10 +5,9 @@ import androidx.annotation.RestrictTo;
 
 @Keep
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-public abstract class OverloadObject {
-    public OverloadObject() {
+public abstract class RedirectTarget {
+    public RedirectTarget() {
     }
 
     Object target;
-
 }
