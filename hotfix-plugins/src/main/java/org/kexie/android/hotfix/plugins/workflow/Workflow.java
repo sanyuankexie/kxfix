@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.List;
 
 import io.reactivex.Single;
-import io.reactivex.exceptions.Exceptions;
 import javassist.CtClass;
 
 /**
@@ -70,8 +69,7 @@ public final class Workflow {
                     }
                     process.waitFor();
                     System.exit(0);
-                }, throwable -> {
-                    throw Exceptions.propagate(throwable);
                 });
+        throw new RuntimeException("Plugin internal error");
     }
 }
