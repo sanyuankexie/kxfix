@@ -2,7 +2,7 @@ package org.kexie.android.hotfix.internal;
 
 public class CodeScopeTest extends CodeScope {
     @Override
-    Class[] loadEntryClasses(CodeContext context) {
+    Class[] loadEntryClasses(ExecutionEngine context) {
         return new Class[0];
     }
 }

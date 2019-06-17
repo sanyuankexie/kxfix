@@ -11,7 +11,7 @@ import androidx.annotation.Keep;
  * 但是完全没有平台依赖,只使用C++11,是可移植并对Rom无要求的
  */
 @Keep
-final class ReflectEngine extends CodeContext {
+final class ReflectEngine extends ExecutionEngine {
 
     ReflectEngine() {
     }

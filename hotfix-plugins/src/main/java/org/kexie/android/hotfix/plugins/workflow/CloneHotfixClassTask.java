@@ -36,7 +36,7 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 clone.defrost();
                 clone.setSuperclass(source.getSuperclass());
                 for (CtField field : source.getDeclaredFields()) {
-                    if (field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                    if (field.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION)) {
                         clone.addField(new CtField(field, clone));
                     }
                 }
@@ -44,12 +44,12 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 classMap.put(clone, source);
                 classMap.fix(source);
                 for (CtMethod method : source.getDeclaredMethods()) {
-                    if (method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                    if (method.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(new CtMethod(method, clone, classMap));
                     }
                 }
                 for (CtConstructor constructor : source.getDeclaredConstructors()) {
-                    if (constructor.hasAnnotation(Annotations.OVERLOAD_ANNOTATION)) {
+                    if (constructor.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(constructor.toMethod("$init$", clone));
                     }
                 }

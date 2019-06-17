@@ -12,30 +12,24 @@ import javassist.NotFoundException;
 
 final class BuildCodeScopeTask extends Work<List<CtClass>,CtClass> {
 
-    private static final String CODE_SCOPE_CLASS_NAME
-            = "org.kexie.android.hotfix.internal.Overload$CodeScope";
-
-    private static final String CODE_SCOPE_SUPER_CLASS_NAME
-            = "org.kexie.android.hotfix.internal.CodeScope";
-
     private static final String EMPTY_INIT = "public Overload$CodeScope(){super();}";
 
     @Override
     ContextWith<CtClass> doWork(ContextWith<List<CtClass>> context) {
         try {
             List<CtClass> classes = context.getData();
-            CtClass clazz = context.getClasses().makeClass(CODE_SCOPE_CLASS_NAME);
+            CtClass clazz = context.getClasses().makeClass(TypeNames.CODE_SCOPE_CLASS_NAME);
             clazz.defrost();
-            clazz.setSuperclass(context.getClasses().get(CODE_SCOPE_SUPER_CLASS_NAME));
+            clazz.setSuperclass(context.getClasses().get(TypeNames.CODE_SCOPE_SUPER_CLASS_NAME));
             StringBuilder builder = new StringBuilder("java.lang.Class[] " +
-                    "loadEntryClasses(org.kexie.android.hotfix.internal.CodeContext context)" +
+                    "loadEntries()" +
                     "throws java.lang.Throwable {return ");
             if (classes.size() > 0) {
-                builder.append("new Class[]{(context.typeOf(\"")
+                builder.append("new Class[]{(" + TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                         .append(classes.get(0).getName())
                         .append("\"))");
                 for (int i = 1; i < classes.size(); ++i) {
-                    builder.append(",(context.typeOf(\"")
+                    builder.append(",(" + TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                             .append(classes.get(i).getName())
                             .append("\"))");
                 }

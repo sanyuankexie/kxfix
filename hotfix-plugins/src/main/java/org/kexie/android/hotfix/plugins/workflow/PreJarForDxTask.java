@@ -19,7 +19,7 @@ import javassist.CtClass;
 /**
  * 将classes 用zip打包到指定文件夹
  */
-final class PreDxJarTask extends TempWork<List<Pair<CtClass,File>>,File> {
+final class PreJarForDxTask extends TempWork<List<Pair<CtClass,File>>,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override

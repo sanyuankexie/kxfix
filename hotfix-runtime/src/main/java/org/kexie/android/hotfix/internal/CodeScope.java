@@ -3,6 +3,8 @@ package org.kexie.android.hotfix.internal;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.CodeSignature;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 
 import androidx.annotation.Keep;
@@ -10,23 +12,24 @@ import androidx.annotation.Keep;
 @Keep
 abstract class CodeScope {
 
-    CodeScope() { }
+    CodeScope() {
+    }
 
-    private final HashMap<Class, HotCode> includes = new HashMap<>();
+    private final HashMap<Class, OverloadObjectTable> includes = new HashMap<>();
 
     private CodeScopeManager context;
 
-    abstract Class[] loadEntryClasses(CodeContext context) throws Throwable;
+    abstract Class[] loadEntries() throws Throwable;
 
     void loadClasses(CodeScopeManager context) throws Throwable {
         this.context = context;
         ClassLoader classLoader = getClassLoader();
-        for (Class clazz : loadEntryClasses(context)) {
+        for (Class clazz : loadEntries()) {
             Package pack = clazz.getPackage();
             Class hotClass = classLoader.loadClass(
                     (pack == null ? "" : pack.getName() + ".")
                             + "Overload$" + clazz.getSimpleName());
-            includes.put(clazz, HotCode.load(context, hotClass));
+            includes.put(clazz, new OverloadObjectTable(hotClass));
         }
     }
 
@@ -38,16 +41,20 @@ abstract class CodeScope {
             throws Throwable {
         CodeSignature codeSignature = (CodeSignature) joinPoint.getSignature();
         Class type = codeSignature.getDeclaringType();
-        HotCode hotCode = includes.get(type);
+        OverloadObjectTable hotCode = includes.get(type);
         if (hotCode != null) {
             String name = codeSignature.getName();
             Class[] pramsTypes = codeSignature.getParameterTypes();
-            int id = hotCode.hasMethod(name, pramsTypes);
-            if (id != HotCode.ID_NOT_FOUND) {
+            Method method = ReflectFinder.findMethodNoThrow(
+                    hotCode.getOverloadType(),
+                    name,
+                    pramsTypes
+            );
+            if (method != null) {
                 Object o = joinPoint.getTarget();
-                HotCodeExecutor executor = hotCode.lockExecutor(o);
+                OverloadObject executor = hotCode.lockOverloadObject(o);
                 if (executor != null) {
-                    return executor.receiveInvokeById(id, joinPoint.getArgs());
+                    return method.invoke(executor, joinPoint.getArgs());
                 }
             }
         }
@@ -73,18 +80,22 @@ abstract class CodeScope {
             Object o,
             Object[] prams)
             throws Throwable {
-        HotCode hotCode = includes.get(!nonVirtual ? type : type.getSuperclass());
+        OverloadObjectTable hotCode = includes.get(!nonVirtual ? type : type.getSuperclass());
         if (hotCode != null) {
-            int id = hotCode.hasMethod(name, pramsTypes);
-            if (id != HotCode.ID_NOT_FOUND) {
-                HotCodeExecutor executor = hotCode.lockExecutor(o);
+            Method method = ReflectFinder.findMethodNoThrow(
+                    hotCode.getOverloadType(),
+                    name,
+                    pramsTypes
+            );
+            if (method != null) {
+                OverloadObject executor = hotCode.lockOverloadObject(o);
                 if (executor != null) {
-                    return executor.receiveInvokeById(id, prams);
+                    return method.invoke(executor, prams);
                 }
             }
         }
         if (context.isThatScope(this)) {
-            return context.getBaseContext()
+            return context.getLowLevel()
                     .invoke(nonVirtual,
                             type,
                             name,
@@ -107,20 +118,23 @@ abstract class CodeScope {
             String name,
             Object o)
             throws Throwable {
-        HotCode hotCode = includes.get(type);
+        OverloadObjectTable hotCode = includes.get(type);
         if (hotCode != null) {
-            int id = hotCode.hasField(name);
-            if (id != HotCode.ID_NOT_FOUND) {
-                HotCodeExecutor executor = hotCode.lockExecutor(o);
+            Field field = ReflectFinder.findFieldNoThrow(
+                    hotCode.getOverloadType(),
+                    name
+            );
+            if (field != null) {
+                OverloadObject executor = hotCode.lockOverloadObject(o);
                 if (executor != null) {
-                    return executor.receiveAccessById(id);
+                    return field.get(executor);
                 }
             }
         }
         if (!context.isThatScope(this)) {
             return context.access(type, name, o);
         } else {
-            return context.getBaseContext().access(type, name, o);
+            return context.getLowLevel().access(type, name, o);
         }
     }
 
@@ -130,13 +144,16 @@ abstract class CodeScope {
             Object o,
             Object newValue)
             throws Throwable {
-        HotCode hotCode = includes.get(type);
+        OverloadObjectTable hotCode = includes.get(type);
         if (hotCode != null) {
-            int id = hotCode.hasField(name);
-            if (id != HotCode.ID_NOT_FOUND) {
-                HotCodeExecutor executor = hotCode.lockExecutor(o);
+            Field field = ReflectFinder.findFieldNoThrow(
+                    hotCode.getOverloadType(),
+                    name
+            );
+            if (field != null) {
+                OverloadObject executor = hotCode.lockOverloadObject(o);
                 if (executor != null) {
-                    executor.receiveModifyById(id, newValue);
+                    field.set(o, newValue);
                     return;
                 }
             }
@@ -144,7 +161,7 @@ abstract class CodeScope {
         if (!context.isThatScope(this)) {
             context.modify(type, name, o, newValue);
         } else {
-            context.getBaseContext().modify(type, name, o, newValue);
+            context.getLowLevel().modify(type, name, o, newValue);
         }
     }
 }

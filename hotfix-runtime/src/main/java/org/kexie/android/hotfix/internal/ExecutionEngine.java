@@ -7,7 +7,7 @@ import androidx.annotation.Keep;
  * 代码执行的上下文
  */
 @Keep
-abstract class CodeContext {
+abstract class ExecutionEngine {
 
     public abstract Class typeOf(String name)
             throws Throwable;

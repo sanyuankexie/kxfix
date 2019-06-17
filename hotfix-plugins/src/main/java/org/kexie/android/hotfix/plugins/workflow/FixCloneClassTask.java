@@ -16,13 +16,10 @@ import javassist.CtField;
 import javassist.CtMember;
 import javassist.CtMethod;
 import javassist.CtNewConstructor;
-import javassist.CtNewMethod;
 import javassist.Modifier;
 import javassist.NotFoundException;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
-import javassist.bytecode.annotation.Annotation;
-import javassist.bytecode.annotation.IntegerMemberValue;
 import javassist.expr.Cast;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
@@ -32,21 +29,7 @@ import javassist.expr.NewExpr;
 
 final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtClass>> {
 
-    private static final String EMPTY_MODIFY
-            = "void receiveModifyById(int id,java.lang.Object newValue)" +
-            "throws java.lang.Throwable " +
-            "{throw new java.lang.NoSuchFieldException();}";
-    private static final String EMPTY_ACCESS
-            = "java.lang.Object receiveAccessById(int id)" +
-            "throws java.lang.Throwable " +
-            "{throw new java.lang.NoSuchFieldException();}";
-    private static final String EMPTY_INVOKE
-            = "java.lang.Object receiveInvokeById(int id,java.lang.Object[] args)" +
-            "throws java.lang.Throwable " +
-            "{ throw new NoSuchMethodException();}";
     private static final int BASE_STRING_BUILDER_SIZE = 64;
-    private static final String OBJECT_SUPER_CLASS_NAME
-            = "org.kexie.android.hotfix.internal.HotCodeExecutor";
 
     private CtClass javaLangObject;
     private Map<CtClass, CtClass> boxMapping;
@@ -58,13 +41,10 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
             javaLangObject = context.getClasses().get("java.lang.Object");
             boxMapping = loadBoxMapping(context);
             List<CtClass> classes = new LinkedList<>();
-            Map<CtMember, Integer> hashIds = new HashMap<>();
             for (Pair<CtClass, CtClass> entry : context.getData()) {
-                hashIds.clear();
                 CtClass source = entry.getFirst();
                 CtClass clone = entry.getSecond();
-                fixClass(context, hashIds, source, clone);
-                makeEntries(context, hashIds, clone);
+                fixClass(context, source, clone);
                 classes.add(clone);
             }
             return context.with(classes);
@@ -74,89 +54,19 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
     }
 
     private void fixClass(Context context,
-                          Map<CtMember, Integer> hashIds,
                           CtClass source,
                           CtClass clone)
             throws NotFoundException, CannotCompileException {
-        clone.setSuperclass(context.getClasses().get(OBJECT_SUPER_CLASS_NAME));
-        CtClass annotationType = context.getClasses().get(Annotations.ID_ANNOTATION);
-        ConstPool constPool = clone.getClassFile().getConstPool();
+        clone.setSuperclass(context.getClasses().get(TypeNames.OBJECT_SUPER_CLASS_NAME));
         for (CtField field : clone.getDeclaredFields()) {
-            fixAnnotation(hashIds, annotationType, constPool, field);
+            fixAnnotation(field);
         }
         for (CtMethod method : clone.getDeclaredMethods()) {
-            fixAnnotation(hashIds, annotationType, constPool, method);
+            fixAnnotation(method);
             fixMethod(context, source, clone, method);
         }
         clone.addConstructor(CtNewConstructor.make("public " +
                 clone.getSimpleName() + "(){super();}", clone));
-    }
-
-    private void makeEntries(Context context,
-                             Map<CtMember, Integer> hashIds,
-                             CtClass clone)
-            throws CannotCompileException, NotFoundException {
-        CtMethod invoke = CtNewMethod.make(EMPTY_INVOKE, clone);
-        CtMethod modify = CtNewMethod.make(EMPTY_MODIFY, clone);
-        CtMethod access = CtNewMethod.make(EMPTY_ACCESS, clone);
-        for (Map.Entry<CtMember, Integer> entry : hashIds.entrySet()) {
-            CtMember member = entry.getKey();
-            if (member instanceof CtMethod) {
-                String source = makeInvokeEntry(context, (CtMethod) entry.getKey(), entry.getValue());
-                invoke.insertBefore(source);
-            } else if (member instanceof CtField) {
-                CtField field = (CtField) member;
-                if (!Modifier.isFinal(field.getModifiers())) {
-                    modify.insertBefore(makeModifyEntry(field, entry.getValue()));
-                }
-                access.insertBefore(makeAccessEntry(field, entry.getValue()));
-            }
-        }
-        clone.addMethod(invoke);
-        clone.addMethod(modify);
-        clone.addMethod(access);
-    }
-
-    private String makeAccessEntry(CtField field, int id) {
-        return "if(" + id + "==" + "$1" + "){return " + field.getName() + ";}";
-    }
-
-    private String makeModifyEntry(CtField field, int id) {
-        return "if(" + id + "==" + "$1" + "){" + "this." + field.getName() + "=" + "return;}";
-    }
-
-    private String makeInvokeEntry(Context context, CtMethod member, int id)
-            throws NotFoundException {
-        StringBuilder builder = new StringBuilder("if(")
-                .append(id)
-                .append("==$1){");
-        CtClass resultType = member.getReturnType();
-        if (!CtClass.voidType.equals(resultType)) {
-            builder.append(resultType.getName())
-                    .append(" result=");
-        }
-        builder.append(member.getName())
-                .append('(');
-        CtClass[] parameterTypes = member.getParameterTypes();
-        if (parameterTypes.length > 0) {
-            String checked = checkCast(javaLangObject, parameterTypes[0], "($2[0])");
-            builder.append(checked);
-            for (int i = 1; i < parameterTypes.length; ++i) {
-                checked = checkCast(javaLangObject, parameterTypes[0], "($2[" + i + "])");
-                builder.append(",")
-                        .append(checked);
-            }
-        }
-        builder.append(");");
-        if (!CtClass.voidType.equals(resultType)) {
-            builder.append("return result;");
-        } else {
-            builder.append("return null;");
-        }
-        builder.append('}');
-        String source = builder.toString();
-        context.getLogger().quiet(source);
-        return source;
     }
 
     private void fixMethod(Context context,
@@ -177,54 +87,54 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
 
             @Override
             public void edit(Cast c) throws CannotCompileException {
-                super.edit(c);
+//                super.edit(c);
             }
 
             @Override
             public void edit(NewExpr e) throws CannotCompileException {
-                try {
-                    CtConstructor constructor = e.getConstructor();
-                    CtClass declaringClass = constructor.getDeclaringClass();
-                    boolean isAccessible = Modifier.isPublic(declaringClass.getModifiers());
-                    boolean isAdded = declaringClass
-                            .hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
-                    boolean isEnclose = declaringClass.getEnclosingBehavior() != null
-                            || declaringClass.getDeclaringClass() != null;
-                    boolean isDirect;
-                    if (isAccessible) {
-                        isDirect = true;
-                    }else {
-                        //否则至少是跟它同在一个包下的类
-                        if (isAdded) {
-                            //新添加的类型无论如何都是可以被访问的
-                            //包括新添加的内部类
-                            isDirect = true;
-                        } else {
-                            //如果不是新添加的类
-                            //那么他们至少在一个包下
-                            //如果是内部类就要反射
-                            //如果是顶层类就可以直接访问
-                            isDirect = !isEnclose;
-                        }
-                    }
-                    //TODO
-                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-                    if (isDirect) {
-
-                    }else {
-                        if (!isPrimitiveOrPrimitiveArray(declaringClass)) {
-                            builder.append("this.newInstance(this.typeOf(\"")
-                                    .append(declaringClass.getName())
-                                    .append("\",");
-
-
-                        }
-                    }
-                    String source = builder.toString();
-                    e.replace(source);
-                } catch (NotFoundException ex) {
-                    throw new RuntimeException(ex);
-                }
+//                try {
+//                    CtConstructor constructor = e.getConstructor();
+//                    CtClass declaringClass = constructor.getDeclaringClass();
+//                    boolean isAccessible = Modifier.isPublic(declaringClass.getModifiers());
+//                    boolean isAdded = declaringClass
+//                            .hasAnnotation(TypeNames.OVERLOAD_ANNOTATION);
+//                    boolean isEnclose = declaringClass.getEnclosingBehavior() != null
+//                            || declaringClass.getDeclaringClass() != null;
+//                    boolean isDirect;
+//                    if (isAccessible) {
+//                        isDirect = true;
+//                    }else {
+//                        //否则至少是跟它同在一个包下的类
+//                        if (isAdded) {
+//                            //新添加的类型无论如何都是可以被访问的
+//                            //包括新添加的内部类
+//                            isDirect = true;
+//                        } else {
+//                            //如果不是新添加的类
+//                            //那么他们至少在一个包下
+//                            //如果是内部类就要反射
+//                            //如果是顶层类就可以直接访问
+//                            isDirect = !isEnclose;
+//                        }
+//                    }
+//                    //TODO
+//                    StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+//                    if (isDirect) {
+//
+//                    }else {
+//                        if (!isPrimitiveOrPrimitiveArray(declaringClass)) {
+//                            builder.append("this.newInstance(this.typeOf(\"")
+//                                    .append(declaringClass.getName())
+//                                    .append("\",");
+//
+//
+//                        }
+//                    }
+//                    String source = builder.toString();
+//                    e.replace(source);
+//                } catch (NotFoundException ex) {
+//                    throw new RuntimeException(ex);
+//                }
             }
 
             @Override
@@ -234,7 +144,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                     StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
                     CtClass declaringClass = method.getDeclaringClass();
                     boolean isAccessible = isAccessible(clone, method);
-                    boolean isOverload = method.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
+                    boolean isOverload = method.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION);
                     boolean isSource = declaringClass.equals(source);
                     boolean isSuper = m.isSuper() && method.getDeclaringClass()
                             .equals(source.getSuperclass());
@@ -314,7 +224,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = "(($0==this)?(this.getTarget()):($0))";
+                                pramThis = "(" + TypeNames.UTIL_CLASS_NAME + ".checkArgument(this,$0))";
                             }
                         }
                         CtClass returnType = method.getReturnType();
@@ -334,7 +244,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                                 if (parameterTypes[0].isPrimitive()) {
                                     checked = "(($w)$1)";
                                 } else {
-                                    checked = "(($1==this)?(this.getTarget()):($1))";
+                                    checked = "(" + TypeNames.UTIL_CLASS_NAME + ".checkArgument(this,$1))";
                                 }
                             }
                             pramsBuilder.append(checked);
@@ -343,7 +253,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                                 pramTypesBuilder.append(parameterTypes[0].getName())
                                         .append(".class");
                             } else {
-                                pramTypesBuilder.append("this.typeOf(\"")
+                                pramTypesBuilder.append(TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                                         .append(parameterTypes[0].getName())
                                         .append("\")");
                             }
@@ -354,7 +264,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                                     pramTypesBuilder.append(parameterTypes[i].getName())
                                             .append(".class");
                                 } else {
-                                    pramTypesBuilder.append("this.typeOf(\"")
+                                    pramTypesBuilder.append(TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                                             .append(parameterTypes[i].getName())
                                             .append("\")");
                                 }
@@ -366,8 +276,8 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                                     if (parameterTypes[i].isPrimitive()) {
                                         checked = "(($w)$" + index + ")";
                                     } else {
-                                        checked = "(($" + index + "==this)?(this.getTarget())"
-                                                + ":($" + index + "))";
+                                        checked = "(" + TypeNames.UTIL_CLASS_NAME
+                                                + ".checkArgument(this,$" + index + "))";
                                     }
                                 }
                                 pramsBuilder.append(",")
@@ -381,9 +291,9 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                         if (!CtClass.voidType.equals(returnType)) {
                             builder.append("$_=");
                         }
-                        invokeBuilder.append("this.invoke(")
+                        invokeBuilder.append(TypeNames.UTIL_CLASS_NAME + ".invoke(")
                                 .append(isSuper)
-                                .append(",this.typeOf(\"")
+                                .append("," + TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                                 .append(declaringClass.getName())
                                 .append("\"),\"")
                                 .append(method.getName())
@@ -425,7 +335,7 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                     CtField field = f.getField();
                     CtClass declaringClass = field.getDeclaringClass();
                     boolean isAccessible = isAccessible(clone, field);
-                    boolean isOverload = field.hasAnnotation(Annotations.OVERLOAD_ANNOTATION);
+                    boolean isOverload = field.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION);
                     boolean isSource = declaringClass.equals(source);
                     boolean isDirect;
                     //1 被重载的
@@ -480,17 +390,16 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                             if (isInStatic) {
                                 pramThis = "$0";
                             } else {
-                                pramThis = "(($0==this)?(this.getTarget()):($0))";
+                                pramThis = "(" + TypeNames.UTIL_CLASS_NAME + ".checkArgument(this,$0))";
                             }
                         }
                         if (f.isReader()) {
-                            builder.append("this.access(");
+                            builder.append(TypeNames.UTIL_CLASS_NAME + ".access(");
                             if (isPrimitiveOrPrimitiveArray(field.getType())) {
                                 builder.append(field.getType().getName())
                                         .append(".class");
-                            }
-                            else {
-                                builder.append("this.typeOf(\"")
+                            } else {
+                                builder.append(TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                                         .append(declaringClass.getName())
                                         .append("\")");
                             }
@@ -510,17 +419,17 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
                                     if (field.getType().isPrimitive()) {
                                         pramNewValue = "(($w)$1)";
                                     } else {
-                                        pramNewValue = "(($1==this)?(this.getTarget()):($1))";
+                                        pramNewValue = "(" + TypeNames.UTIL_CLASS_NAME
+                                                + ".checkArgument(this,$1))";
                                     }
                                 }
                             }
-                            builder.append("this.modify(");
+                            builder.append(TypeNames.UTIL_CLASS_NAME + ".modify(");
                             if (isPrimitiveOrPrimitiveArray(field.getType())) {
                                 builder.append(field.getType().getName())
                                         .append(".class");
-                            }
-                            else {
-                                builder.append("this.typeOf(\"")
+                            } else {
+                                builder.append(TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
                                         .append(declaringClass.getName())
                                         .append("\")");
                             }
@@ -544,32 +453,16 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
         });
     }
 
-    private void
-    fixAnnotation(Map<CtMember, Integer> hashIds,
-                  CtClass annotationType,
-                  ConstPool constPool,
-                  CtMember member)
-            throws NotFoundException {
-        AnnotationsAttribute attribute = getAnnotations(member,
-                AnnotationsAttribute.visibleTag);
-
-        Annotation annotation = new Annotation(constPool, annotationType);
-        IntegerMemberValue value = new IntegerMemberValue(constPool);
-        int id = hash(hashIds, member);
-        value.setValue(id);
-        annotation.addMemberValue("value", value);
-        attribute.addAnnotation(annotation);
-
-        setAnnotations(member, attribute);
-
-        attribute = getAnnotations(member, AnnotationsAttribute.invisibleTag);
-        attribute.removeAnnotation(Annotations.OVERLOAD_ANNOTATION);
-        setAnnotations(member, attribute);
+    private void fixAnnotation(CtMember member) {
+        AnnotationsAttribute attribute = getAnnotations(member);
+        if (attribute != null) {
+            attribute.removeAnnotation(TypeNames.OVERLOAD_ANNOTATION);
+            setAnnotations(member, attribute);
+        }
     }
 
     private static AnnotationsAttribute
-    getAnnotations(CtMember member,
-                   String name) {
+    getAnnotations(CtMember member) {
         ConstPool constPool = member.getDeclaringClass()
                 .getClassFile()
                 .getConstPool();
@@ -577,18 +470,15 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
         if (member instanceof CtField) {
             attribute = (AnnotationsAttribute) ((CtField) member)
                     .getFieldInfo()
-                    .getAttribute(name);
+                    .getAttribute(AnnotationsAttribute.invisibleTag);
         } else if (member instanceof CtMethod) {
             attribute = (AnnotationsAttribute) ((CtMethod) member)
                     .getMethodInfo()
-                    .getAttribute(name);
+                    .getAttribute(AnnotationsAttribute.invisibleTag);
         } else if (member instanceof CtConstructor) {
             attribute = (AnnotationsAttribute) ((CtConstructor) member)
                     .getMethodInfo()
-                    .getAttribute(name);
-        }
-        if (attribute == null) {
-            attribute = new AnnotationsAttribute(constPool, name);
+                    .getAttribute(AnnotationsAttribute.invisibleTag);
         }
         return attribute;
     }
@@ -643,8 +533,8 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
     }
 
     private String checkTarget(CtClass type, String name) {
-        return "((" + type.getName() + ")((" + name + "==this)?(this.getTarget())" +
-                ":((java.lang.Object)" + name + ")))";
+        return "((" + type.getName() + ")" + TypeNames.UTIL_CLASS_NAME
+                + ".checkArgument(this," + name + "))";
     }
 
     private String checkCast(CtClass from, CtClass to, String name) {
@@ -688,18 +578,4 @@ final class FixCloneClassTask extends Work<List<Pair<CtClass,CtClass>>,List<CtCl
         }
     }
 
-    /**
-     * 开地址法确保散列始终不会碰撞
-     * {@link Integer#MIN_VALUE}是无效值
-     */
-    private static int hash(Map<CtMember, Integer> hashIds, CtMember member) {
-        int id = System.identityHashCode(member);
-        while (true) {
-            if (!hashIds.containsValue(id)) {
-                hashIds.put(member, id);
-                return id;
-            }
-            id = id == Integer.MAX_VALUE ? Integer.MIN_VALUE + 1 : id + 1;
-        }
-    }
 }

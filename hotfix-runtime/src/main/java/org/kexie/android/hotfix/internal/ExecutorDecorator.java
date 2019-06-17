@@ -3,25 +3,21 @@ package org.kexie.android.hotfix.internal;
 import androidx.annotation.Keep;
 
 @Keep
-class CodeContextWrapper extends CodeContext {
+class ExecutorDecorator extends ExecutionEngine {
 
-    private CodeContext baseContext;
+    private final ExecutionEngine lowLevel;
 
-    CodeContextWrapper(CodeContext baseContext) {
-        this.baseContext = baseContext;
+    ExecutorDecorator(ExecutionEngine lowLevel) {
+        this.lowLevel = lowLevel;
     }
 
-    void setBaseContext(CodeContext baseContext) {
-        this.baseContext = baseContext;
-    }
-
-    CodeContext getBaseContext() {
-        return baseContext;
+    ExecutionEngine getLowLevel() {
+        return lowLevel;
     }
 
     @Override
     public Class typeOf(String name) throws Throwable {
-        return baseContext.typeOf(name);
+        return lowLevel.typeOf(name);
     }
 
     @Override
@@ -32,7 +28,7 @@ class CodeContextWrapper extends CodeContext {
                          Object target,
                          Object[] prams) throws
             Throwable {
-        return baseContext.invoke(nonVirtual, type, name, pramsTypes, target, prams);
+        return lowLevel.invoke(nonVirtual, type, name, pramsTypes, target, prams);
     }
 
     @Override
@@ -40,7 +36,7 @@ class CodeContextWrapper extends CodeContext {
                          String name,
                          Object target)
             throws Throwable {
-        return baseContext.access(type, name, target);
+        return lowLevel.access(type, name, target);
     }
 
     @Override
@@ -49,7 +45,7 @@ class CodeContextWrapper extends CodeContext {
                        Object target,
                        Object newValue)
             throws Throwable {
-        baseContext.modify(type, name, target, newValue);
+        lowLevel.modify(type, name, target, newValue);
     }
 
     @Override
@@ -57,6 +53,6 @@ class CodeContextWrapper extends CodeContext {
                               Class[] pramTypes,
                               Object[] prams)
             throws Throwable {
-        return baseContext.newInstance(type, pramTypes, prams);
+        return lowLevel.newInstance(type, pramTypes, prams);
     }
 }

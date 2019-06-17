@@ -37,6 +37,17 @@ final class ReflectFinder {
     }
 
 
+    static Field findFieldNoThrow(
+            Class type,
+            String name
+    ) {
+        try {
+            return findField(type, name);
+        } catch (NoSuchFieldException e) {
+            return null;
+        }
+    }
+
     /**
      * 一直向下查找,找到的最近的那个字段
      * 就是字节码里需要但是只能反射的字段
@@ -60,6 +71,19 @@ final class ReflectFinder {
             throw new NoSuchFieldException();
         }
         return field;
+    }
+
+
+    static Method findMethodNoThrow(
+            Class<?> type,
+            String name,
+            Class[] pramTypes
+    ) {
+        try {
+            return findMethod(type, name, pramTypes);
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
     }
 
     /**

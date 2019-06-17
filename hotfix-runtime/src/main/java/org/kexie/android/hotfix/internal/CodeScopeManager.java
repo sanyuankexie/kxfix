@@ -5,8 +5,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import androidx.annotation.Keep;
 
 @Keep
-class CodeScopeManager
-        extends CodeContextWrapper {
+class CodeScopeManager extends ExecutorDecorator {
 
     private static final AtomicReferenceFieldUpdater<CodeScopeManager, CodeScope>
             sCodeScopeUpdater = AtomicReferenceFieldUpdater
@@ -14,7 +13,7 @@ class CodeScopeManager
 
     volatile CodeScope codeScope;
 
-    CodeScopeManager(CodeContext base) {
+    CodeScopeManager(ExecutionEngine base) {
         super(base);
     }
 
