@@ -18,18 +18,18 @@ final class BuildCodeScopeTask extends Work<List<CtClass>,CtClass> {
     ContextWith<CtClass> doWork(ContextWith<List<CtClass>> context) {
         try {
             List<CtClass> classes = context.getData();
-            CtClass clazz = context.getClasses().makeClass(TypeNames.CODE_SCOPE_CLASS_NAME);
+            CtClass clazz = context.getClasses().makeClass(RefNames.CODE_SCOPE_CLASS_NAME);
             clazz.defrost();
-            clazz.setSuperclass(context.getClasses().get(TypeNames.CODE_SCOPE_SUPER_CLASS_NAME));
+            clazz.setSuperclass(context.getClasses().get(RefNames.CODE_SCOPE_SUPER_CLASS_NAME));
             StringBuilder builder = new StringBuilder("java.lang.Class[] " +
                     "loadEntries()" +
                     "throws java.lang.Throwable {return ");
             if (classes.size() > 0) {
-                builder.append("new Class[]{(" + TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
+                builder.append("new Class[]{(" + RefNames.UTIL_CLASS_NAME + ".typeOf(\"")
                         .append(classes.get(0).getName())
                         .append("\"))");
                 for (int i = 1; i < classes.size(); ++i) {
-                    builder.append(",(" + TypeNames.UTIL_CLASS_NAME + ".typeOf(\"")
+                    builder.append(",(" + RefNames.UTIL_CLASS_NAME + ".typeOf(\"")
                             .append(classes.get(i).getName())
                             .append("\"))");
                 }

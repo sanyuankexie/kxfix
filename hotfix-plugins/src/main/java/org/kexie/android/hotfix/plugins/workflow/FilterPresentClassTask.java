@@ -21,11 +21,11 @@ final class FilterPresentClassTask
         List<CtClass> added = new LinkedList<>();
         List<CtClass> fixed = new LinkedList<>();
         for (CtClass clazz : context.getData()) {
-            boolean patched = clazz.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION);
-            boolean hotfix = clazz.hasAnnotation(TypeNames.HOTFIX_ANNOTATION);
+            boolean patched = clazz.hasAnnotation(RefNames.OVERLOAD_ANNOTATION);
+            boolean hotfix = clazz.hasAnnotation(RefNames.HOTFIX_ANNOTATION);
             if (patched && hotfix) {
-                throw new RuntimeException("注解 " + TypeNames.HOTFIX_ANNOTATION
-                        + " 和注解 " + TypeNames.OVERLOAD_ANNOTATION
+                throw new RuntimeException("注解 " + RefNames.HOTFIX_ANNOTATION
+                        + " 和注解 " + RefNames.OVERLOAD_ANNOTATION
                         + " 不能同时在class上出现");
             }
             if (patched) {
@@ -35,9 +35,9 @@ final class FilterPresentClassTask
                 continue;
             }
             if (hotfix && (Arrays.stream(clazz.getDeclaredFields())
-                    .anyMatch(ctField -> ctField.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION))
+                    .anyMatch(ctField -> ctField.hasAnnotation(RefNames.OVERLOAD_ANNOTATION))
                     || Arrays.stream(clazz.getDeclaredBehaviors())
-                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(TypeNames.OVERLOAD_ANNOTATION)))) {
+                    .anyMatch(ctBehavior -> ctBehavior.hasAnnotation(RefNames.OVERLOAD_ANNOTATION)))) {
                 context.getLogger()
                         .quiet("fixed class " + clazz.getName());
                 fixed.add(clazz);

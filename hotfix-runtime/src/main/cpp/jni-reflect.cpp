@@ -172,7 +172,7 @@ static jobject invokeNonVirtual(
     auto it = invokeMapping.find(returnType);
     if (it != invokeMapping.end()) {
         return it->second(env, type, methodId, object, values);
-    } else if (env->IsAssignableFrom(returnType,javaLangObjectClass)) {
+    } else if (env->IsAssignableFrom(returnType, javaLangObjectClass)) {
         return env->CallNonvirtualObjectMethodA(object, type, methodId, values);
     } else {
         env->CallNonvirtualVoidMethodA(object, type, methodId, values);

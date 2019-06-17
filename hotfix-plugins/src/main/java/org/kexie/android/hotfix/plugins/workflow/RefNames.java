@@ -1,6 +1,6 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-final class TypeNames {
+final class RefNames {
 
     static final String CODE_SCOPE_CLASS_NAME
             = "org.kexie.android.hotfix.internal.Overload$CodeScope";
@@ -16,7 +16,7 @@ final class TypeNames {
     static final String HOTFIX_ANNOTATION = "org.kexie.android.hotfix.Hotfix";
     static final String OVERLOAD_ANNOTATION = "org.kexie.android.hotfix.Overload";
 
-    private TypeNames() {
+    private RefNames() {
         throw new AssertionError();
     }
 }
