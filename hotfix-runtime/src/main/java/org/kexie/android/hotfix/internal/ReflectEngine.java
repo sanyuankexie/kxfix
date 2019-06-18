@@ -56,7 +56,7 @@ final class ReflectEngine extends ExecutionEngine {
     }
 
     /**
-     * 实现invoke执行原言
+     * 实现invoke执行原语
      * 分为两种调用模式:
      * 1.一种是使用虚函数,与Java默认行为保持一致
      * 2.一种是不使用虚函数,根据类型调用类型上声明的方法,主要是为invoke-super指令准备

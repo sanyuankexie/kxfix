@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <functional>
 
+#define VERSION JNI_VERSION_1_4
+
 using namespace std;
 
 static JavaVM *javaVM = nullptr;
@@ -17,15 +19,15 @@ using Invoker = function<jobject(JNIEnv *, jclass, jmethodID, jobject, jvalue *)
 struct HashCode {
     size_t operator()(const jclass &k) const noexcept {
         JNIEnv *env = nullptr;
-        javaVM->GetEnv((void **) (&env), JNI_VERSION_1_6);
+        javaVM->GetEnv((void **) (&env), VERSION);
         return (size_t) env->CallIntMethod(k, hashCode);
     }
 };
 
 struct Equals {
-    bool operator()(const jclass &k1, const jclass &k2) const {
+    bool operator()(const jclass &k1, const jclass &k2) const noexcept{
         JNIEnv *env = nullptr;
-        javaVM->GetEnv((void **) (&env), JNI_VERSION_1_6);
+        javaVM->GetEnv((void **) (&env), VERSION);
         return env->IsSameObject(k1, k2);
     }
 };
@@ -80,6 +82,7 @@ static void LoadMapping(JNIEnv *env) {
                 jobject type = env->CallObjectMethod(method, returnType);
                 return (jclass) env->NewGlobalRef(type);
             };
+
     jclass zClass = getRealType(zWrapper, zUnBox);
     jclass iClass = getRealType(iWrapper, iUnBox);
     jclass jClass = getRealType(jWrapper, jUnBox);
@@ -95,6 +98,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[zClass] = [zWrapper, zBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jboolean r = env->CallNonvirtualBooleanMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(zWrapper, zBox, r);
     };
 
@@ -104,6 +110,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[iClass] = [iWrapper, iBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jint r = env->CallNonvirtualIntMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(iWrapper, iBox, r);
     };
 
@@ -113,6 +122,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[jClass] = [jWrapper, jBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jlong r = env->CallNonvirtualLongMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(jWrapper, jBox, r);
     };
 
@@ -122,6 +134,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[dClass] = [dWrapper, dBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jdouble r = env->CallNonvirtualDoubleMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(dWrapper, dBox, r);
     };
 
@@ -131,6 +146,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[fClass] = [fWrapper, fBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jfloat r = env->CallNonvirtualFloatMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(fWrapper, fBox, r);
     };
 
@@ -140,6 +158,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[cClass] = [cWrapper, cBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jchar r = env->CallNonvirtualCharMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(cWrapper, cBox, r);
     };
 
@@ -149,6 +170,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[sClass] = [sWrapper, sBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jshort r = env->CallNonvirtualShortMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(sWrapper, sBox, r);
     };
 
@@ -158,6 +182,9 @@ static void LoadMapping(JNIEnv *env) {
     invokeMapping[bClass] = [bWrapper, bBox](JNIEnv *env, jclass type, jmethodID id, jobject obj,
                                              jvalue *values) {
         jbyte r = env->CallNonvirtualByteMethodA(obj, type, id, values);
+        if (env->ExceptionCheck()) {
+            return (jobject)nullptr;
+        }
         return env->CallStaticObjectMethod(bWrapper, bBox, r);
     };
 }
@@ -173,7 +200,7 @@ static jobject invokeNonVirtual(
     if (it != invokeMapping.end()) {
         return it->second(env, type, methodId, object, values);
     } else if (env->IsAssignableFrom(returnType, javaLangObjectClass)) {
-        return env->CallNonvirtualObjectMethodA(object, type, methodId, values);
+        return env->CallNonvirtualObjectMethodA(object, type, methodId, values);;
     } else {
         env->CallNonvirtualVoidMethodA(object, type, methodId, values);
         return nullptr;
@@ -213,9 +240,9 @@ JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved) {
     javaVM = vm;
     JNIEnv *env = nullptr;
-    javaVM->GetEnv((void **) (&env), JNI_VERSION_1_6);
+    javaVM->GetEnv((void **) (&env), VERSION);
     LoadMapping(env);
-    return JNI_VERSION_1_6;
+    return VERSION;
 }
 
 extern "C"
@@ -233,11 +260,5 @@ Java_org_kexie_android_hotfix_internal_ReflectEngine_invokeNonVirtual(
     jvalue *values = GetNativeParameter(env, pramTypes, prams);
     jobject result = invokeNonVirtual(env, type, methodId, returnType, object, values);
     delete values;
-    jthrowable ex = env->ExceptionOccurred();
-    if (ex != nullptr) {
-        env->Throw(ex);
-        env->ExceptionClear();
-        return nullptr;
-    }
     return result;
 }

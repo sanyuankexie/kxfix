@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import androidx.annotation.Keep;
 
 @Keep
-class CodeScopeManager extends ExecutorDecorator {
+class CodeScopeManager extends DegradableExecutionEngine {
 
     private static final AtomicReferenceFieldUpdater<CodeScopeManager, CodeScope>
             sCodeScopeUpdater = AtomicReferenceFieldUpdater

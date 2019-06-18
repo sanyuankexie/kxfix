@@ -3,11 +3,11 @@ package org.kexie.android.hotfix.internal;
 import androidx.annotation.Keep;
 
 @Keep
-class ExecutorDecorator extends ExecutionEngine {
+class DegradableExecutionEngine extends ExecutionEngine {
 
     private final ExecutionEngine lowLevel;
 
-    ExecutorDecorator(ExecutionEngine lowLevel) {
+    DegradableExecutionEngine(ExecutionEngine lowLevel) {
         this.lowLevel = lowLevel;
     }
 

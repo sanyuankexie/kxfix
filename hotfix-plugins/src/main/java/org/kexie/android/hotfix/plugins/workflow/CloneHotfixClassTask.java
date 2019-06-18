@@ -2,6 +2,8 @@ package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.utils.Pair;
 
+import org.apache.http.util.TextUtils;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -29,14 +31,14 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
         try {
             for (CtClass source : context.getData()) {
                 String packageName = source.getPackageName();
-                String cloneName = packageName + (isEmptyText(packageName) ? "" : ".")
+                String cloneName = packageName + (TextUtils.isEmpty(packageName) ? "" : ".")
                         + "Overload$" + source.getSimpleName();
                 CtClass clone = context.getClasses().makeClass(cloneName);
                 clone.getClassFile().setMajorVersion(ClassFile.JAVA_7);
                 clone.defrost();
                 clone.setSuperclass(source.getSuperclass());
                 for (CtField field : source.getDeclaredFields()) {
-                    if (field.hasAnnotation(RefNames.OVERLOAD_ANNOTATION)) {
+                    if (field.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
                         clone.addField(new CtField(field, clone));
                     }
                 }
@@ -44,12 +46,12 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 classMap.put(clone, source);
                 classMap.fix(source);
                 for (CtMethod method : source.getDeclaredMethods()) {
-                    if (method.hasAnnotation(RefNames.OVERLOAD_ANNOTATION)) {
+                    if (method.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(new CtMethod(method, clone, classMap));
                     }
                 }
                 for (CtConstructor constructor : source.getDeclaredConstructors()) {
-                    if (constructor.hasAnnotation(RefNames.OVERLOAD_ANNOTATION)) {
+                    if (constructor.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(constructor.toMethod("$init$", clone));
                     }
                 }
@@ -62,14 +64,6 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
             return context.with(result);
         } catch (NotFoundException | CannotCompileException e) {
             throw Exceptions.propagate(e);
-        }
-    }
-
-    private static boolean isEmptyText(String s) {
-        if (s == null) {
-            return true;
-        } else {
-            return s.length() == 0;
         }
     }
 }

@@ -26,13 +26,48 @@ public class MainActivity
 
     private static final String TAG = "MainActivity";
 
-    private TextView textView;
+    public static TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView = findViewById(R.id.text);
+        View.OnClickListener v1 = v -> {
+            textView.setText("12312");
+        };
+        View.OnClickListener v2 = v -> {
+            System.out.println("asdas");
+        };
+
+        class InnerTest2 {
+
+        }
+
+        runOnUiThread(()->{
+            textView.setText("12312");
+        });
+
+        runOnUiThread(MainActivity::new);
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                textView.setText("text");
+            }
+        };
+
+
+
+        Runnable runnable1 = new Runnable() {
+            int flag;
+
+            @Override
+            public void run() {
+                System.out.println("asdsa");
+            }
+        };
+
         findViewById(R.id.testButton).setOnClickListener(this);
         findViewById(R.id.load).setOnClickListener(this);
     }

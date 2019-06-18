@@ -5,9 +5,9 @@ import org.junit.Test;
 import java.lang.reflect.Method;
 
 import io.reactivex.functions.Function;
+import javassist.CtClass;
 
 public class JavaTest implements Function<Object,Object> {
-
 
 
     static void test2(int[][] x, Object[][] x2) {
@@ -22,10 +22,11 @@ public class JavaTest implements Function<Object,Object> {
 
     @Test
     public void test() throws Throwable {
-
+        CtClass ctClass;
     }
 
     private static String makeMethodSignature(Method method) {
+
         StringBuilder builder = new StringBuilder("(");
         Class[] pramTypes = method.getParameterTypes();
         Class returnType = method.getReturnType();
