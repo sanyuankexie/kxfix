@@ -26,7 +26,7 @@ public class MainActivity
 
     private static final String TAG = "MainActivity";
 
-    public static TextView textView;
+    private TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,14 +48,10 @@ public class MainActivity
             textView.setText("12312");
         });
 
-        runOnUiThread(MainActivity::new);
+        runOnUiThread(textView::getKeepScreenOn);
 
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                textView.setText("text");
-            }
-        };
+        runOnUiThread(AppCompatActivity::new);
+
 
 
 

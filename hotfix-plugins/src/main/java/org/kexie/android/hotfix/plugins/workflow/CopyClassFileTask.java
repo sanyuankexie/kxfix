@@ -1,7 +1,8 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.SdkConstants;
-import com.android.utils.Pair;
+
+import org.kexie.android.hotfix.plugins.workflow.beans.CopyMapping;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,11 +17,11 @@ import javassist.CtClass;
 /**
  * 拷贝所有类型到指定目录
  */
-final class CopyClassFileTask extends TempWork<List<CtClass>,  List<Pair<CtClass, File>>> {
+final class CopyClassFileTask extends TempWork<List<CtClass>,  List<CopyMapping>> {
     @Override
-    ContextWith<List<Pair<CtClass, File>>> doWork(ContextWith<List<CtClass>> context) {
+    ContextWith<List<CopyMapping>> doWork(ContextWith<List<CtClass>> context) {
         String classOutputDir = getOutput(context);
-        List<Pair<CtClass, File>> files = new LinkedList<>();
+        List<CopyMapping> files = new LinkedList<>();
         try {
             for (CtClass clazz : context.getData()) {
                 clazz.writeFile(classOutputDir);
@@ -30,7 +31,7 @@ final class CopyClassFileTask extends TempWork<List<CtClass>,  List<Pair<CtClass
                 File file = new File(classOutputDir, entryName
                         + SdkConstants.DOT_CLASS);
                 if (file.exists()) {
-                    files.add(Pair.of(clazz, file));
+                    files.add(new CopyMapping(clazz, file));
                 }
             }
         } catch (CannotCompileException | IOException e) {

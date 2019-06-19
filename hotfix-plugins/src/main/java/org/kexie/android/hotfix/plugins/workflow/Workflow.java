@@ -3,6 +3,8 @@ package org.kexie.android.hotfix.plugins.workflow;
 import com.android.build.api.transform.TransformInput;
 import com.android.utils.Pair;
 
+import org.kexie.android.hotfix.plugins.workflow.beans.AnnotateOutput;
+
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
@@ -23,15 +25,14 @@ public final class Workflow {
             Context context,
             Collection<TransformInput> inputs
     ) {
-        Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>>
-                filterPresentResult = Single.just(context)
+        Single<ContextWith<AnnotateOutput>> filterPresentResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
                 .map(new LoadClassesTask())
-                .map(new FilterPresentClassTask());
+                .map(new FilterAnnotateTask());
         Single<ContextWith<List<CtClass>>> addedClasses = filterPresentResult
-                .map(it -> it.with(it.getData().getFirst()));
+                .map(it -> it.with(it.getData().added));
         Single<ContextWith<List<CtClass>>> needFixClasses = filterPresentResult
-                .map(it -> it.with(it.getData().getSecond()));
+                .map(it -> it.with(it.getData().fixed));
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
                 .map(new CloneHotfixClassTask())
                 .map(new FixCloneClassTask());

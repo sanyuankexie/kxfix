@@ -1,8 +1,7 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
-import com.android.utils.Pair;
-
 import org.apache.http.util.TextUtils;
+import org.kexie.android.hotfix.plugins.workflow.beans.CloneMapping;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -23,11 +22,11 @@ import javassist.bytecode.ClassFile;
  * 但只保留被修复的方法和字段
  * 类的法访问权限被修改为public并且移除abstract
  */
-final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,CtClass>>> {
+final class CloneHotfixClassTask extends Work<List<CtClass>,List<CloneMapping>> {
 
     @Override
-    ContextWith<List<Pair<CtClass, CtClass>>> doWork(ContextWith<List<CtClass>> context) {
-        List<Pair<CtClass, CtClass>> result = new LinkedList<>();
+    ContextWith<List<CloneMapping>> doWork(ContextWith<List<CtClass>> context) {
+        List<CloneMapping> result = new LinkedList<>();
         try {
             for (CtClass source : context.getData()) {
                 String packageName = source.getPackageName();
@@ -38,7 +37,7 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 clone.defrost();
                 clone.setSuperclass(source.getSuperclass());
                 for (CtField field : source.getDeclaredFields()) {
-                    if (field.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
+                    if (field.hasAnnotation(Context.OVERLOAD_ANNOTATION)) {
                         clone.addField(new CtField(field, clone));
                     }
                 }
@@ -46,12 +45,15 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 classMap.put(clone, source);
                 classMap.fix(source);
                 for (CtMethod method : source.getDeclaredMethods()) {
-                    if (method.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
+                    //克隆desugar生成lambda方法
+                    boolean isLambda = isSynthetic(method.getMethodInfo().getAccessFlags())
+                            && method.getName().startsWith(Context.LAMBDA_METHOD_NAME_PREFIX);
+                    if (method.hasAnnotation(Context.OVERLOAD_ANNOTATION) || isLambda) {
                         clone.addMethod(new CtMethod(method, clone, classMap));
                     }
                 }
                 for (CtConstructor constructor : source.getDeclaredConstructors()) {
-                    if (constructor.hasAnnotation(Constants.OVERLOAD_ANNOTATION)) {
+                    if (constructor.hasAnnotation(Context.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(constructor.toMethod("$init$", clone));
                     }
                 }
@@ -59,11 +61,15 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<Pair<CtClass,Ct
                 mod = AccessFlag.clear(mod, AccessFlag.ABSTRACT);
                 mod = AccessFlag.setPublic(mod);
                 clone.setModifiers(mod);
-                result.add(Pair.of(source, clone));
+                result.add(new CloneMapping(source, clone));
             }
             return context.with(result);
         } catch (NotFoundException | CannotCompileException e) {
             throw Exceptions.propagate(e);
         }
+    }
+
+    private static boolean isSynthetic(int mod) {
+        return (mod & AccessFlag.SYNTHETIC) != 0;
     }
 }

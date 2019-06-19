@@ -1,9 +1,9 @@
 package org.kexie.android.hotfix.plugins.workflow;
 
 import com.android.SdkConstants;
-import com.android.utils.Pair;
 
 import org.apache.commons.io.IOUtils;
+import org.kexie.android.hotfix.plugins.workflow.beans.CopyMapping;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,17 +13,15 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import javassist.CtClass;
-
 
 /**
  * 将classes 用zip打包到指定文件夹
  */
-final class PreJarForDxTask extends TempWork<List<Pair<CtClass,File>>,File> {
+final class PreJarForDxTask extends TempWork<List<CopyMapping>,File> {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
-    ContextWith<File> doWork(ContextWith<List<Pair<CtClass, File>>> context) throws IOException {
+    ContextWith<File> doWork(ContextWith<List<CopyMapping>> context) throws IOException {
         String out = getOutput(context);
         File output = new File(out);
         File file = output.getParentFile();
@@ -36,14 +34,14 @@ final class PreJarForDxTask extends TempWork<List<Pair<CtClass,File>>,File> {
         output.createNewFile();
         byte[] buffer = new byte[4096];
         ZipOutputStream zipOutputStream = new ZipOutputStream(new FileOutputStream(output));
-        for (Pair<CtClass, File> input : context.getData()) {
-            String entryName = input.getFirst().getName()
+        for (CopyMapping input : context.getData()) {
+            String entryName = input.clazz.getName()
                     .replace(".",
                             File.separator)
                     + SdkConstants.DOT_CLASS;
             ZipEntry zipEntry = new ZipEntry(entryName);
             zipOutputStream.putNextEntry(zipEntry);
-            FileInputStream inputStream = new FileInputStream(input.getSecond());
+            FileInputStream inputStream = new FileInputStream(input.file);
             IOUtils.copyLarge(inputStream, zipOutputStream, buffer);
             inputStream.close();
             zipOutputStream.closeEntry();
