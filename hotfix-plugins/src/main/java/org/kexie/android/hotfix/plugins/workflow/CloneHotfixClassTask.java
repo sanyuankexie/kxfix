@@ -45,10 +45,7 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<CloneMapping>> 
                 classMap.put(clone, source);
                 classMap.fix(source);
                 for (CtMethod method : source.getDeclaredMethods()) {
-                    //克隆desugar生成lambda方法
-                    boolean isLambda = isSynthetic(method.getMethodInfo().getAccessFlags())
-                            && method.getName().startsWith(Context.LAMBDA_METHOD_NAME_PREFIX);
-                    if (method.hasAnnotation(Context.OVERLOAD_ANNOTATION) || isLambda) {
+                    if (method.hasAnnotation(Context.OVERLOAD_ANNOTATION)) {
                         clone.addMethod(new CtMethod(method, clone, classMap));
                     }
                 }
@@ -67,9 +64,5 @@ final class CloneHotfixClassTask extends Work<List<CtClass>,List<CloneMapping>> 
         } catch (NotFoundException | CannotCompileException e) {
             throw Exceptions.propagate(e);
         }
-    }
-
-    private static boolean isSynthetic(int mod) {
-        return (mod & AccessFlag.SYNTHETIC) != 0;
     }
 }

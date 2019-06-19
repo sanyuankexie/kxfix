@@ -27,7 +27,7 @@ public final class Workflow {
     ) {
         Single<ContextWith<AnnotateOutput>> filterPresentResult = Single.just(context)
                 .zipWith(Single.just(inputs), Context::with)
-                .map(new LoadClassesTask())
+                .map(new LoadClassTask())
                 .map(new FilterAnnotateTask());
         Single<ContextWith<List<CtClass>>> addedClasses = filterPresentResult
                 .map(it -> it.with(it.getData().added));
@@ -35,7 +35,7 @@ public final class Workflow {
                 .map(it -> it.with(it.getData().fixed));
         Single<ContextWith<List<CtClass>>> fixedClasses = needFixClasses
                 .map(new CloneHotfixClassTask())
-                .map(new FixCloneClassTask());
+                .map(new AdjustCloneClassTask());
         Single<ContextWith<CtClass>> codeScope = needFixClasses
                 .map(new BuildCodeScopeTask());
         Single<ContextWith<Pair<List<CtClass>, List<CtClass>>>> filterAddedResult
@@ -45,7 +45,7 @@ public final class Workflow {
         Single<ContextWith<List<CtClass>>> addedInnerClasses = filterAddedResult
                 .map(it -> it.with(it.getData().getSecond()));
         Single<ContextWith<List<CtClass>>> fixedAddedInnerClasses = addedInnerClasses
-                .map(new FixAddedInnerClassTask());
+                .map(new AdjustInnerClassTask());
         Single<ContextWith<List<CtClass>>> allClasses = Single
                 .zip(fixedClasses, codeScope, fixedAddedInnerClasses, directCopyClasses,
                         (context1, contextWith, context2, context3) -> {

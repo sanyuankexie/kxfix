@@ -4,7 +4,7 @@ import java.util.List;
 
 import javassist.CtClass;
 
-final class FixAddedInnerClassTask extends Work<List<CtClass>,List<CtClass>> {
+final class AdjustInnerClassTask extends Work<List<CtClass>,List<CtClass>> {
 
     @Override
     ContextWith<List<CtClass>> doWork(ContextWith<List<CtClass>> context) {

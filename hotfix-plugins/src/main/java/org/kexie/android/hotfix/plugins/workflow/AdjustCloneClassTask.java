@@ -19,6 +19,7 @@ import javassist.CtMethod;
 import javassist.CtNewConstructor;
 import javassist.Modifier;
 import javassist.NotFoundException;
+import javassist.bytecode.AccessFlag;
 import javassist.bytecode.AnnotationsAttribute;
 import javassist.bytecode.ConstPool;
 import javassist.expr.Cast;
@@ -28,7 +29,7 @@ import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
 import javassist.expr.NewExpr;
 
-final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
+final class AdjustCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
 
     private static final int BASE_STRING_BUILDER_SIZE = 64;
 
@@ -45,7 +46,7 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
             for (CloneMapping entry : context.getData()) {
                 CtClass source = entry.source;
                 CtClass clone = entry.clone;
-                List<CtClass> part = fixClass(context, source, clone);
+                List<CtClass> part = adjustClassAndGetInner(context, source, clone);
                 result.add(clone);
                 result.addAll(part);
             }
@@ -55,9 +56,10 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
         }
     }
 
-    private List<CtClass> fixClass(Context context,
-                                   CtClass source,
-                                   CtClass clone)
+    private List<CtClass> adjustClassAndGetInner(
+            Context context,
+            CtClass source,
+            CtClass clone)
             throws NotFoundException, CannotCompileException {
         clone.setSuperclass(context.getClasses().get(Context.OBJECT_SUPER_CLASS_NAME));
         for (CtField field : clone.getDeclaredFields()) {
@@ -66,7 +68,7 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
         List<CtClass> part = new LinkedList<>();
         for (CtMethod method : clone.getDeclaredMethods()) {
             fixAnnotation(method);
-            List<CtClass> classes = fixMethod(context, source, clone, method);
+            List<CtClass> classes = adjustMethodAndGetInner(context, source, clone, method);
             part.addAll(classes);
         }
         clone.addConstructor(CtNewConstructor.make("public " +
@@ -75,10 +77,11 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
     }
 
 
-    private List<CtClass> fixMethod(Context context,
-                                    CtClass source,
-                                    CtClass clone,
-                                    CtMethod cloneMethod)
+    private List<CtClass> adjustMethodAndGetInner(
+            Context context,
+            CtClass source,
+            CtClass clone,
+            CtMethod cloneMethod)
             throws CannotCompileException {
         boolean isInStatic = Modifier.isStatic(cloneMethod.getModifiers());
         MethodTransform transform = new MethodTransform(isInStatic, clone, source, context);
@@ -117,8 +120,7 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
     }
 
     private static void
-    setAnnotations(CtMember member,
-                   AnnotationsAttribute attribute) {
+    setAnnotations(CtMember member, AnnotationsAttribute attribute) {
         if (member instanceof CtField) {
             ((CtField) member)
                     .getFieldInfo()
@@ -147,10 +149,15 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
         return false;
     }
 
+    private static boolean isSynthetic(int mod) {
+        return (mod & AccessFlag.SYNTHETIC) != 0;
+    }
+
     /**
      * 使用typeOf时一定要先用此函数检查是否为基本类型或者其数组
      */
-    private static boolean isPrimitiveOrPrimitiveArray(CtClass clazz) throws NotFoundException {
+    private static boolean isPrimitiveOrPrimitiveArray(CtClass clazz)
+            throws NotFoundException {
         if (clazz.isPrimitive()) {
             return true;
         }
@@ -262,7 +269,6 @@ final class FixCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
                     isInner = isLambda = declaringClass.getSimpleName()
                             .startsWith(Context.LAMBDA_CLASS_NAME_PREFIX);
                 }
-
 
 
                 boolean isDirect;
