@@ -24,32 +24,32 @@ final class ReflectEngine extends ExecutionEngine {
      * 使用默认{@link ClassLoader}加载类
      */
     @Override
-    public Class typeOf(String name) throws Throwable {
+    Class typeOf(String name) throws Throwable {
         return Class.forName(name);
     }
 
     @Override
-    public final Object newInstance(Class<?> type,
-                                    Class[] pramTypes,
-                                    Object[] prams)
+    final Object newInstance(Class<?> type,
+                             Class[] pramTypes,
+                             Object[] prams)
             throws Throwable {
         return ReflectFinder.findConstructor(type, pramTypes)
                 .newInstance(prams);
     }
 
     @Override
-    public void modify(Class type,
-                       String name,
-                       Object target,
-                       Object newValue)
+    void modify(Class type,
+                String name,
+                Object target,
+                Object newValue)
             throws Throwable {
         ReflectFinder.findField(type, name)
                 .set(target, newValue);
     }
 
-    public Object access(Class type,
-                         String name,
-                         Object target
+    Object access(Class type,
+                  String name,
+                  Object target
     ) throws Throwable {
         return ReflectFinder.findField(type, name)
                 .get(target);
@@ -64,17 +64,18 @@ final class ReflectEngine extends ExecutionEngine {
      * @param nonVirtual 是否为非虚调用
      */
     @Override
-    public Object invoke(boolean nonVirtual,
-                         Class type,
-                         String name,
-                         Class[] pramTypes,
-                         Object target,
-                         Object[] prams) throws Throwable {
+    Object invoke(boolean nonVirtual,
+                  Class type,
+                  String name,
+                  Class[] pramTypes,
+                  Object target,
+                  Object[] prams) throws Throwable {
         Method method = ReflectFinder.findMethod(type, name, pramTypes);
         int modifiers = method.getModifiers();
         if (nonVirtual) {
             //非虚方法调用时,应该满足以下条件
-            if (!Modifier.isFinal(modifiers) && !Modifier.isStatic(modifiers)
+            if (!Modifier.isFinal(modifiers)
+                    && !Modifier.isStatic(modifiers)
                     && !Modifier.isAbstract(modifiers)
                     && !Modifier.isPrivate(modifiers)) {
                 Class returnType = method.getReturnType();
@@ -102,5 +103,4 @@ final class ReflectEngine extends ExecutionEngine {
                      Object object,
                      Object[] prams
     ) throws Throwable;
-
 }

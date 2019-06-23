@@ -1,19 +1,18 @@
 package org.kexie.android.hotfix.internal;
 
 import java.util.WeakHashMap;
-import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 final class RedirectTable {
-    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final WeakHashMap<Object, RedirectTarget> overloadObjects = new WeakHashMap<>();
     private final Class overloadType;
 
-    RedirectTable(Class overloadType) {
-        this.overloadType = overloadType;
+    RedirectTable(Class type) {
+        this.overloadType = type;
     }
 
-    Class getOverloadType() {
+    Class getType() {
         return overloadType;
     }
 
@@ -28,7 +27,7 @@ final class RedirectTable {
         }
     }
 
-    RedirectTarget get(Object o) {
+    RedirectTarget getTarget(Object o) {
         readWriteLock.readLock().lock();
         RedirectTarget redirectTarget = overloadObjects.get(o);
         readWriteLock.readLock().unlock();

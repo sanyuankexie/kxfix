@@ -16,12 +16,12 @@ class DegradableExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public Class typeOf(String name) throws Throwable {
+     Class typeOf(String name) throws Throwable {
         return lowLevel.typeOf(name);
     }
 
     @Override
-    public Object invoke(boolean nonVirtual,
+     Object invoke(boolean nonVirtual,
                          Class type,
                          String name,
                          Class[] pramsTypes,
@@ -32,7 +32,7 @@ class DegradableExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public Object access(Class type,
+     Object access(Class type,
                          String name,
                          Object target)
             throws Throwable {
@@ -40,7 +40,7 @@ class DegradableExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public void modify(Class type,
+     void modify(Class type,
                        String name,
                        Object target,
                        Object newValue)
@@ -49,7 +49,7 @@ class DegradableExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public Object newInstance(Class<?> type,
+     Object newInstance(Class<?> type,
                               Class[] pramTypes,
                               Object[] prams)
             throws Throwable {

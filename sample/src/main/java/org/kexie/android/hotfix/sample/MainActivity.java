@@ -33,8 +33,11 @@ public class MainActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView = findViewById(R.id.text);
+
+        TestInterface testInterface = new TestInterface() {};
+        testInterface.test();
         View.OnClickListener v1 = v -> {
-            textView.setText("12312");
+            Runnable r=()-> textView.setText("12312");
         };
         View.OnClickListener v2 = v -> {
             System.out.println("asdas");

@@ -4,8 +4,6 @@ import android.content.Context;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 
-import java.lang.reflect.Constructor;
-
 import androidx.annotation.Keep;
 
 /**
@@ -13,15 +11,11 @@ import androidx.annotation.Keep;
  */
 @Keep
 final class HotfixEngine
-        extends CodeScopeManager
+        extends DomainManageEngine
         implements Hooker,
         PatchLoader {
 
     static final HotfixEngine INSTANCE = new HotfixEngine();
-
-    private static final String CODE_SCOPE_TYPE_NAME
-            = "org.kexie.android.hotfix.internal.Overload$CodeScope";
-
 
     private HotfixEngine() {
         super(new ReflectEngine());
@@ -33,34 +27,31 @@ final class HotfixEngine
                 .getDir("hotfix", Context.MODE_PRIVATE)
                 .getAbsolutePath();
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        classLoader = new CodeScopeClassLoader(path, cacheDir, classLoader);
-        Class<?> clazz = classLoader.loadClass(CODE_SCOPE_TYPE_NAME);
-        Constructor<?> constructor = clazz.getConstructor();
-        constructor.setAccessible(true);
-        CodeScope codeScope = (CodeScope) constructor.newInstance();
-        codeScope.loadClasses(this);
-        apply(codeScope);
+        classLoader = new DomainClassLoader(path, cacheDir, classLoader);
+        Domain domain = ((DomainClassLoader) classLoader).getDomain();
+        domain.loadClasses(this);
+        apply(domain);
     }
 
     @Override
     public final Object hook(ProceedingJoinPoint joinPoint) throws Throwable {
-        CodeScope codeScope = this.codeScope;
-        return codeScope != null
-                ? codeScope.dispatchInvoke(joinPoint)
+        Domain domain = this.domain;
+        return domain != null
+                ? domain.dispatchInvoke(joinPoint)
                 : joinPoint.proceed();
     }
 
     @Override
-    public final Class typeOf(String name) throws Throwable {
-        CodeScope codeScope = this.codeScope;
-        if (codeScope != null) {
-            return Class.forName(name, false, codeScope.getClassLoader());
+    final Class typeOf(String name) throws Throwable {
+        Domain domain = this.domain;
+        if (domain != null) {
+            return Class.forName(name, false, domain.getClassLoader());
         }
         return super.typeOf(name);
     }
 
     @Override
-    public final Object invoke(
+    final Object invoke(
             boolean nonVirtual,
             Class type,
             String name,
@@ -68,35 +59,35 @@ final class HotfixEngine
             Object target,
             Object[] prams)
             throws Throwable {
-        CodeScope codeScope = this.codeScope;
-        return codeScope == null ? super.invoke(nonVirtual, type, name, pramsTypes, target, prams)
-                : codeScope.dispatchInvoke(nonVirtual, type, name, pramsTypes, target, prams);
+        Domain domain = this.domain;
+        return domain == null ? super.invoke(nonVirtual, type, name, pramsTypes, target, prams)
+                : domain.dispatchInvoke(nonVirtual, type, name, pramsTypes, target, prams);
     }
 
     @Override
-    public final Object access(
+    final Object access(
             Class type,
             String name,
             Object target)
             throws Throwable {
-        CodeScope codeScope = this.codeScope;
-        return codeScope == null
+        Domain domain = this.domain;
+        return domain == null
                 ? super.access(type, name, target)
-                : codeScope.dispatchAccess(type, name, target);
+                : domain.dispatchAccess(type, name, target);
     }
 
     @Override
-    public final void modify(
+    final void modify(
             Class type,
             String name,
             Object target,
             Object newValue)
             throws Throwable {
-        CodeScope codeScope = this.codeScope;
-        if (codeScope == null) {
+        Domain domain = this.domain;
+        if (domain == null) {
             super.modify(type, name, target, newValue);
         } else {
-            codeScope.dispatchModify(type, name, target, newValue);
+            domain.dispatchModify(type, name, target, newValue);
         }
     }
 }

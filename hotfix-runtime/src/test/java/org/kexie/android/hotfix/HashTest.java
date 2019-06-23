@@ -7,6 +7,7 @@ package org.kexie.android.hotfix;
  */
 
 public class HashTest {
+    public void test() {
 
-
+    }
 }

@@ -4,6 +4,7 @@ import androidx.annotation.Keep;
 import androidx.annotation.RestrictTo;
 
 @Keep
+@SuppressWarnings("WeakerAccess")
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public final class Intrinsics {
 

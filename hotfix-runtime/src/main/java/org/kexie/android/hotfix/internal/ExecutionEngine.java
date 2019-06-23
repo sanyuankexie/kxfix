@@ -9,29 +9,29 @@ import androidx.annotation.Keep;
 @Keep
 abstract class ExecutionEngine {
 
-    public abstract Class typeOf(String name)
+    abstract Class typeOf(String name)
             throws Throwable;
 
-    public abstract Object invoke(boolean nonVirtual,
-                                  Class type,
-                                  String name,
-                                  Class[] pramsTypes,
-                                  Object target,
-                                  Object[] prams)
+    abstract Object invoke(boolean nonVirtual,
+                           Class type,
+                           String name,
+                           Class[] pramsTypes,
+                           Object target,
+                           Object[] prams)
             throws Throwable;
 
-    public abstract Object access(Class type,
-                                  String name,
-                                  Object target)
+    abstract Object access(Class type,
+                           String name,
+                           Object target)
             throws Throwable;
 
-    public abstract void modify(Class type,
-                                String name,
-                                Object target,
-                                Object newValue)
+    abstract void modify(Class type,
+                         String name,
+                         Object target,
+                         Object newValue)
             throws Throwable;
 
-    public abstract Object newInstance(
+    abstract Object newInstance(
             Class<?> type,
             Class[] pramTypes,
             Object[] prams)
