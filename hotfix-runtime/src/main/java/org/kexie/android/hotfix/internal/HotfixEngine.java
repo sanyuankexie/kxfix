@@ -2,9 +2,9 @@ package org.kexie.android.hotfix.internal;
 
 import android.content.Context;
 
-import org.aspectj.lang.ProceedingJoinPoint;
-
 import androidx.annotation.Keep;
+
+import org.aspectj.lang.ProceedingJoinPoint;
 
 /**
  * 动态化

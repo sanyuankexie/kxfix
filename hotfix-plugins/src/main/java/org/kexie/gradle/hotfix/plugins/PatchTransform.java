@@ -30,7 +30,7 @@ public class PatchTransform extends Transform {
 
     @Override
     public String getName() {
-        return getClass().getSimpleName();
+        return "patch";
     }
 
     @Override

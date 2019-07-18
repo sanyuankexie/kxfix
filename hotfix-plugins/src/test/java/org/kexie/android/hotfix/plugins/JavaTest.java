@@ -5,6 +5,9 @@ import org.junit.Test;
 import java.lang.reflect.Method;
 
 import io.reactivex.functions.Function;
+import javassist.ClassPool;
+import javassist.CtMethod;
+import javassist.bytecode.LocalVariableAttribute;
 
 public class JavaTest implements Function<Object,Object> {
 
@@ -21,6 +24,13 @@ public class JavaTest implements Function<Object,Object> {
 
     @Test
     public void test() throws Throwable {
+        ClassPool pool = ClassPool.getDefault();
+        CtMethod method = pool.get(getClass().getName())
+                .getMethod("test", "()V");
+        LocalVariableAttribute va = (LocalVariableAttribute) method
+                .getMethodInfo().getCodeAttribute()
+                .getAttribute(LocalVariableAttribute.tag);
+        System.out.println(va.variableName(0));
 
     }
 

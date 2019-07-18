@@ -70,7 +70,8 @@ public final class Workflow {
                     }
                     process.waitFor();
                     System.exit(0);
+                }, throwable -> {
+                    throw new RuntimeException("Plugin internal error", throwable);
                 });
-        throw new RuntimeException("Plugin internal error");
     }
 }

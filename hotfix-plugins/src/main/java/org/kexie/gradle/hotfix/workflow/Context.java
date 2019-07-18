@@ -17,6 +17,8 @@ public abstract class Context {
             = "org.kexie.android.hotfix.internal.Domain";
     static final String OBJECT_SUPER_CLASS_NAME
             = "org.kexie.android.hotfix.internal.RedirectTarget";
+
+
     /**
      * 内部指令所使用的工具类名字
      */

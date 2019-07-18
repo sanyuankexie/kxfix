@@ -10,7 +10,6 @@ import java.util.Map;
 import io.reactivex.exceptions.Exceptions;
 import javassist.CannotCompileException;
 import javassist.ClassPool;
-import javassist.CtBehavior;
 import javassist.CtClass;
 import javassist.CtConstructor;
 import javassist.CtField;
@@ -21,13 +20,15 @@ import javassist.Modifier;
 import javassist.NotFoundException;
 import javassist.bytecode.AccessFlag;
 import javassist.bytecode.AnnotationsAttribute;
-import javassist.expr.Cast;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
 import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
-import javassist.expr.NewExpr;
 
+/**
+ * 如果要实现资源热更新就必须要实现一套自己的资源系统
+ * 将int常量引用转换为字符串引用
+ */
 final class AdjustCloneClassTask extends Work<List<CloneMapping>, List<CtClass>> {
 
     private static final int BASE_STRING_BUILDER_SIZE = 64;
@@ -166,6 +167,7 @@ final class AdjustCloneClassTask extends Work<List<CloneMapping>, List<CtClass>>
         return false;
     }
 
+
     private static String checkTarget(CtClass type, String name) {
         return "((" + type.getName() + ")" + Context.UTIL_CLASS_NAME
                 + ".checkArgument(this," + name + "))";
@@ -232,61 +234,62 @@ final class AdjustCloneClassTask extends Work<List<CloneMapping>, List<CtClass>>
             this.context = context;
         }
 
-        @Override
-        public void edit(Cast c) throws CannotCompileException {
-//                super.edit(c);
-        }
+//        @Override
+//        public void edit(Cast c) throws CannotCompileException {
+////                super.edit(c);
+//        }
 
 
         /**
          * 启发式类调整
          * 扫描到类为原方法的内部类时对其进行调整
          */
-        @Override
-        public void edit(NewExpr e) throws CannotCompileException {
-            try {
-                CtConstructor constructor = e.getConstructor();
-                CtClass declaringClass = constructor.getDeclaringClass();
-                boolean isAccessible = Modifier.isPublic(declaringClass.getModifiers());
-                boolean isAdded = declaringClass
-                        .hasAnnotation(Context.OVERLOAD_ANNOTATION);
-                //检查是否为方法内的匿名类
-                boolean isInner;
-                boolean isLambda = false;
-                CtBehavior behavior = declaringClass.getEnclosingBehavior();
-                if (behavior != null && behavior.getDeclaringClass().equals(source)) {
-                    isInner = true;
-                } else {
-                    isInner = isLambda = declaringClass.getSimpleName()
-                            .startsWith(Context.LAMBDA_CLASS_NAME_PREFIX);
-                }
-
-
-                boolean isDirect;
-                if (isAccessible) {
-                    isDirect = true;
-                } else {
-                    //否则至少是跟它同在一个包下的类
-                    if (isAdded) {
-                        //新添加的类型无论如何都是可以被访问的
-                        //包括新添加的内部类
-                        isDirect = true;
-                    } else {
-                        //如果不是新添加的类
-                        //那么他们至少在一个包下
-                        //如果是内部类就要反射
-                        //如果是顶层类就可以直接访问
-
-                    }
-                }
-                StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
-
-                String source = builder.toString();
-                e.replace(source);
-            } catch (NotFoundException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
+//        @Override
+//        public void edit(NewExpr e) throws CannotCompileException {
+//
+//            try {
+//                CtConstructor constructor = e.getConstructor();
+//                CtClass declaringClass = constructor.getDeclaringClass();
+//                boolean isAccessible = Modifier.isPublic(declaringClass.getModifiers());
+//                boolean isAdded = declaringClass
+//                        .hasAnnotation(Context.OVERLOAD_ANNOTATION);
+//                //检查是否为方法内的匿名类
+//                boolean isInner;
+//                boolean isLambda = false;
+//                CtBehavior behavior = declaringClass.getEnclosingBehavior();
+//                if (behavior != null && behavior.getDeclaringClass().equals(source)) {
+//                    isInner = true;
+//                } else {
+//                    isInner = isLambda = declaringClass.getSimpleName()
+//                            .startsWith(Context.LAMBDA_CLASS_NAME_PREFIX);
+//                }
+//
+//
+//                boolean isDirect;
+//                if (isAccessible) {
+//                    isDirect = true;
+//                } else {
+//                    //否则至少是跟它同在一个包下的类
+//                    if (isAdded) {
+//                        //新添加的类型无论如何都是可以被访问的
+//                        //包括新添加的内部类
+//                        isDirect = true;
+//                    } else {
+//                        //如果不是新添加的类
+//                        //那么他们至少在一个包下
+//                        //如果是内部类就要反射
+//                        //如果是顶层类就可以直接访问
+//
+//                    }
+//                }
+//                StringBuilder builder = new StringBuilder(BASE_STRING_BUILDER_SIZE);
+//
+//                String source = builder.toString();
+//                e.replace(source);
+//            } catch (NotFoundException ex) {
+//                throw new RuntimeException(ex);
+//            }
+//        }
 
         @Override
         public void edit(MethodCall m) throws CannotCompileException {
