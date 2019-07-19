@@ -22,10 +22,7 @@ final class HotfixEngine
     }
 
     @Override
-    public final void load(Context context, String path) throws Throwable {
-        String cacheDir = context.getApplicationContext()
-                .getDir("hotfix", Context.MODE_PRIVATE)
-                .getAbsolutePath();
+    public final void load(String cacheDir, String path) throws Throwable {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         classLoader = new DomainClassLoader(path, cacheDir, classLoader);
         Domain domain = ((DomainClassLoader) classLoader).getDomain();

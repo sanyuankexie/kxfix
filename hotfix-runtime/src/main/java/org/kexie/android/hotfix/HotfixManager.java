@@ -1,37 +1,53 @@
 package org.kexie.android.hotfix;
 
+import android.app.Application;
 import android.content.Context;
-import android.os.Handler;
-import android.os.HandlerThread;
 
 import androidx.annotation.Keep;
-import androidx.annotation.MainThread;
 
 import org.kexie.android.hotfix.internal.PatchLoader;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Keep
 public final class HotfixManager {
 
-    private final HandlerThread workThread;
-    private final Handler handler;
+    private static HotfixManager instance;
 
-    public HotfixManager() {
-        workThread = new HandlerThread("Patch Loader Thread");
-        workThread.start();
-        handler = new Handler(workThread.getLooper());
+    private final Application context;
+
+    private final ExecutorService singleTask;
+
+    private HotfixManager(Context context) {
+        this.context = (Application) context.getApplicationContext();
+        singleTask = Executors.newSingleThreadExecutor();
     }
 
-    @MainThread
-    public void load(final Context context, final String path) {
-        handler.post(new Runnable() {
+    public void load(final String path) {
+        singleTask.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    PatchLoader.INSTANCE.load(context, path);
+                    String cacheDir = context
+                            .getDir("hotfix", Context.MODE_PRIVATE)
+                            .getAbsolutePath();
+                    PatchLoader.INSTANCE.load(cacheDir, path);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
             }
         });
+    }
+
+    public static HotfixManager getInstance(Context context) {
+        if (instance == null) {
+            synchronized (HotfixManager.class) {
+                if (instance == null) {
+                    instance = new HotfixManager(context);
+                }
+            }
+        }
+        return instance;
     }
 }

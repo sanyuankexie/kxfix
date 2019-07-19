@@ -12,7 +12,7 @@ import androidx.annotation.RestrictTo;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public interface PatchLoader {
 
-    void load(Context context, String path) throws Throwable;
+    void load(String cacheDir, String path) throws Throwable;
 
     PatchLoader INSTANCE = HotfixEngine.INSTANCE;
 }

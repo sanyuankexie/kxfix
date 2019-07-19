@@ -53,14 +53,14 @@ public class MainActivity
     @Override
     public void onClick(View v) {
         if (R.id.testButton == v.getId()) {
-            //start();
-            Toast.makeText(this, "打开界面出错", Toast.LENGTH_SHORT).show();
+            start();
+            //Toast.makeText(this, "打开界面出错", Toast.LENGTH_SHORT).show();
         } else if (R.id.load == v.getId()) {
             File file = getDir("cache", MODE_PRIVATE);
             file = new File(file, "classes-dex.jar");
             if (ResourceUtils.copyFileFromAssets("classes-dex.jar",
                     file.getAbsolutePath())) {
-                new HotfixManager().load(getApplicationContext(), file.getAbsolutePath());
+                HotfixManager.getInstance(this).load(file.getAbsolutePath());
             } else {
                 Toast.makeText(this, "拷贝失败", Toast.LENGTH_SHORT).show();
             }
