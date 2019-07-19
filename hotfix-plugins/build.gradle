@@ -8,7 +8,7 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     //gradle apis
-    implementation 'com.android.tools.build:gradle:3.4.1'
+    implementation 'com.android.tools.build:gradle:3.4.2'
     //基于aspectjx插粧
     implementation 'com.hujiang.aspectjx:gradle-android-plugin-aspectjx:2.0.5'
     //dx

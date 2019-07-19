@@ -52,11 +52,6 @@ public class PatchTransform extends Transform {
     }
 
     @Override
-    public boolean isCacheable() {
-        return true;
-    }
-
-    @Override
     public boolean isIncremental() {
         return false;
     }

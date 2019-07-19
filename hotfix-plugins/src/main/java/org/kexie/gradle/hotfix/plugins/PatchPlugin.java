@@ -13,7 +13,7 @@ public class PatchPlugin implements Plugin<Project> {
     public void apply(Project project) {
         if (project.getPlugins().hasPlugin(BenchmarkPlugin.class)) {
             throw new IllegalStateException("请注释或移除\"apply plugin " +
-                    ": 'org.kexie.android.hotfix.baseline'\"后重试");
+                    ": 'org.kexie.gradle.hotfix.benchmark'\"后重试");
         }
         if (project.getPlugins().hasPlugin(AppPlugin.class)) {
             AppExtension android = project.getExtensions().getByType(AppExtension.class);

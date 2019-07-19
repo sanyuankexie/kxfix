@@ -13,7 +13,7 @@ public class BenchmarkPlugin implements Plugin<Project> {
     public void apply(Project project) {
         if (project.getPlugins().hasPlugin(PatchPlugin.class)) {
             throw new IllegalStateException("请注释或移除\"apply plugin " +
-                    ": 'org.kexie.android.hotfix.patch'\"后重试");
+                    ": 'org.kexie.gradle.hotfix.patch'\"后重试");
         }
         if (project.getPlugins().hasPlugin(AppPlugin.class)
                 && !project.getPlugins().hasPlugin(AJXPlugin.class)) {

@@ -63,8 +63,10 @@ public final class Workflow {
                 .subscribe(file -> {
                     String os = System.getProperty("os.name");
                     Process process;
-                    if (os.toLowerCase().startsWith("win")) {
+                    if (os.toLowerCase().contains("win")) {
                         process = Runtime.getRuntime().exec("explorer " + file.getAbsolutePath());
+                    } else if (os.toLowerCase().contains("mac")) {
+                        process = Runtime.getRuntime().exec("open " + file.getAbsolutePath());
                     } else {
                         process = Runtime.getRuntime().exec("nautilus " + file.getAbsolutePath());
                     }
