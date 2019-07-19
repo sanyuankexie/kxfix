@@ -7,11 +7,14 @@ import androidx.annotation.Keep;
 
 import org.kexie.android.hotfix.internal.PatchLoader;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @Keep
 public final class HotfixManager {
+
+    private static final String HOTFIX = "hotfix";
 
     private static HotfixManager instance;
 
@@ -26,13 +29,13 @@ public final class HotfixManager {
 
     public void load(final String path) {
         singleTask.execute(new Runnable() {
+            @SuppressWarnings("ResultOfMethodCallIgnored")
             @Override
             public void run() {
                 try {
-                    String cacheDir = context
-                            .getDir("hotfix", Context.MODE_PRIVATE)
-                            .getAbsolutePath();
-                    PatchLoader.INSTANCE.load(cacheDir, path);
+                    File cacheDir = new File(context.getCacheDir(), HOTFIX);
+                    cacheDir.mkdirs();
+                    PatchLoader.INSTANCE.load(cacheDir.getAbsolutePath(), path);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
